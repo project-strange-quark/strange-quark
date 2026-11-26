@@ -103,8 +103,12 @@ jobs:
           sudo apt-get install -y --no-install-recommends chromium-browser fonts-dejavu-core fonts-liberation || \
           sudo apt-get install -y --no-install-recommends chromium fonts-dejavu-core fonts-liberation
 
-      - name: Install workspace dependencies
-        run: timeout 180 npm ci || timeout 180 npm install
+      # Build before testing, as scripts/check.mjs does: the strange-quark
+      # package's staging tests read @strange-quark/vite-plugin's dist/.
+      - name: Install and build workspace dependencies
+        run: |
+          timeout 180 npm ci || timeout 180 npm install
+          timeout 180 npm run build --workspaces --if-present
 
       - name: Cache the pinned Playwright Chromium
         uses: actions/cache@v4
