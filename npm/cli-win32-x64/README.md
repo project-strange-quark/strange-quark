@@ -34,4 +34,5 @@ npm install -D strange-quark @strange-quark/cli-win32-x64
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT — see [LICENSE](./LICENSE). The binaries include third-party software;
+[THIRD_PARTY_NOTICES.txt](./THIRD_PARTY_NOTICES.txt) lists it with its licences.

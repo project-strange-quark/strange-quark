@@ -175,6 +175,23 @@ export function runSmokeTest({
       throw new Error(`Installed platform package is missing squark or squark-runtime in ${installedBinDir}`);
     }
 
+    // The licences of the bundled third-party software ship beside the
+    // binaries, and the runtime, which every built app carries, prints them.
+    const installedNotices = path.join(installedBinDir, "..", "THIRD_PARTY_NOTICES.txt");
+    if (!fs.existsSync(installedNotices)) {
+      throw new Error(`Installed platform package is missing ${installedNotices}`);
+    }
+    const printed = spawnSync(installedRuntime, ["--third-party-notices"], {
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+      timeout: 60_000,
+    });
+    if (printed.status !== 0 || printed.stdout !== fs.readFileSync(installedNotices, "utf8")) {
+      throw new Error(
+        `squark-runtime --third-party-notices (status ${printed.status}) did not print THIRD_PARTY_NOTICES.txt:\n${printed.stderr}`,
+      );
+    }
+
     const webDir = path.join(projectDir, "web");
     fs.mkdirSync(webDir, { recursive: true });
     fs.writeFileSync(

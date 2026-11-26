@@ -125,6 +125,7 @@ export function expectedFilesForPlatform(target) {
   return [
     "LICENSE",
     "README.md",
+    "THIRD_PARTY_NOTICES.txt",
     `bin/squark${target.exeSuffix}`,
     `bin/squark-runtime${target.exeSuffix}`,
     "package.json",

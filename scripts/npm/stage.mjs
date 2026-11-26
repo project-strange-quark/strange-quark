@@ -72,6 +72,9 @@ export function stagePackages({
 } = {}) {
   const hostTarget = hostPlatformTarget(hostPlatform, hostArch);
   const rootLicense = fs.readFileSync(path.join(repoRoot, "LICENSE"), "utf8");
+  // The licences of the third-party software in the binaries (see
+  // scripts/notices/README.md), shipped beside them in each platform package.
+  const notices = fs.readFileSync(path.join(repoRoot, "THIRD_PARTY_NOTICES.txt"), "utf8");
 
   const mainPkg = JSON.parse(
     fs.readFileSync(path.join(repoRoot, "packages/strange-quark/package.json"), "utf8"),
@@ -150,6 +153,7 @@ export function stagePackages({
     fs.writeFileSync(path.join(outDir, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
     fs.copyFileSync(path.join(srcDir, "README.md"), path.join(outDir, "README.md"));
     fs.writeFileSync(path.join(outDir, "LICENSE"), rootLicense);
+    fs.writeFileSync(path.join(outDir, "THIRD_PARTY_NOTICES.txt"), notices);
 
     const binDir = path.join(outDir, "bin");
     fs.rmSync(binDir, { recursive: true, force: true });

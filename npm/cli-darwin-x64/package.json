@@ -36,7 +36,8 @@
   "files": [
     "bin/",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.txt"
   ],
   "exports": {
     "./package.json": "./package.json",
