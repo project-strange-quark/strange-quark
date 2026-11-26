@@ -8342,21 +8342,6 @@ SOFTWARE.
 ================================================================================
 MIT License
 Used by:
-  squark-assets 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-canvas 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-cli 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-compositor 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-gpu 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-host 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-journal 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-js 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-layout 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-mirror 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-net 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-paint 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-style 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-text 0.0.0 <https://github.com/project-strange-quark/strange-quark>
-  squark-types 0.0.0 <https://github.com/project-strange-quark/strange-quark>
   block2 0.5.1 <https://github.com/madsmtm/objc2>
   block2 0.6.2 <https://github.com/madsmtm/objc2>
   brotli-decompressor 5.0.3 <https://github.com/dropbox/rust-brotli-decompressor>
