@@ -6,40 +6,39 @@ agents alike.
 ## What the project is
 
 Strange Quark runs unmodified React apps, react-dom included, as native apps
-with no WebView. v0.1.0 turns upstream **Excalidraw v0.18.1** into a single
-native Linux binary without changing a line of Excalidraw's source.
+with no WebView. v0.1.0 turns upstream **Excalidraw v0.18.1** into a native
+app on Linux, macOS and Windows without changing a line of Excalidraw's
+source.
 
 [docs/architecture.md](docs/architecture.md) is the design. Follow it. Where
-it turns out to be wrong or silent, don't decide alone: write down the
-problem and the options, and ask the maintainer.
+it turns out to be wrong or silent, don't decide alone: open an issue that
+describes the problem and the options.
 
 The supported scope is the desktop: Linux (Wayland and X11, Vulkan), macOS
 12+ (Metal) and Windows 10+ (Direct3D 12), in Compat mode (react-dom on
 squark-dom) on V8. Direct mode, QuickJS-ng, AccessKit, mobile, embedded and the
-web target are out of scope until the project owner says otherwise.
-
-**Coordination notes live outside the repository.** Task briefs, the status
-log, the internal contract between areas, the per-area design notes, the
-decision log and the Excalidraw Web API audit are kept by the maintainer
-outside this repository. Ask the maintainer when a task needs them.
+web target are out of scope for now; open an issue before working on any
+of them.
 
 ## Areas
 
-Each area owns a set of paths. Work in your own area.
+The code is split into areas. Each covers a set of paths, and a commit's
+area prefix names the area it changes. Keep a change within one area where
+you can.
 
-| Area | Owns |
+| Area | Paths |
 | --- | --- |
 | dom | `packages/@strange-quark/dom` (the JavaScript DOM, events, CSSOM, observers, timers, History and every Web API facade, including Canvas 2D's recorder, FontFace, storage, crypto, clipboard and files, and the journal encoder); `crates/squark-js` (the V8 embedding, module loader, event loop, `__squark` bindings, structuredClone); `crates/squark-journal`; `crates/squark-net` |
 | engine | `crates/squark-mirror`, `crates/squark-style`, `crates/squark-layout`, `crates/squark-text`, `crates/squark-assets`, and code forked from Blitz |
 | gpu | `crates/squark-paint`, `crates/squark-compositor`, `crates/squark-gpu` (with `shaders/*.wgsl`), `crates/squark-canvas`, `crates/squark-host` (with the `squark-runtime` binary that wires the areas together) |
-| tools | `crates/squark-cli`, `packages/strange-quark`, `packages/@strange-quark/vite-plugin`, `npm/` (the per-platform binary packages), `tests/`, `apps/`, `vendor/`, `.github/`, `scripts/`, `deny.toml` |
-| maintainer | `README.md`, `CONTRIBUTING.md`, `LICENSE`, `NOTICE`, `AGENTS.md`, `docs/`, `skills/`, the root `Cargo.toml` and `package.json`, `rust-toolchain.toml` |
+| tools | `crates/squark-cli`, `packages/strange-quark`, `packages/@strange-quark/vite-plugin`, `npm/` (the per-platform binary packages), `tests/`, `apps/`, `vendor/`, `.github/`, `scripts/`, `deny.toml`, the root `Cargo.toml` and `package.json`, `rust-toolchain.toml` |
+| docs | `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `NOTICE`, `AGENTS.md`, `docs/`, `skills/` |
 
 **Shared types.** `crates/squark-types` holds one module per seam between
-areas. A module's owner may change it when the area on the other side of
-the seam agrees, and the commit body names that area.
+areas. A change to a module affects both sides of its seam: the commit body
+says how it affects the other area, and review covers both.
 
-| Module | Owner | Must agree |
+| Module | Area | Other side |
 | --- | --- | --- |
 | `journal` | dom | engine |
 | `fragment` | engine | gpu |
@@ -47,16 +46,16 @@ the seam agrees, and the commit body names that area.
 | `render` | gpu | engine, dom |
 | `host` | gpu | dom |
 | `pack` | tools | engine |
-| `id`, `geometry`, `scroll`, and the rest of the crate | maintainer | — |
+| `id`, `geometry`, `scroll`, and the rest of the crate | shared | all |
 
-**Wiring.** Outside your area, make only wiring changes: adding your crate
-to `[workspace.dependencies]`, one call site, or one line in a list. Put
-each in its own small commit and mention it. Anything larger is a request
-to the area's owner, through the maintainer.
+**Wiring.** When a change needs a small edit in another area to connect it
+(adding a crate to `[workspace.dependencies]`, one call site, or one line in
+a list), put that edit in its own small commit. A larger change to another
+area is its own pull request.
 
-**Blockers.** When another area's code blocks you, don't work around it
-inside that area. Build against a stub in your own area, and say exactly
-what you need.
+**Blockers.** When another area's code blocks a change, don't work around
+it inside that area. Build against a stub in your own area, and open an
+issue that says exactly what you need.
 
 ## Languages and code
 
@@ -68,7 +67,7 @@ what you need.
   named-pipe transport of its test-control channel (Win32 calls std does
   not wrap). Every `unsafe` block or `unsafe fn` impl carries a
   `// SAFETY:` comment. Prefer a maintained safe crate, `bytemuck` and safe
-  wgpu APIs; a new opt-in needs the maintainer's agreement.
+  wgpu APIs; a new opt-in needs agreement in an issue first.
 - **TypeScript** (strict) for packages, shipped as ESM. squark-dom must run
   unbundled both in Node, for its own tests, and in squark-js.
 - **No new C or C++** beyond what a crate's build already pulls in, such as
@@ -101,7 +100,7 @@ these rules.
   browser that lacks the feature, so the app's fallback path runs.
 - **Chromium is the reference.** Behaviour and pixels are compared against
   the pinned Chromium (`scripts/chromium-path.mjs`). A deliberate difference
-  is the maintainer's call.
+  needs agreement in an issue first.
 
 ## Building and testing
 
@@ -133,14 +132,13 @@ these rules.
   `timeout`, as on macOS and Windows): windows, Chromium, dev servers, GPU
   tests and watchers. Prefer headless runs, keep
   windows short-lived, and leave no process running when you stop.
-- **No root.** Install tools for your user only.
 - **Commits.** The message is `area: lowercase imperative summary`, where
   the area is `dom`, `engine`, `gpu`, `tools` or `docs`, followed by a body
   that says why. One topic per commit. **No `Co-Authored-By`,
   `Generated-with`, `Assisted-by` or similar trailers.**
-- **Pushing.** Before pushing, `git pull --rebase` and run the checks your
-  change touches. Never force-push, rewrite pushed history, or delete
-  branches or tags.
-- **Reporting.** End each piece of work with a short summary: the commits,
-  the evidence (test output or screenshot paths), what comes next, and
-  anything blocked or needing a decision.
+- **Pull requests.** Rebase on `main` and run the checks your change
+  touches before you open or update one. Never force-push `main`, rewrite
+  its history, or delete shared branches or tags.
+- **Pull request descriptions.** Say what changed and why, give the
+  evidence (test output or screenshot paths), and list anything left open
+  or needing a decision.
