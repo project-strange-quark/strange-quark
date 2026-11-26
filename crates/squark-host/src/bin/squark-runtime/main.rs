@@ -17,7 +17,7 @@ use squark_host::{
 };
 
 #[derive(Debug, Parser)]
-#[command(name = "squark-runtime")]
+#[command(name = "squark-runtime", version)]
 struct Args {
     /// Standalone pack or executable with a pack trailer. Defaults to this
     /// executable. An app bundle, or the executable inside one, runs the
