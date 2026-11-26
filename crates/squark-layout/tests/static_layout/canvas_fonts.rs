@@ -783,17 +783,14 @@ fn font_faces_load_packed_blob_and_binary_sources_and_match_ranges() {
             .width
     };
     let family = "20px 'Fixture Face', serif";
-    // The face is Liberation Mono. Where `monospace` is Liberation Mono too
-    // (the Linux and macOS test fonts) both measure the same. Windows maps
-    // `monospace` to Consolas, as pinned Chromium 159.0.8154.6 does there:
-    // it measures "AB" at 24.00 in the face and 21.99 in `monospace`.
-    #[cfg(not(target_os = "windows"))]
-    assert!((measure(family, "AB") - measure("20px monospace", "AB")).abs() < 0.01);
+    // The face is Liberation Mono, whose glyphs all advance 0.6 em, so "AB"
+    // measures 24.00 at 20px. Compare with that, not with `monospace`: the
+    // system picks `monospace`, and Ubuntu's fontconfig maps it to DejaVu Sans
+    // Mono (24.08). Windows maps it to Consolas, as pinned Chromium
+    // 159.0.8154.6 does there, and measures 21.99.
+    assert!((measure(family, "AB") - 24.0).abs() < 0.01);
     #[cfg(target_os = "windows")]
-    {
-        assert!((measure(family, "AB") - 24.0).abs() < 0.01);
-        assert!((measure("20px monospace", "AB") - 21.99).abs() < 0.01);
-    }
+    assert!((measure("20px monospace", "AB") - 21.99).abs() < 0.01);
     assert_eq!(measure(family, "Z"), measure("20px serif", "Z"));
 }
 
