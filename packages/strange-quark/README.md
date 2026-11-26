@@ -39,6 +39,10 @@ The app's build command runs automatically. By default, output is under the app'
 
 Replace `my-app` with the app name. On macOS, you can also run `dist/my-app.app/Contents/MacOS/my-app` directly.
 
+### Distributing your app
+
+A built app contains the Strange Quark runtime, which includes third-party software (V8, Stylo and others) whose licences require their notices to travel with it. Ship them alongside the app: `./dist/my-app --third-party-notices > THIRD_PARTY_NOTICES.txt` writes them on Linux, and the same flag works on the macOS executable (`dist/my-app.app/Contents/MacOS/my-app`) and on Windows (`.\dist\my-app.exe` in PowerShell). The installed `@strange-quark/cli-<os>-<cpu>` package also holds the file as `THIRD_PARTY_NOTICES.txt`.
+
 ## Live development
 
 Install `@strange-quark/vite-plugin` and run:

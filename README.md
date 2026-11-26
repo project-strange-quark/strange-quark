@@ -145,6 +145,21 @@ export default defineConfig({
 });
 ```
 
+### Distributing your app
+
+A built app contains the Strange Quark runtime, which includes third-party
+software (V8, Stylo and others) whose licences require their notices to
+travel with it. The app prints them itself; ship the file alongside the app:
+
+```sh
+./dist/my-app --third-party-notices > THIRD_PARTY_NOTICES.txt                         # Linux
+dist/my-app.app/Contents/MacOS/my-app --third-party-notices > THIRD_PARTY_NOTICES.txt  # macOS
+```
+
+On Windows, run `.\dist\my-app.exe --third-party-notices > THIRD_PARTY_NOTICES.txt`
+in PowerShell. The same file is in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt)
+and in each `@strange-quark/cli-<os>-<cpu>` npm package.
+
 ## Excalidraw
 
 Upstream **Excalidraw v0.18.1** (`a2ec2889`, zero source patches to
@@ -258,4 +273,6 @@ commit history.
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE). Third-party code is listed in [NOTICE](NOTICE).
+MIT. See [LICENSE](LICENSE). Third-party code in this repository is listed in
+[NOTICE](NOTICE), and the third-party software in the shipped binaries, with
+its licences, in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
