@@ -36,8 +36,10 @@ jobs:
           # the binaries it built.
           - { id: darwin-arm64, runner: macos-15, triple: aarch64-apple-darwin, smoke: true }
           - { id: darwin-x64, runner: macos-15, triple: x86_64-apple-darwin, smoke: false }
-          - { id: linux-x64, runner: ubuntu-24.04, triple: x86_64-unknown-linux-gnu, smoke: true }
-          - { id: linux-arm64, runner: ubuntu-24.04-arm, triple: aarch64-unknown-linux-gnu, smoke: true }
+          # Linux builds on Ubuntu 22.04, so the binaries need glibc 2.35 at
+          # most (Ubuntu 22.04, Debian 12 and newer); see the glibc check.
+          - { id: linux-x64, runner: ubuntu-22.04, triple: x86_64-unknown-linux-gnu, smoke: true }
+          - { id: linux-arm64, runner: ubuntu-22.04-arm, triple: aarch64-unknown-linux-gnu, smoke: true }
           - { id: win32-x64, runner: windows-2025, triple: x86_64-pc-windows-msvc, smoke: true }
           - { id: win32-arm64, runner: windows-11-arm, triple: aarch64-pc-windows-msvc, smoke: true }
     runs-on: ${{ matrix.runner }}
@@ -68,6 +70,15 @@ jobs:
 
       - name: Build the stripped binaries
         run: cargo build --locked --profile dist --target ${{ matrix.triple }} -p squark-cli --bin squark -p squark-host --bin squark-runtime
+
+      - name: Check the newest glibc the Linux binaries need
+        if: runner.os == 'Linux'
+        run: |
+          for bin in squark squark-runtime; do
+            need="$(objdump -T "target/${{ matrix.triple }}/dist/$bin" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)"
+            echo "$bin needs ${need:-no versioned glibc symbols}"
+            printf '%s\n' "${need#GLIBC_}" 2.35 | sort -V -C || { echo "::error::$bin needs $need, newer than the documented 2.35"; exit 1; }
+          done
 
       - name: Smoke-test the npm install
         if: matrix.smoke
