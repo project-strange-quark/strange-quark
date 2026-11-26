@@ -28,7 +28,10 @@ licence texts, OFL-*.txt:
 
 web-platform-tests contributors, used under the 3-Clause BSD licence.
 Commit f4d3f2eba09697ebcb2f338b8f2d709a3ce85217.
-Unmodified DOM test files and their licence are in tests/wpt/vendor/.
+Unmodified DOM test files and their licence are in tests/wpt/vendor/, and
+the Canvas 2D subset with a copy of the licence is in tests/wpt/canvas/vendor/.
+Its test font, tests/wpt/canvas/vendor/fonts/CanvasTest.ttf, is
+Copyright (c) 2010 Philip Taylor, under the MIT licence.
 
 Code copied into the repository gets an entry here in the commit that brings
 it in (see AGENTS.md, "Licences").

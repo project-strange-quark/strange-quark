@@ -7,7 +7,9 @@ revision as the DOM subset:
 [f4d3f2eba09697ebcb2f338b8f2d709a3ce85217](https://github.com/web-platform-tests/wpt/tree/f4d3f2eba09697ebcb2f338b8f2d709a3ce85217).
 
 The files under `vendor/` are **unmodified upstream WPT files**. The
-[BSD 3-Clause licence](../vendor/LICENSE.md) applies to them.
+[BSD 3-Clause licence](vendor/LICENSE.md) applies to them, except
+`vendor/fonts/CanvasTest.ttf`, which is Copyright (c) 2010 Philip Taylor
+under the MIT licence, as its name table says.
 
 ## What is imported
 
