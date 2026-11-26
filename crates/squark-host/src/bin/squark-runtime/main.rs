@@ -50,11 +50,28 @@ struct Args {
     /// Run an interactive test session without a window.
     #[arg(long, requires = "test_control", conflicts_with_all = ["screenshot", "exit_after_first_frame"])]
     headless: bool,
+    /// Print the licences of the third-party software in this runtime, and so
+    /// in every app built from it, then exit.
+    #[arg(long, exclusive = true)]
+    third_party_notices: bool,
 }
+
+/// THIRD_PARTY_NOTICES.txt, which scripts/notices/generate.mjs writes. It
+/// travels inside every app `squark build` makes from this runtime.
+const THIRD_PARTY_NOTICES: &str = include_str!("../../../../../THIRD_PARTY_NOTICES.txt");
 
 fn main() -> ExitCode {
     squark_host::process_start();
     let args = Args::parse();
+    if args.third_party_notices {
+        // A closed pipe or, for a Windows GUI app run without a redirect, a
+        // missing stdout is not an error worth reporting.
+        let _ = std::io::Write::write_all(
+            &mut std::io::stdout().lock(),
+            THIRD_PARTY_NOTICES.as_bytes(),
+        );
+        return ExitCode::SUCCESS;
+    }
     let automated = args.screenshot || args.test_control.is_some();
     match run(args) {
         Ok(()) => ExitCode::SUCCESS,
