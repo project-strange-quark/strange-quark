@@ -22,15 +22,14 @@ npm install -D strange-quark @strange-quark/vite-plugin
 npx squark dev
 ```
 
-For React Fast Refresh, include the standard React plugin in the app's `vite.config.ts`:
+`squark dev` adds the plugin itself, so you do not list it in `vite.config.ts`. For React Fast Refresh, the app's Vite config needs a React plugin, as create-vite's templates already have:
 
 ```ts
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { strangeQuark } from "@strange-quark/vite-plugin";
+import react from "@vitejs/plugin-react"; // or "@vitejs/plugin-react-swc"
 
 export default defineConfig({
-  plugins: [react(), strangeQuark()],
+  plugins: [react()],
 });
 ```
 

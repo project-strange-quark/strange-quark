@@ -7,7 +7,7 @@ This package provides the `squark` CLI (backed by a platform-specific native bin
 ## Requirements
 
 - Node.js `>=22.18.0` (needed for native ESM and unflagged TypeScript config loading).
-- Prebuilt binaries are available for macOS arm64/x64, Linux glibc arm64/x64, and Windows arm64/x64.
+- Prebuilt binaries are available for macOS arm64/x64, Linux arm64/x64 with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 or later), and Windows arm64/x64.
 
 ## Install
 
@@ -83,10 +83,10 @@ npm install --include=optional -D strange-quark
 
 Alternatively, install the matching `@strange-quark/cli-<os>-<cpu>` package alongside `strange-quark`; the missing-binary error names the expected package for your platform.
 
-## Environment overrides
+## Environment variables
 
-- `SQUARK_BIN`: path to a custom `squark` executable.
-- `SQUARK_RUNTIME_BIN`: path to a custom `squark-runtime` executable.
+- `SQUARK_BIN`: path to a `squark` executable to use when no platform package is installed, such as one built from source. An installed platform package takes precedence.
+- `SQUARK_RUNTIME_BIN`: path to the `squark-runtime` that `squark build` packs, instead of the one beside `squark`. The `--runtime` flag and `build.runtime` in `squark.config.ts` take precedence.
 
 ## License
 

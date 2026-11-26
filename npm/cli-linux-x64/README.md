@@ -5,7 +5,7 @@ Prebuilt native `squark` CLI and `squark-runtime` binaries for **Linux x64 (glib
 ## Requirements
 
 - Node.js `>=22.18.0`.
-- Linux x64 with glibc.
+- Linux x64 with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 or later).
 
 ## Install
 

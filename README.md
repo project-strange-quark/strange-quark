@@ -6,14 +6,13 @@ Strange Quark takes the app you already build for the browser and turns it into
 a single native binary. Your components, hooks and npm libraries run
 unmodified, on the real `react-dom`.
 
-> **Status: first release, v0.1.0 (Linux desktop); macOS on `main`.** It
+> **Status: v0.1.0, the first release, for Linux, macOS and Windows.** It
 > builds upstream [Excalidraw](https://github.com/excalidraw/excalidraw)
-> v0.18.1 into one native Linux binary without changing a line of its
-> source, and the app matches the same build in Chromium. On `main` the same
-> Excalidraw also runs natively on macOS (Metal) and Windows (Direct3D 12),
-> and passes the same end-to-end flow against Chromium on both. See
-> [Excalidraw](#excalidraw) for the measurements, [Platforms](#platforms),
-> [What works](#what-works) and [Next](#next).
+> v0.18.1 into one native app without changing a line of its source, and
+> the app matches the same build in Chromium: it passes the same end-to-end
+> flow against Chromium on Linux (Vulkan), macOS (Metal) and Windows
+> (Direct3D 12). See [Excalidraw](#excalidraw) for the measurements,
+> [Platforms](#platforms), [What works](#what-works) and [Next](#next).
 
 ## How it works
 
@@ -44,7 +43,8 @@ didn't ask for. The full design is in
 Strange Quark runs **client-rendered React apps**: React 18.3 or 19.x
 single-page apps whose build produces static HTML, JavaScript and CSS. That
 includes apps built with Vite, Rsbuild, webpack or Parcel. `squark build`
-packs that output. Live reload (`squark dev`) is planned for Vite.
+packs that output. For Vite 6, 7 and 8 apps, `squark dev` adds live reload
+with HMR and React Fast Refresh.
 
 The first release targets these libraries. Each one is checked against
 Chromium before it is called supported.
@@ -97,12 +97,13 @@ undefined, as in a browser that lacks it, so your app's fallback path runs.
 
 | Platform | GPU | `squark build` output | Status |
 | --- | --- | --- | --- |
-| Linux x86_64 (Wayland and X11) | Vulkan | `dist/<name>` | First release (v0.1.0) |
-| macOS 12+ (Apple Silicon and Intel) | Metal | `dist/<name>.app`, signed ad hoc | On `main`; Excalidraw passes, tested on Apple Silicon |
-| Windows 10+ (x64 and arm64) | Direct3D 12 | `dist\<name>.exe` | On `main`; Excalidraw passes, tested on x64 with an NVIDIA GPU. arm64 tested in a VM without a GPU |
+| Linux x64 and arm64, glibc 2.35+ (Wayland and X11) | Vulkan | `dist/<name>` | v0.1.0; Excalidraw passes on x64. arm64 is built for release but not yet tested on hardware |
+| macOS 12+ (Apple Silicon and Intel) | Metal | `dist/<name>.app`, signed ad hoc | v0.1.0; Excalidraw passes, tested on Apple Silicon |
+| Windows 10+ (x64 and arm64) | Direct3D 12 | `dist\<name>.exe` | v0.1.0; Excalidraw passes, tested on x64 with an NVIDIA GPU. arm64 tested in a VM without a GPU |
 | Android, iOS, embedded Linux | | | Planned |
 
-On macOS, `squark build` writes an app bundle: the runtime in
+On Linux, glibc 2.35 or newer means Ubuntu 22.04, Debian 12, Fedora 36 or
+a later release. On macOS, `squark build` writes an app bundle: the runtime in
 `Contents/MacOS`, the pack in `Contents/Resources`, and a signature over the
 whole bundle, so it passes `codesign --verify --strict` and can be signed
 with your own identity and notarized for distribution. Open it with
@@ -110,20 +111,28 @@ with your own identity and notarized for distribution. Open it with
 
 ## Using it
 
-Strange Quark is packaged for npm as `strange-quark`, which brings the `squark` CLI
-and a prebuilt runtime for your platform through an optional dependency
-(`@strange-quark/cli-<os>-<cpu>`), and `@strange-quark/vite-plugin` for `squark dev`.
-Until the first npm release is out, build from source (see
-[Building from source](#building-from-source)) and put `squark` on your `PATH`;
-afterwards it is `npm install -D strange-quark` and `npx squark build`. Strange Quark does not touch your app's source or
-its build config. You build
-your app as usual, then pack the output:
+Strange Quark is on npm as `strange-quark`. It brings the `squark` CLI and a
+prebuilt runtime for your platform through an optional dependency
+(`@strange-quark/cli-<os>-<cpu>`). It does not touch your app's source or
+its build config:
 
 ```sh
-npm run build      # your app's normal build, e.g. vite build -> dist/
-squark build          # packs dist/ into one native binary: dist/<name>
+npm install -D strange-quark
+npx squark build      # runs your app's build (e.g. vite build), then packs
+                      # its output into one native binary: dist/<name>
 ./dist/my-app
 ```
+
+For live reload in a Vite app, add the plugin and run `squark dev`:
+
+```sh
+npm install -D @strange-quark/vite-plugin
+npx squark dev
+```
+
+Run `squark` through your project, as above. A bare `npx squark` outside a
+project fetches an unrelated npm package called `squark`; to try Strange
+Quark without installing it, run `npx strange-quark build`.
 
 Optional settings go in `squark.config.ts`:
 
@@ -176,16 +185,16 @@ disabled) is the first release's showcase. Every number below comes from
 | End-to-end flow (20 steps) | **Passing (gating)** — Chromium **20/20**; native **20/20** headless on lavapipe (**20/20** DOM checkpoints matched) and **20/20** windowed on RADV (**20/20** DOM checkpoints matched) across drawing (rectangle, ellipse, arrow, freedraw, text), WYSIWYG edit + IME composition, undo/redo, zoom/pan, dark mode, library sidebar, `.excalidraw` save/open, PNG/SVG export, clipboard image paste, and restart persistence | [`tests/results/excalidraw/e2e.json`](tests/results/excalidraw/e2e.json), [`tests/results/excalidraw/e2e-windowed.json`](tests/results/excalidraw/e2e-windowed.json) |
 | Canonical scenes (10 fixtures) | **Passing** — Chromium baselines **10/10**; native **10/10** on lavapipe (**0.174%–0.456%** diff ratio, max `0.456%` on `10-mixed`) and **10/10** on RX 9060 XT / RADV (**0.176%–0.458%** diff ratio, max `0.458%` on `10-mixed`), all within the app screenshot tolerance (`maxChannelDelta: 8`, `maxDiffRatio: 0.005`) | [`tests/results/excalidraw/scenes/summary.json`](tests/results/excalidraw/scenes/summary.json), [`tests/results/excalidraw/scenes/summary-auto.json`](tests/results/excalidraw/scenes/summary-auto.json) |
 | 1,000-element pan (60 Hz) | **Passing (gating)** — **300/300** on-time fresh commit slots in each of 3 valid nested-Hyprland runs (target ≥ 95%); every run `wheelEvents = pageWheelEvents = canvasWheelEvents = 300` and `scrollY: 310 → -754` as scripted, `1280×800`, RX 9060 XT / RADV, `CPUWeight=10000`, load `5.9–7.5`. Earlier runs at load 57–61 scored 100%, 100% and 99.7% | [`tests/results/excalidraw/pan.json`](tests/results/excalidraw/pan.json) |
-| Suite & lavapipe checks | **Passing** — `scripts/check.sh` and `scripts/check-lavapipe.sh` passed on the release commit | [`tests/results/excalidraw/summary.json`](tests/results/excalidraw/summary.json) |
+| Suite & lavapipe checks | **Passing** — `scripts/check.sh` and `scripts/check-lavapipe.sh` passed on the commit these results were recorded at, in the history before this repository was published | [`tests/results/excalidraw/summary.json`](tests/results/excalidraw/summary.json) |
 
 The release verdict in [`tests/results/excalidraw/summary.json`](tests/results/excalidraw/summary.json)
 is **`passing`** (`blockers: []`), with every native check required to pass.
 
 ### On macOS
 
-On `main`, the same Excalidraw build runs on macOS. These numbers come from an
-Apple M4 Pro (Metal 4) on macOS 26, with the stripped `dist` runtime. They are
-recorded separately and are not part of the Linux release verdict:
+The same Excalidraw build runs on macOS. These numbers come from an Apple M4
+Pro (Metal 4) on macOS 26, with the stripped `dist` runtime. They are
+recorded separately from the Linux verdict above:
 
 | Check | Result | Evidence |
 | --- | --- | --- |
@@ -195,10 +204,10 @@ recorded separately and are not part of the Linux release verdict:
 
 ### On Windows
 
-On `main`, the same build also runs on Windows. These numbers come from an
-NVIDIA GeForce RTX 4060 Ti through Direct3D 12 on Windows x64, with the
-stripped `dist` runtime. Like the macOS numbers, they are recorded separately
-and are not part of the Linux release verdict:
+The same build also runs on Windows. These numbers come from an NVIDIA
+GeForce RTX 4060 Ti through Direct3D 12 on Windows x64, with the stripped
+`dist` runtime. Like the macOS numbers, they are recorded separately from the
+Linux verdict:
 
 | Check | Result | Evidence |
 | --- | --- | --- |
@@ -214,9 +223,9 @@ and are not part of the Linux release verdict:
   and transitions, CSS-in-JS, and live reload with `squark dev`.
 - **Excalidraw's platform:** Canvas 2D, fonts, storage, clipboard and file
   dialogs.
-- **Excalidraw v0.18.1 ships as one native Linux binary** (v0.1.0), and
-  on `main` as a signed macOS app and a Windows executable, both passing
-  the same flow against Chromium.
+- **Excalidraw v0.18.1 ships as one native Linux binary, a signed macOS
+  app and a Windows executable,** each passing the same flow against
+  Chromium.
 - **macOS:** Metal rendering, real windows and input (IME composition is
   tested through test control only), storage
   in `~/Library/Application Support`, ⌘ shortcuts (apps see a Mac
@@ -226,7 +235,6 @@ and are not part of the Linux release verdict:
 
 - Windows: check the executable's DLL imports in the packaging check, and
   match Chromium's `<input>` widths in Segoe UI.
-- A first npm release (the packages and the release workflow are ready).
 - More platforms: Android and iOS.
 - Direct mode: a React host that writes journal records directly, without
   react-dom and squark-dom, for apps that want less memory per node.
@@ -250,18 +258,24 @@ git clone https://github.com/project-strange-quark/strange-quark.git
 cd strange-quark
 git submodule update --init   # only needed for the Excalidraw target
 npm install
-cargo build --workspace
+npm run build --workspaces --if-present   # the JS packages; squark dev needs
+                                          # the built Vite plugin
+cargo build --workspace       # target/debug/squark and squark-runtime
+node node_modules/playwright-core/cli.js install chromium
+                              # the pinned Chromium the tests compare against
 scripts/check.sh              # the full test and lint suite
                               # (node scripts/check.mjs on Windows)
 ```
 
 `cargo build --profile dist -p squark-host --bin squark-runtime -p squark-cli --bin squark`
-builds the stripped runtime that `squark build` packs by default.
+builds the stripped runtime that `squark build` packs by default, in
+`target/dist/`.
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), which includes our policy on AI
-tools. The rules for working on this repository are in
+tools. Report security problems privately, as [SECURITY.md](SECURITY.md)
+describes. The rules for working on this repository are in
 [AGENTS.md](AGENTS.md), and the design is in
 [docs/architecture.md](docs/architecture.md).
 
