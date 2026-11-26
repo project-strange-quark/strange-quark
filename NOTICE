@@ -4,7 +4,9 @@ Copyright (c) 2026 Ofek Bickel. Licensed under the MIT licence (see LICENSE).
 Third-party code included in this repository is listed below with its
 licence and the exact version or commit it came from. Dependencies pulled in
 by Cargo or npm are not listed here; `cargo deny` and the npm licence check
-enforce their licences (see AGENTS.md).
+enforce their licences (see AGENTS.md). THIRD_PARTY_NOTICES.txt lists the
+third-party software linked into the shipped binaries, with its licence texts
+(see scripts/notices/README.md).
 
 DioxusLabs/blitz (blitz-dom), used under the MIT licence.
 Commit 846ca67795b1e4fb0952fd05a91d682b44330268 (v0.3.0-beta.5).

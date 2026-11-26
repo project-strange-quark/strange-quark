@@ -1,0 +1,96 @@
+{
+  "v8Crate": "152.2.0",
+  "components": [
+    {
+      "name": "V8",
+      "version": "15.2.124.1",
+      "license": "BSD-3-Clause; the Strongtalk assembler is BSD-3-Clause and fdlibm has its own notice",
+      "source": "https://github.com/v8/v8/tree/15.2.124.1",
+      "files": ["v8-LICENSE", "v8-LICENSE.v8", "v8-LICENSE.strongtalk", "v8-LICENSE.fdlibm"]
+    },
+    {
+      "name": "Chromium inspector protocol (crdtp), part of V8's inspector",
+      "version": "V8 15.2.124.1's third_party/inspector_protocol",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/v8/v8/tree/15.2.124.1/third_party/inspector_protocol",
+      "files": ["inspector_protocol-LICENSE"]
+    },
+    {
+      "name": "ICU",
+      "version": "78.2 (Chromium's copy, d578f2e8b7bd5938e21cfb6bf15c079e0aa5b738)",
+      "license": "Unicode-3.0, with the third-party terms the text lists",
+      "source": "https://github.com/unicode-org/icu/blob/release-78.2/icu4c/LICENSE",
+      "files": ["icu-LICENSE"]
+    },
+    {
+      "name": "Abseil",
+      "version": "Chromium's copy, ff6e8ce3e932c16cebd1611c8fc42c45080a0e55",
+      "license": "Apache-2.0",
+      "source": "https://github.com/abseil/abseil-cpp",
+      "files": ["abseil-LICENSE"]
+    },
+    {
+      "name": "Highway",
+      "version": "2607d3b5b0113992fe84d3848859eae13b3b52c1",
+      "license": "Apache-2.0",
+      "source": "https://github.com/google/highway",
+      "files": ["highway-LICENSE"]
+    },
+    {
+      "name": "simdutf",
+      "version": "7.7.0",
+      "license": "MIT (simdutf is Apache-2.0 OR MIT)",
+      "source": "https://github.com/simdutf/simdutf/tree/v7.7.0",
+      "files": ["simdutf-LICENSE-MIT"]
+    },
+    {
+      "name": "fast_float",
+      "version": "34164f547b7df3f5d794ff67e9f885c36819ebfc",
+      "license": "MIT (fast_float is Apache-2.0 OR MIT OR BSL-1.0)",
+      "source": "https://github.com/fastfloat/fast_float",
+      "files": ["fast_float-LICENSE-MIT"]
+    },
+    {
+      "name": "Dragonbox",
+      "version": "beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44",
+      "license": "BSL-1.0 (Dragonbox is Apache-2.0 WITH LLVM-exception OR BSL-1.0)",
+      "source": "https://github.com/jk-jeon/dragonbox",
+      "files": ["dragonbox-LICENSE-Boost"]
+    },
+    {
+      "name": "FP16",
+      "version": "V8 15.2.124.1's third_party/fp16",
+      "license": "MIT",
+      "source": "https://github.com/v8/v8/tree/15.2.124.1/third_party/fp16",
+      "files": ["fp16-LICENSE"]
+    },
+    {
+      "name": "rapidhash",
+      "version": "V8 15.2.124.1's third_party/rapidhash-v8",
+      "license": "BSD-2-Clause",
+      "source": "https://github.com/v8/v8/tree/15.2.124.1/third_party/rapidhash-v8",
+      "files": ["rapidhash-v8-LICENSE"]
+    },
+    {
+      "name": "HalfSipHash",
+      "version": "V8 15.2.124.1's third_party/siphash",
+      "license": "CC0-1.0",
+      "source": "https://github.com/v8/v8/tree/15.2.124.1/third_party/siphash",
+      "files": ["siphash-LICENSE"]
+    },
+    {
+      "name": "UTF-8 decoder (Bjoern Hoehrmann)",
+      "version": "V8 15.2.124.1's third_party/utf8-decoder",
+      "license": "MIT",
+      "source": "https://github.com/v8/v8/tree/15.2.124.1/third_party/utf8-decoder",
+      "files": ["utf8-decoder-LICENSE"]
+    },
+    {
+      "name": "LLVM libc++, libc++abi, libunwind and llvm-libc",
+      "version": "libcxx b16984ce99c702355a5b2b4c52574e82cec41fb9, libcxxabi 8f11bb1d4438d0239d0dfc1bd9456a9f31629dda, libunwind 1fd455816c724182cf8736811182bf0c37b03035",
+      "license": "Apache-2.0 WITH LLVM-exception",
+      "source": "https://github.com/llvm/llvm-project/blob/main/libcxx/LICENSE.TXT",
+      "files": ["llvm-LICENSE.TXT"]
+    }
+  ]
+}

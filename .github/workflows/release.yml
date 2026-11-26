@@ -127,6 +127,13 @@ jobs:
             test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME does not match version $version"; exit 1; }
           fi
 
+      # The notices ship in every platform package and every built app.
+      - name: Check THIRD_PARTY_NOTICES.txt is current
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          cargo install cargo-about --locked --features cli --version 0.9.3
+          node scripts/notices/generate.mjs --check
+
       - name: Stage and verify all packages
         run: |
           node scripts/npm/stage.mjs --require-all

@@ -84,6 +84,12 @@ jobs:
         with:
           command: check licenses bans sources
 
+      # THIRD_PARTY_NOTICES.txt ships in every binary; it must match Cargo.lock.
+      - name: Check THIRD_PARTY_NOTICES.txt is current
+        run: |
+          cargo install cargo-about --locked --features cli --version 0.9.3
+          node scripts/notices/generate.mjs --check
+
   js-and-reftests:
     name: Node packages, licence check & Chromium reftests
     runs-on: ubuntu-24.04
