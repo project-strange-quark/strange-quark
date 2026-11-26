@@ -309,11 +309,13 @@ fn free_port(host: &str) -> Result<u16, CliError> {
     Ok(port)
 }
 
-/// Finds `@vite-render/vite-plugin`'s long-running launcher.
+/// Finds `@strange-quark/vite-plugin`'s long-running launcher.
 ///
 /// `SQUARK_VITE_PLUGIN` may point at the package directory or at `dev-main.js`
 /// directly. Otherwise the package is resolved through `node_modules` from the
-/// app, the working directory, and the `squark` binary's directory.
+/// app, the working directory, and the `squark` binary's directory, in that
+/// order: the launcher imports Vite from where it is installed, so the app's
+/// own copy keeps the app on its own Vite.
 fn find_dev_launcher(app_dir: &Path) -> Result<PathBuf, CliError> {
     if let Ok(value) = env::var("SQUARK_VITE_PLUGIN")
         && !value.trim().is_empty()
@@ -333,30 +335,33 @@ fn find_dev_launcher(app_dir: &Path) -> Result<PathBuf, CliError> {
         )));
     }
 
-    let relative = Path::new("node_modules/@strange-quark/vite-plugin/dist/dev-main.js");
-    let mut starts: Vec<PathBuf> = Vec::new();
+    let mut starts = vec![app_dir.to_path_buf()];
     if let Ok(cwd) = env::current_dir() {
         starts.push(cwd);
     }
-    starts.push(app_dir.to_path_buf());
     if let Ok(exe) = env::current_exe()
         && let Some(dir) = exe.parent()
     {
         starts.push(dir.to_path_buf());
     }
-    for start in starts {
-        for ancestor in start.ancestors() {
-            let candidate = ancestor.join(relative);
-            if candidate.is_file() {
-                return Ok(candidate);
-            }
-        }
-    }
-    Err(CliError::Usage(
-        "could not locate @strange-quark/vite-plugin: install it in the app, \
-         build the workspace (`npm run build --workspaces`), or set SQUARK_VITE_PLUGIN"
-            .to_owned(),
-    ))
+    first_dev_launcher(&starts).ok_or_else(|| {
+        CliError::Usage(
+            "could not locate @strange-quark/vite-plugin: install it in the app, \
+             build the workspace (`npm run build --workspaces`), or set SQUARK_VITE_PLUGIN"
+                .to_owned(),
+        )
+    })
+}
+
+/// The first `dev-main.js` that Node-style `node_modules` lookup finds from
+/// each start directory in turn.
+fn first_dev_launcher(starts: &[PathBuf]) -> Option<PathBuf> {
+    let relative = Path::new("node_modules/@strange-quark/vite-plugin/dist/dev-main.js");
+    starts
+        .iter()
+        .flat_map(|start| start.ancestors())
+        .map(|ancestor| ancestor.join(relative))
+        .find(|candidate| candidate.is_file())
 }
 
 fn spawn_launcher(
@@ -576,6 +581,31 @@ mod tests {
             title: "Counter".to_owned(),
             network_allow: allow,
         }
+    }
+
+    #[test]
+    fn dev_launcher_prefers_the_apps_own_plugin() {
+        let root = tempfile::tempdir().unwrap();
+        let install = |dir: &Path| {
+            let dist = dir.join("node_modules/@strange-quark/vite-plugin/dist");
+            fs::create_dir_all(&dist).unwrap();
+            fs::write(dist.join("dev-main.js"), "").unwrap();
+            dist.join("dev-main.js")
+        };
+        // A monorepo root with its own plugin, and an app under it that
+        // installs another one alongside a different Vite.
+        let workspace = root.path().join("workspace");
+        let app = workspace.join("apps/web");
+        fs::create_dir_all(&app).unwrap();
+        let workspace_launcher = install(&workspace);
+        let app_launcher = install(&app);
+
+        let starts = [app.clone(), workspace.clone()];
+        assert_eq!(first_dev_launcher(&starts), Some(app_launcher.clone()));
+        // An app without its own copy falls back to an ancestor's.
+        fs::remove_dir_all(app.join("node_modules")).unwrap();
+        assert_eq!(first_dev_launcher(&starts), Some(workspace_launcher));
+        assert_eq!(first_dev_launcher(&[root.path().to_path_buf()]), None);
     }
 
     #[test]
