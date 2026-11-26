@@ -6,3 +6,4 @@ node_modules/
 tests/results/**/actual/
 tests/results/**/diff/
 .DS_Store
+tests/vite-*/.tmp-*/

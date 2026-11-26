@@ -8,7 +8,7 @@
     "pretest": "cd ../../packages/@strange-quark/vite-plugin && npm run build --silent",
     "test": "node --test src/*.test.mjs",
     "measure": "node src/measure.mjs",
-    "test:native": "node --test src/native.test.mjs",
+    "test:native": "node --test src/native.test.mjs src/native-vite.test.mjs",
     "measure:native": "node src/measure-native.mjs"
   },
   "dependencies": {

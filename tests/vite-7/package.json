@@ -1,0 +1,14 @@
+{
+  "name": "@strange-quark/vite-7-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Vite 7 and the SWC React plugin, for the vite-plugin compatibility tests.",
+  "type": "module",
+  "devDependencies": {
+    "@vitejs/plugin-react-swc": "4.3.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "vite": "7.3.8"
+  }
+}

@@ -8,8 +8,9 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { VITE_MATRIX, createFixtureApp } from "../../../../tests/dev/src/vite-matrix.mjs";
 import { startDevServer } from "../dist/launcher.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -77,7 +78,33 @@ test("dev server serves the squark hand-off and stock React Fast Refresh", { tim
   fs.rmSync(appDir, { recursive: true, force: true });
   fs.rmSync(workDir, { recursive: true, force: true });
   copyApp(path.join(repoRoot, "apps/counter"), appDir);
+  await checkDevLoop({ appDir, workDir, startDevServer });
+});
 
+// Every supported Vite major with a React plugin (see tests/dev/src/vite-matrix.mjs),
+// through a copy of the plugin installed the way npm installs it.
+for (const fixture of VITE_MATRIX) {
+  test(
+    `Vite ${fixture.vite} with ${fixture.react.name} ${fixture.react.version} serves the hand-off and Fast Refresh`,
+    { timeout: 60_000 },
+    async () => {
+      const { appDir, workDir, plugin, cleanup } = createFixtureApp(fixture, "plugin-test");
+      try {
+        const launcher = await import(pathToFileURL(path.join(plugin, "dist/launcher.js")).href);
+        const manifest = await checkDevLoop({ appDir, workDir, startDevServer: launcher.startDevServer });
+        assert.equal(manifest.vite, fixture.vite);
+      } finally {
+        cleanup();
+      }
+    },
+  );
+}
+
+/**
+ * Starts the dev server for `appDir` and checks the hand-off, Fast Refresh and
+ * one HMR round trip. Returns the served dev manifest.
+ */
+async function checkDevLoop({ appDir, workDir, startDevServer }) {
   const handle = await startDevServer({
     appDir,
     workDir,
@@ -147,10 +174,11 @@ test("dev server serves the squark hand-off and stock React Fast Refresh", { tim
     );
     assert.ok(notifyMs < 1000, `HMR notification took ${notifyMs.toFixed(1)} ms (limit: < 1000 ms)`);
     assert.ok(fetchMs < 1000, `updated module took ${fetchMs.toFixed(1)} ms (limit: < 1000 ms)`);
+    return manifest;
   } finally {
     socket?.close();
     await handle.close();
     fs.rmSync(appDir, { recursive: true, force: true });
     fs.rmSync(workDir, { recursive: true, force: true });
   }
-});
+}
