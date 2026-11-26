@@ -42,7 +42,7 @@ async function waitFor(driver, expression, label, timeoutMs = 20_000) {
 
 for (const fixture of VITE_MATRIX) {
   test(
-    `squark build packs a Vite ${fixture.vite} production build that runs natively`,
+    `squark build packs a Vite ${fixture.vite} production build with ${fixture.react.name} that runs natively`,
     {
       timeout: 180_000,
       skip: enabled ? false : "set SQUARK_GPU_TESTS=1 or SQUARK_NATIVE_DEV_TESTS=1 to run native squark build",

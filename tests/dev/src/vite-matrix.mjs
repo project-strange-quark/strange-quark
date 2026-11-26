@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
-// The Vite majors @strange-quark/vite-plugin supports, each with a React
-// plugin, and a helper that lays out a test app the way npm installs a user's
-// app.
+// The Vite majors @strange-quark/vite-plugin supports, each with the React
+// plugins create-vite's templates use, and a helper that lays out a test app
+// the way npm installs a user's app.
 //
-// Vite 6 uses the pair the apps use, installed at the repository root. Vite 7
-// and 8 live in the fixture workspaces tests/vite-7 and tests/vite-8, where an
-// app resolves that fixture's pair first, as a user's app resolves its own.
-// Vite 8 gets @vitejs/plugin-react, create-vite's default. The older majors
-// get the SWC plugin: the Babel-based @vitejs/plugin-react 4 and 5 pull in
-// caniuse-lite, whose CC-BY-4.0 licence the npm licence check does not allow.
+// Vite 6 and its plugins are installed at the repository root (the root
+// package.json pins @vitejs/plugin-react 4.7.0 there; the apps use the SWC
+// plugin). Vite 7 and 8 live in the fixture workspaces tests/vite-7 and
+// tests/vite-8, where an app resolves that fixture's packages first, as a
+// user's app resolves its own. Vite 8's @vitejs/plugin-react 6 handles both
+// templates, so it has one entry.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -20,8 +20,18 @@ export const repoRoot = path.resolve(__dirname, "../../..");
 export const VITE_MATRIX = [
   {
     vite: "6.4.6",
+    react: { name: "@vitejs/plugin-react", version: "4.7.0" },
+    home: path.join(repoRoot, "target/squark-dev-test"),
+  },
+  {
+    vite: "6.4.6",
     react: { name: "@vitejs/plugin-react-swc", version: "4.2.2" },
     home: path.join(repoRoot, "target/squark-dev-test"),
+  },
+  {
+    vite: "7.3.8",
+    react: { name: "@vitejs/plugin-react", version: "5.2.0" },
+    home: path.join(repoRoot, "tests/vite-7"),
   },
   {
     vite: "7.3.8",
@@ -58,8 +68,9 @@ export function packageVersion(dir) {
  * hoisted copy would test the wrong pairing.
  */
 export function createFixtureApp({ vite, react, home }, label = "app") {
-  const appDir = path.join(home, `.tmp-${label}-${process.pid}`);
-  const workDir = path.join(home, `.tmp-${label}-work-${process.pid}`);
+  const id = `${label}-${react.name.replace(/^@vitejs\//, "")}-${process.pid}`;
+  const appDir = path.join(home, `.tmp-${id}`);
+  const workDir = path.join(home, `.tmp-${id}-work`);
   const cleanup = () => {
     fs.rmSync(appDir, { recursive: true, force: true });
     fs.rmSync(workDir, { recursive: true, force: true });

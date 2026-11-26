@@ -3,9 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
-  "description": "Vite 7 and the SWC React plugin, for the vite-plugin compatibility tests.",
+  "description": "Vite 7 with the Babel and SWC React plugins, for the vite-plugin compatibility tests.",
   "type": "module",
   "devDependencies": {
+    "@vitejs/plugin-react": "5.2.0",
     "@vitejs/plugin-react-swc": "4.3.3",
     "react": "19.0.0",
     "react-dom": "19.0.0",

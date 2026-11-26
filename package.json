@@ -14,5 +14,8 @@
   },
   "scripts": {
     "test": "node scripts/test-workspaces.mjs"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.7.0"
   }
 }
