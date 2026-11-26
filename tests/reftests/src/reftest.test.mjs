@@ -222,7 +222,7 @@ test("the reference Chromium is the Playwright-pinned build", (t) => {
   );
 });
 
-test("r3 canvas suite reproduces its committed Chromium baselines", { timeout: 300_000 }, async () => {
+test("r3 canvas suite reproduces its committed Chromium baselines", { timeout: 300_000 }, async (t) => {
   const resultsRoot = path.join(testsRoot, "results");
   const cases = discoverCases(path.join(reftestsRoot, "cases"), "r3-canvas");
   assert.ok(cases.length >= 15, `expected the R3 canvas suite, got ${cases.length} cases`);
@@ -245,8 +245,15 @@ test("r3 canvas suite reproduces its committed Chromium baselines", { timeout: 3
 
       const committed = fs.readFileSync(committedPath);
       const rendered = fs.readFileSync(renderedPath);
-      const cmp = comparePngBuffers(committed, rendered, c.meta);
-      assert.equal(cmp.pass, true, `${c.id} differs from its baseline: ${cmp.reason}`);
+      // The baselines are Linux renders. The text cases shape the bundled
+      // fonts everywhere, but Chromium rasterizes glyphs differently on
+      // macOS and Windows, so like the smoke proof they compare on Linux only.
+      if (c.id.startsWith("03-text/") && process.platform !== "linux") {
+        t.diagnostic(`skipping ${c.id}'s baseline comparison on ${process.platform}: glyph rasterization differs per platform`);
+      } else {
+        const cmp = comparePngBuffers(committed, rendered, c.meta);
+        assert.equal(cmp.pass, true, `${c.id} differs from its baseline: ${cmp.reason}`);
+      }
 
       // A blank baseline means the case's script threw before drawing.
       const decoded = PNG.sync.read(committed);
