@@ -57,6 +57,18 @@ test("syncVersions keeps internal workspace dependency pins in sync and catches 
       }
     }
 
+    // The Rust crates follow the same version: the workspace version, internal
+    // version requirements and Cargo.lock.
+    fs.copyFileSync(path.join(REPO_ROOT, "Cargo.toml"), path.join(tmp, "Cargo.toml"));
+    fs.copyFileSync(path.join(REPO_ROOT, "Cargo.lock"), path.join(tmp, "Cargo.lock"));
+    for (const crate of ["squark-layout", "squark-style"]) {
+      fs.mkdirSync(path.join(tmp, "crates", crate), { recursive: true });
+      fs.copyFileSync(
+        path.join(REPO_ROOT, "crates", crate, "Cargo.toml"),
+        path.join(tmp, "crates", crate, "Cargo.toml"),
+      );
+    }
+
     // Drift tests/dev/package.json back to 0.0.0 and confirm --check catches it.
     const devPkgPath = path.join(tmp, "tests/dev/package.json");
     const devPkg = JSON.parse(fs.readFileSync(devPkgPath, "utf8"));
@@ -74,6 +86,15 @@ test("syncVersions keeps internal workspace dependency pins in sync and catches 
     assert.ok(updated.updated.includes("tests/dev/package.json"));
     const syncedDevPkg = JSON.parse(fs.readFileSync(devPkgPath, "utf8"));
     assert.equal(syncedDevPkg.dependencies["@strange-quark/vite-plugin"], "0.2.0");
+    const cargoToml = fs.readFileSync(path.join(tmp, "Cargo.toml"), "utf8");
+    assert.match(cargoToml, /\[workspace\.package\]\nversion = "0\.2\.0"/);
+    assert.match(cargoToml, /squark-journal = \{ path = "crates\/squark-journal", version = "0\.2\.0" \}/);
+    const layout = fs.readFileSync(path.join(tmp, "crates/squark-layout/Cargo.toml"), "utf8");
+    assert.match(layout, /squark-assets = \{ path = "\.\.\/squark-assets", version = "=0\.2\.0" \}/);
+    assert.doesNotMatch(layout, /version = "=?0\.1\.0"/);
+    const lock = fs.readFileSync(path.join(tmp, "Cargo.lock"), "utf8");
+    assert.match(lock, /name = "squark-host"\nversion = "0\.2\.0"/);
+    assert.doesNotMatch(lock, /name = "squark-[a-z-]+"\nversion = "0\.1\.0"/);
 
     const recheck = syncVersions({ repoRoot: tmp, check: true });
     assert.equal(recheck.version, "0.2.0");

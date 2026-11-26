@@ -12,9 +12,9 @@ publish.workspace = true
 color = "=0.3.3"
 guillotiere = "=0.7.0"
 squark-types.workspace = true
-squark-canvas = { version = "=0.0.0", path = "../squark-canvas" }
+squark-canvas = { version = "=0.1.0", path = "../squark-canvas" }
 bytemuck = { version = "1.25.2", features = ["derive"] }
-squark-paint = { version = "=0.0.0", path = "../squark-paint" }
+squark-paint = { version = "=0.1.0", path = "../squark-paint" }
 # Match the workspace pin with Vulkan as the only enabled backend.
 wgpu = { version = "=30.0.2", default-features = false, features = ["std", "wgsl"] }
 

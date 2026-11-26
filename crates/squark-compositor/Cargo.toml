@@ -10,7 +10,7 @@ publish.workspace = true
 
 [dependencies]
 arc-swap = "=1.9.5"
-squark-paint = { version = "=0.0.0", path = "../squark-paint" }
+squark-paint = { version = "=0.1.0", path = "../squark-paint" }
 squark-types.workspace = true
 puffin = "=0.20.0"
 

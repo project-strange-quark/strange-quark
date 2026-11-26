@@ -9,10 +9,10 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-squark-assets = { path = "../squark-assets", version = "=0.0.0" }
-squark-style = { path = "../squark-style", version = "=0.0.0" }
-squark-text = { path = "../squark-text", version = "=0.0.0" }
-squark-mirror = { version = "=0.0.0", path = "../squark-mirror" }
+squark-assets = { path = "../squark-assets", version = "=0.1.0" }
+squark-style = { path = "../squark-style", version = "=0.1.0" }
+squark-text = { path = "../squark-text", version = "=0.1.0" }
+squark-mirror = { version = "=0.1.0", path = "../squark-mirror" }
 squark-types.workspace = true
 parley.workspace = true
 rayon = "1.12"

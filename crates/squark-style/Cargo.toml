@@ -11,10 +11,10 @@ publish.workspace = true
 [dependencies]
 cssparser = "0.38"
 euclid = "0.22"
-squark-assets = { version = "0.0.0", path = "../squark-assets" }
+squark-assets = { version = "0.1.0", path = "../squark-assets" }
 squark-journal.workspace = true
 squark-types.workspace = true
-squark-mirror = { version = "0.0.0", path = "../squark-mirror" }
+squark-mirror = { version = "0.1.0", path = "../squark-mirror" }
 stylo.workspace = true
 stylo_static_prefs = "=0.24.0"
 stylo_traits.workspace = true

@@ -7,7 +7,7 @@ members = ["crates/*"]
 exclude = ["vendor/stylo"]
 
 [workspace.package]
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/project-strange-quark/strange-quark"
@@ -16,8 +16,8 @@ publish = false
 
 [workspace.dependencies]
 # Internal crates
-squark-journal = { path = "crates/squark-journal", version = "0.0.0" }
-squark-types = { path = "crates/squark-types", version = "0.0.0" }
+squark-journal = { path = "crates/squark-journal", version = "0.1.0" }
+squark-types = { path = "crates/squark-types", version = "0.1.0" }
 
 # Pins checked on crates.io on 2026-11-25. Exact pins (=) for the engines whose
 # APIs churn; move one in its own commit and say why.

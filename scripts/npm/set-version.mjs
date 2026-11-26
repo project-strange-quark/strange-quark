@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Keeps all published npm package versions, Strange Quark's optionalDependencies,
 // internal workspace dependency pins on published packages (e.g. tests/dev),
-// and LICENSE copies in sync.
+// LICENSE copies, and the Rust crates' versions (Cargo.toml, crates/*/Cargo.toml
+// and Cargo.lock) in sync.
 //
 // Usage:
 //   node scripts/npm/set-version.mjs 0.1.0
@@ -132,11 +133,74 @@ export function syncVersions({ repoRoot = REPO_ROOT, version = null, check = fal
     }
   }
 
+  const cratesChecked = syncCargoVersions({ repoRoot, targetVersion, check, issues, updated, repoPath });
+
   if (check && issues.length > 0) {
     throw new Error(`Version/LICENSE sync check failed:\n  - ${issues.join("\n  - ")}`);
   }
 
-  return { version: targetVersion, updated, packages: allPackages.length, workspaceRefsChecked };
+  return { version: targetVersion, updated, packages: allPackages.length, workspaceRefsChecked, cratesChecked };
+}
+
+/**
+ * Keeps the Rust crates on the release version, so `squark --version` and
+ * `squark-runtime --version` report it: `[workspace.package] version` in
+ * Cargo.toml, every internal `squark-*` version requirement (an exact `=`
+ * stays exact), and the crates' entries in Cargo.lock. Skipped when the
+ * repository has no Cargo.toml.
+ */
+function syncCargoVersions({ repoRoot, targetVersion, check, issues, updated, repoPath }) {
+  const rootManifest = path.join(repoRoot, "Cargo.toml");
+  if (!fs.existsSync(rootManifest)) return 0;
+  const cratesDir = path.join(repoRoot, "crates");
+  const manifests = [
+    rootManifest,
+    ...(fs.existsSync(cratesDir)
+      ? fs
+          .readdirSync(cratesDir)
+          .map((name) => path.join(cratesDir, name, "Cargo.toml"))
+          .filter((file) => fs.existsSync(file))
+      : []),
+  ];
+  const edits = [
+    {
+      files: [rootManifest],
+      pattern: /(\[workspace\.package\][^[]*?\nversion = ")([^"]+)(")/g,
+      what: "[workspace.package] version",
+    },
+    {
+      files: manifests,
+      pattern: /^(squark-[a-z-]+\s*=\s*\{[^}\n]*\bversion\s*=\s*"=?)([^"]+)(")/gm,
+      what: "internal crate version requirement",
+    },
+    {
+      files: [path.join(repoRoot, "Cargo.lock")].filter((file) => fs.existsSync(file)),
+      pattern: /(\[\[package\]\]\nname = "squark-[a-z-]+"\nversion = ")([^"]+)(")/g,
+      what: "Cargo.lock entry",
+    },
+  ];
+  let checked = 0;
+  for (const { files, pattern, what } of edits) {
+    for (const file of files) {
+      const source = fs.readFileSync(file, "utf8");
+      let dirty = false;
+      const next = source.replace(pattern, (match, before, found, after) => {
+        checked++;
+        if (found === targetVersion) return match;
+        if (check) {
+          issues.push(`${repoPath(file)} ${what} is "${found}", expected "${targetVersion}"`);
+          return match;
+        }
+        dirty = true;
+        return `${before}${targetVersion}${after}`;
+      });
+      if (dirty) {
+        fs.writeFileSync(file, next);
+        if (!updated.includes(repoPath(file))) updated.push(repoPath(file));
+      }
+    }
+  }
+  return checked;
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);

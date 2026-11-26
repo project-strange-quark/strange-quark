@@ -13,16 +13,16 @@ arboard.workspace = true
 base64 = "0.22"
 clap = { version = "4", features = ["derive"] }
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp"] }
-squark-assets = { version = "=0.0.0", path = "../squark-assets" }
-squark-compositor = { version = "=0.0.0", path = "../squark-compositor" }
-squark-js = { version = "=0.0.0", path = "../squark-js" }
-squark-layout = { version = "=0.0.0", path = "../squark-layout" }
+squark-assets = { version = "=0.1.0", path = "../squark-assets" }
+squark-compositor = { version = "=0.1.0", path = "../squark-compositor" }
+squark-js = { version = "=0.1.0", path = "../squark-js" }
+squark-layout = { version = "=0.1.0", path = "../squark-layout" }
 squark-types.workspace = true
 mime_guess.workspace = true
 rfd.workspace = true
 url = "2.5"
-squark-gpu = { version = "=0.0.0", path = "../squark-gpu" }
-squark-paint = { version = "=0.0.0", path = "../squark-paint" }
+squark-gpu = { version = "=0.1.0", path = "../squark-gpu" }
+squark-paint = { version = "=0.1.0", path = "../squark-paint" }
 png = "0.18.1"
 pollster = "0.4.0"
 puffin = { version = "=0.20.0", features = ["serialization"] }

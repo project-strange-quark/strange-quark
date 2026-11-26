@@ -3781,7 +3781,7 @@ dependencies = [
 
 [[package]]
 name = "squark-assets"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "crc32fast",
@@ -3801,7 +3801,7 @@ dependencies = [
 
 [[package]]
 name = "squark-canvas"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "skrifa 0.49.0",
  "squark-types",
@@ -3811,7 +3811,7 @@ dependencies = [
 
 [[package]]
 name = "squark-cli"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "clap",
  "crc32fast",
@@ -3830,7 +3830,7 @@ dependencies = [
 
 [[package]]
 name = "squark-compositor"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "arc-swap",
  "puffin",
@@ -3840,7 +3840,7 @@ dependencies = [
 
 [[package]]
 name = "squark-gpu"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "bytemuck",
  "color",
@@ -3856,7 +3856,7 @@ dependencies = [
 
 [[package]]
 name = "squark-host"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "arboard",
  "base64 0.22.1",
@@ -3887,14 +3887,14 @@ dependencies = [
 
 [[package]]
 name = "squark-journal"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "squark-types",
 ]
 
 [[package]]
 name = "squark-js"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "data-url",
@@ -3918,7 +3918,7 @@ dependencies = [
 
 [[package]]
 name = "squark-layout"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "euclid",
  "html5ever",
@@ -3940,7 +3940,7 @@ dependencies = [
 
 [[package]]
 name = "squark-mirror"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "app_units",
  "cssparser",
@@ -3956,7 +3956,7 @@ dependencies = [
 
 [[package]]
 name = "squark-net"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "bytes",
  "futures-util",
@@ -3970,7 +3970,7 @@ dependencies = [
 
 [[package]]
 name = "squark-paint"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "color",
  "glam",
@@ -3980,7 +3980,7 @@ dependencies = [
 
 [[package]]
 name = "squark-style"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "cssparser",
  "euclid",
@@ -3997,7 +3997,7 @@ dependencies = [
 
 [[package]]
 name = "squark-text"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "parley",
@@ -4012,7 +4012,7 @@ dependencies = [
 
 [[package]]
 name = "squark-types"
-version = "0.0.0"
+version = "0.1.0"
 
 [[package]]
 name = "stable_deref_trait"

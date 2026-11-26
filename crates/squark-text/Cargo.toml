@@ -9,7 +9,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-squark-assets = { path = "../squark-assets", version = "=0.0.0" }
+squark-assets = { path = "../squark-assets", version = "=0.1.0" }
 squark-types.workspace = true
 parley.workspace = true
 stylo.workspace = true
