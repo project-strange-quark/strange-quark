@@ -28,15 +28,38 @@ Published packages declare `"engines": { "node": ">=22.18.0" }` (whereas develop
 ## Release workflow
 
 `.github/workflows/release.yml` runs the steps below in CI. Pushing a `v*`
-tag that matches the packages' version builds all six targets, smoke-tests
-the npm install on each runner that can run its own build, stages and
-verifies all eight packages, and publishes them with provenance (platform
-packages first). A prerelease version (one with a `-`, such as
-`0.2.0-rc.1`) is published under the `next` dist-tag instead of `latest`. A manual run of the workflow does everything except
-publish unless its `publish` input is ticked. Publishing needs the
-`NPM_TOKEN` repository secret (an npm automation token with access to
-`strange-quark` and the `@strange-quark` scope); `scripts/npm/collect-artifacts.mjs`
-puts each runner's binaries where `stage.mjs` looks for them.
+tag that matches the packages' version builds all six targets, checks that
+the Linux binaries need glibc 2.35 at most, smoke-tests the npm install on
+each runner that can run its own build, checks that `THIRD_PARTY_NOTICES.txt`
+is current, stages and verifies all eight packages, and publishes them with
+provenance through `scripts/npm/publish.mjs`. That script publishes the
+platform packages first, skips any version npm already has, so a release that
+failed part-way can run again, and sends a prerelease version (one with a
+`-`, such as `0.2.0-rc.1`) to the `next` dist-tag instead of `latest`. A
+manual run of the workflow does everything except publish, ending with
+`npm publish --dry-run`, unless its `publish` input is ticked.
+`scripts/npm/collect-artifacts.mjs` puts each runner's binaries where
+`stage.mjs` looks for them.
+
+The repository must be public when the workflow publishes: npm records
+provenance only for public source repositories.
+
+### npm credentials
+
+npm can set up trusted publishing (OIDC, no token) only for a package that
+already exists, so the first release uses a token and later ones do not:
+
+1. Create the `strange-quark` npm organization, which owns the
+   `@strange-quark` scope.
+2. Create a granular access token with read and write access to all
+   packages and the `@strange-quark` scope, allowed to publish without
+   two-factor prompts, and store it as the `NPM_TOKEN` repository secret.
+   npm caps a write token's lifetime, so give it a short one.
+3. Push the first `v*` tag.
+4. On npmjs.com, add a trusted publisher to each of the eight packages: this
+   repository and the `release.yml` workflow.
+5. Delete the `NPM_TOKEN` secret and revoke the token. Later releases
+   authenticate through the workflow's OIDC token (`id-token: write`).
 
 The manual steps, for a local release or to debug the workflow:
 
@@ -91,15 +114,13 @@ This packs the staged host platform package, `strange-quark`, and `@strange-quar
 
 ### 4. Publish (platform packages first)
 
-Ensure the `@strange-quark` npm organization/scope exists and you are authenticated (`npm whoami`). Always publish the 6 staged platform packages **before** publishing `strange-quark`, so users who install `strange-quark` immediately resolve its `optionalDependencies`:
+Make sure you are authenticated (`npm whoami`), then publish the staged
+packages. The script publishes the six platform packages before
+`@strange-quark/vite-plugin` and `strange-quark`, so `strange-quark`'s
+`optionalDependencies` resolve as soon as it appears, and it skips any
+version npm already has:
 
 ```sh
-# 1. Publish all 6 platform packages first:
-for dir in target/npm/stage/cli-*; do
-  (cd "$dir" && npm publish --provenance --access public)
-done
-
-# 2. Publish @strange-quark/vite-plugin and strange-quark:
-(cd target/npm/stage/vite-plugin && npm publish --provenance --access public)
-(cd target/npm/stage/strange-quark && npm publish --provenance)
+node scripts/npm/publish.mjs --dry-run --no-provenance   # check first
+node scripts/npm/publish.mjs --no-provenance             # provenance needs CI
 ```
