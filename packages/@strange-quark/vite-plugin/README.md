@@ -5,7 +5,7 @@ Vite dev-server plugin and launcher used by `squark dev` to run React apps with 
 ## Requirements
 
 - Node.js `>=22.18.0`
-- Vite `^6.0.0 || ^7.0.0`
+- Vite `^6.0.0 || ^7.0.0 || ^8.0.0`
 - `strange-quark` and a supported platform binary package
 
 ## Install

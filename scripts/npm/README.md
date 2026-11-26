@@ -22,7 +22,7 @@ Platform package templates live under `npm/` (outside the root `workspaces` glob
 Published packages declare `"engines": { "node": ">=22.18.0" }` (whereas developing the monorepo itself uses Node 26):
 
 - `squark build` and `strange-quark`'s `resolveConfig()` import `squark.config.ts` directly with Node's native TypeScript type stripping and no extra flags; unflagged type stripping landed in Node 22.18.0 (LTS) and 23.6.0+.
-- Both peer-supported Vite majors (Vite 6 and Vite 7, which requires `^20.19.0 || >=22.12.0`) work on Node `>=22.18.0`.
+- Every peer-supported Vite major (Vite 6, and Vite 7 and 8, which require `^20.19.0 || >=22.12.0`) works on Node `>=22.18.0`.
 - The compiled TypeScript output targets `ES2024`, fully supported by Node 22+.
 
 ## Release workflow
