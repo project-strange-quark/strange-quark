@@ -37,7 +37,7 @@ removes the shell, and replaces what the shell gave the renderer.
 4. **Write the stubs** in `src/strange-quark-stubs/electron-api.ts`. Implement
    the same TypeScript interface the preload exposed, and install them
    where the renderer expected `window.api`. Each stub method starts with a
-   `// SQUARK-RENDER STUB:` comment naming the IPC channel and what the main
+   `// STRANGE-QUARK STUB:` comment naming the IPC channel and what the main
    process did. It either returns clearly fake data or throws
    `NotAvailableInStrangeQuark`, whichever lets the UI render honestly.
 5. **Measure the original too,** when you can: `electron .`, or the

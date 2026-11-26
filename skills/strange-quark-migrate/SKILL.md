@@ -53,7 +53,7 @@ the line.
 - **Stub, and flag, everything with no equivalent.** That means Node or Rust
   backend calls, IPC, native menus, tray icons, global shortcuts and OS
   hooks. A stub lives in `src/strange-quark-stubs/`. It keeps the original
-  function's signature and starts with a `// SQUARK-RENDER STUB:` comment saying
+  function's signature and starts with a `// STRANGE-QUARK STUB:` comment saying
   what the real code did. It either returns clearly fake data or throws
   `NotAvailableInStrangeQuark`, whichever lets the rest of the UI keep working.
   Stubs are listed in the report. A flow that touches a stub never counts as
@@ -76,9 +76,10 @@ node <skill-dir>/scripts/probe.mjs \
 
 If you have the `squark` CLI but not a packed app, pass `--squark <path-to-squark>`
 instead. The probe result is the authority for what that installed runtime
-supports. It wins over `references/compatibility.md`,
-and `docs/architecture.md` when they disagree. Confirm
-every gap attributed to Strange Quark with the probe or a measured failure.
+supports. It wins over `references/compatibility.md` and the Strange Quark
+README when they disagree. `docs/architecture.md` is a design document,
+not a support list. Confirm every gap attributed to Strange Quark with the
+probe or a measured failure.
 The probe checks file-input selection through the DOM. Measure the native
 file chooser separately if a core flow depends on it.
 
@@ -120,7 +121,7 @@ Write `strange-quark-migration/INVENTORY.md`:
 ## Step 2: Migrate
 
 Read the playbook for the source kind before changing anything. Each one
-maps that framework's features to strange-quark-compatible React:
+maps that framework's features to React that Strange Quark can run:
 
 | Source | Playbook |
 | --- | --- |

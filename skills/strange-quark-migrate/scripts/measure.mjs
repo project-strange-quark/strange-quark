@@ -90,16 +90,16 @@ const SNAPSHOT_JS = `(() => {
 // a driver that delivers pointerdown and pointerup on different frames would
 // otherwise add a frame that belongs to the driver, not the engine.
 const LATENCY_START_JS = `(() => {
-  globalThis.__jrmLat = []; let pending = null;
+  globalThis.__sqmLat = []; let pending = null;
   for (const t of ["pointerdown", "pointerup", "click", "dblclick", "keydown", "keyup", "beforeinput", "input", "wheel"]) addEventListener(t, (e) => { pending = e.timeStamp; }, { capture: true });
   new MutationObserver(() => {
     if (pending === null) return;
     const start = pending; pending = null;
-    requestAnimationFrame((ts) => globalThis.__jrmLat.push(ts - start));
+    requestAnimationFrame((ts) => globalThis.__sqmLat.push(ts - start));
   }).observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
   return true;
 })()`;
-const LATENCY_READ_JS = `(() => globalThis.__jrmLat || [])()`;
+const LATENCY_READ_JS = `(() => globalThis.__sqmLat || [])()`;
 const MOUNTED_JS = `(() => { const r = document.querySelector(${JSON.stringify(root)}); return !!(r && r.childElementCount > 0); })()`;
 
 // ---- helpers ------------------------------------------------------------------------
@@ -229,8 +229,8 @@ class SquarkEngine {
   nextId = 1;
   buffer = "";
   async start() {
-    this.dataHome = fs.mkdtempSync(path.join(os.tmpdir(), "jrm-data-")); // fresh storage per run
-    this.sock = path.join(os.tmpdir(), `jrm-${process.pid}-${Date.now()}.sock`);
+    this.dataHome = fs.mkdtempSync(path.join(os.tmpdir(), "sqm-data-")); // fresh storage per run
+    this.sock = path.join(os.tmpdir(), `sqm-${process.pid}-${Date.now()}.sock`);
     const args = ["--test-control", this.sock, "--headless", "--width", String(viewport.width), "--height", String(viewport.height), "--dpr", "1"];
     if (gpuAdapter) args.push("--gpu-adapter", gpuAdapter);
     const t0 = performance.now();

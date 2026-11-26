@@ -1,11 +1,11 @@
 {
-  "snapshot": "Strange Quark first release work, November 2026 (Linux desktop, Compat mode, V8). A newer Strange Quark docs/architecture.md section 11 wins over this file.",
+  "snapshot": "Strange Quark v0.1.0, November 2026 (macOS arm64 and x64, Linux x64 and arm64 with glibc 2.35+, Windows x64 and arm64; Compat mode, V8). A probe of the installed runtime wins over this file.",
   "statuses": {
     "server": "Runs on a server in the source framework; Strange Quark has no server. Move behind an HTTP API, or stub it.",
-    "shell": "Desktop shell API (Electron, Tauri, Electrobun); no Strange Quark equivalent in v1. Use a web equivalent if one exists, otherwise stub and flag it.",
+    "shell": "Desktop shell API (Electron, Tauri, Electrobun); no Strange Quark equivalent in v0.1.0. Use a web equivalent if one exists, otherwise stub and flag it.",
     "node": "Node.js API used from UI code; not available in Strange Quark.",
     "tier2": "Planned for a later Strange Quark release; undefined or ignored today.",
-    "not-planned": "strange-quark does not plan to support it.",
+    "not-planned": "Strange Quark does not plan to support it.",
     "limited": "Supported with a caveat; read the note.",
     "framework": "Framework API with a client-side equivalent; replace it mechanically (see the source's playbook)."
   },

@@ -15,11 +15,10 @@ views, often React (`src/mainview/` or similar). They talk through typed RPC
    **stub** it. Bun-side file-system access, `Bun.spawn`, SQLite through
    `bun:sqlite`, tray, menus and `Updater` have no equivalent. Stubs go in
    `src/strange-quark-stubs/electrobun-rpc.ts`, with the RPC schema's types,
-   and each starts with `// SQUARK-RENDER STUB:`.
+   and each starts with `// STRANGE-QUARK STUB:`.
 4. **Several `BrowserView`s or windows:** Strange Quark's first release has one
    window. If the app's core needs more, that counts toward partially
    viable or blocked.
 5. **Measure the original too,** when you can (`bunx electrobun build`,
-   then run it). On Linux, Electrobun uses the system WebKitGTK unless it
-   bundles CEF, so record which one. Compare startup, memory and package
-   size.
+   then run it). Electrobun uses the system WebView unless the app bundles
+   CEF, so record which one. Compare startup, memory and package size.

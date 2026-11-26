@@ -1,10 +1,10 @@
 # What Strange Quark supports
 
-This file describes the first release's target, not the support in any
-particular build. The target platform is Linux desktop, Compat mode, V8.
-Run `scripts/probe.mjs` against the installed runtime to learn what that
-binary actually supports. Its results take precedence over this target
-snapshot. `scripts/compat.json` is the machine-readable form that `scan.mjs`
+This file describes what v0.1.0, the first release, targets, not the
+support in any particular build. It covers the six desktop targets under
+[Platforms](#platforms), in Compat mode, on V8. Run `scripts/probe.mjs`
+against the installed runtime to learn what that binary actually supports.
+Its results take precedence over this target snapshot. `scripts/compat.json` is the machine-readable form that `scan.mjs`
 uses. Keep the two in step.
 
 The target intends to report features truthfully. An API it lacks is left
@@ -59,10 +59,26 @@ These are undefined or ignored today, and a later release may add them:
   cookies (`document.cookie` reads `""`), CORS
 - Node.js APIs in the UI (`require('fs')`, `process`, `Buffer` from Node)
 - Electron, Tauri or Electrobun shell APIs. The native-module escape hatch
-  (architecture map §13) is not in the first release.
+  (a design in `docs/architecture.md` §13) is not in the first release.
 
 ## Platforms
 
-The first release targets Linux x86_64: Wayland and X11, Vulkan. Windows,
-macOS and mobile are planned. Say so in a report whose user needs another
-platform.
+v0.1.0 ships a prebuilt runtime for six desktop targets:
+
+| Target | GPU API | `squark build` output |
+| --- | --- | --- |
+| macOS 12+, arm64 (Apple Silicon) and x64 (Intel) | Metal | `dist/<name>.app`, signed ad hoc |
+| Linux x64 and arm64, glibc 2.35+, Wayland and X11 | Vulkan | `dist/<name>` |
+| Windows 10+, x64 and arm64 | Direct3D 12 | `dist\<name>.exe` |
+
+glibc 2.35 or newer means Ubuntu 22.04, Debian 12, Fedora 36 or a later
+release. The targets are not all tested to the same depth. Excalidraw
+passes against Chromium on Linux x64, macOS on Apple Silicon and Windows
+x64. Linux arm64 is built but not yet tested on hardware, and Windows arm64
+was tested in a VM without a GPU.
+
+Android, iOS and embedded Linux are planned, not in v0.1.0. Say so in a
+report whose user needs one of them, or an older Linux.
+
+A measurement holds for the platform it ran on. Name that platform in the
+report, and list the user's other target platforms under "Not tested".

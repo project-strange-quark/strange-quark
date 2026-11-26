@@ -34,17 +34,18 @@ standing choice for this skill is to stub the core.
 4. **Write the stubs** in `src/strange-quark-stubs/tauri.ts`. Export `invoke`
    and the plugin functions with the same signatures, and route the
    imports there, by editing the imports or with a Vite alias recorded in
-   `MIGRATION.md`. Each stub starts with `// SQUARK-RENDER STUB:` naming the
+   `MIGRATION.md`. Each stub starts with `// STRANGE-QUARK STUB:` naming the
    command or plugin and what the Rust side did.
 5. **Measure the original too,** when you can: `cargo tauri build`, or
-   `npm run tauri build`. On Linux, Tauri renders through WebKitGTK, so the
+   `npm run tauri build`. Tauri renders through the system WebView
+   (WebKitGTK on Linux, WKWebView on macOS, WebView2 on Windows), so the
    comparison is:
    - Strange Quark against Chromium (the skill's standard check);
    - Strange Quark against Tauri: startup, memory, package size, and any
      visible rendering differences.
 
-   If the Rust toolchain or the WebKitGTK dev packages are missing, say so;
-   do not guess.
+   If the Rust toolchain or the WebView's build dependencies (on Linux, the
+   WebKitGTK dev packages) are missing, say so; do not guess.
 
 ## Signs of a blocked verdict
 

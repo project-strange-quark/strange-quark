@@ -17,7 +17,7 @@ with it, and the single most important reason for the verdict.>
 | Source | <Next.js 15 App Router / Electron 33 + Vite / ...> |
 | Branch | `strange-quark-migration` (from <original branch> at <sha>, not pushed) |
 | Strange Quark | <version, or "not installed"> |
-| Measured on | <machine, GPU or software adapter, headless or windowed, date> |
+| Measured on | <machine, OS and CPU architecture, GPU or software adapter, headless or windowed, date> |
 
 ## Core flows
 
@@ -44,7 +44,7 @@ MIGRATION.md.>
 
 | Gap | Kind | Affects | What would close it |
 | --- | --- | --- | --- |
-| <e.g. Tauri command `index_folder` stubbed> | stub | core flow "search notes" | <a Strange Quark native module (not in v1), or moving indexing to a server> |
+| <e.g. Tauri command `index_folder` stubbed> | stub | core flow "search notes" | <a Strange Quark native module (not in v0.1.0), or moving indexing to a server> |
 | <e.g. `@container` queries ignored> | Strange Quark gap (tier 2) | card layout at narrow widths | <Strange Quark tier 2 work, or media queries in the app> |
 
 Kinds: migration gap (fixable in the app), Strange Quark gap (missing feature
