@@ -2,15 +2,17 @@
 
 *Architecture map · design proposal · rev 0.1*
 
-Strange Quark runs real React apps and their npm libraries without a browser engine. Unmodified react-dom talks to a DOM written in JavaScript. That DOM streams its mutations into a Rust document, which Stylo styles, Taffy and Parley lay out, and wgpu draws on Vulkan, Metal, D3D12 or GLES.
+> **This is the design document.** It records the intended design of Strange Quark and the reasoning behind it. Sections that describe parts not built yet say so. For what works today, see [What works](../README.md#what-works) in README.md.
+
+Strange Quark runs real React apps and their npm libraries without a browser engine. Unmodified react-dom talks to a DOM written in JavaScript. That DOM streams its mutations into a Rust document, which Stylo styles, Taffy and Parley lay out, and wgpu draws on Vulkan, Metal or D3D12 (GLES is planned).
 
 - **Input:** React 18.3 and 19.x apps, npm libraries, CSS from Tailwind, CSS Modules and CSS-in-JS
 
-- **Output:** One native binary per target, no WebView
+- **Output:** One native binary per target (an app bundle on macOS), no WebView
 
-- **Core crates:** Stylo · Taffy · Parley · Vello · wgpu · winit · AccessKit
+- **Core crates:** Stylo · Taffy · Parley · Vello · wgpu · winit · AccessKit (planned)
 
-- **JS engine:** V8 by default, QuickJS-ng for small and JIT-less targets
+- **JS engine:** V8 by default; QuickJS-ng for small and JIT-less targets is planned
 
 ## §1 System map
 
@@ -142,7 +144,7 @@ squark-compositor
 
 Keeps the screen moving while JavaScript is busy.
 
-- **Owns:** Scroll offsets, running compositor animations, the layer tree, the tile cache.
+- **Owns:** Scroll offsets, running compositor animations, the layer tree, per-tile damage.
 
 - **Does:** Takes frames from a latest-wins mailbox. Applies scroll offsets, sticky offsets and transform, opacity and filter animations to the property trees without repainting. Groups items into layers by scroll frame and effect, tracks damage per tile, and publishes hit-test data and scroll offsets.
 
@@ -154,7 +156,7 @@ squark-gpu
 
 Turns layers into wgpu command buffers.
 
-- **Owns:** wgpu device and queue, pipelines, glyph atlases, image atlas, gradient ramp texture, effect surfaces and tile textures.
+- **Owns:** wgpu device and queue, pipelines, glyph atlases, image atlas, gradient ramp texture, effect surfaces, and the tile cache's textures.
 
 - **Does:** Uploads through a staging belt, batches by pipeline and bind group, draws opaque items front to back with a depth test and translucent items back to front, renders paths with Vello, composites tiles to the swapchain, presents.
 
@@ -176,9 +178,9 @@ Owns the window and everything the OS sends to it.
 
 Document → main
 
-squark-a11y
+squark-a11y (planned, not built)
 
-Exposes the document to screen readers and other assistive technology.
+Exposes the document to screen readers and other assistive technology. Neither the crate nor the AccessKit integration exists yet.
 
 - **Does:** Builds an AccessKit tree from element semantics, ARIA attributes, label relationships and layout bounds on the document thread, then sends incremental updates to the adapter on the main thread. Assistive-technology actions (focus, click, set value, scroll into view) come back as DOM events.
 
@@ -192,7 +194,7 @@ squark-assets
 
 Loads and decodes everything that is not code.
 
-- **Does:** Memory-maps the asset pack in release builds and fetches from the dev server in development. Decodes PNG, JPEG, WebP, AVIF and GIF frames on the pool, loads fonts, reports intrinsic sizes to layout and pixels to the renderer as resource updates, and evicts least-recently-used textures over budget.
+- **Does:** Memory-maps the asset pack in release builds and fetches from the dev server in development. Decodes PNG, JPEG, WebP, AVIF and GIF frames on the pool, loads fonts, reports intrinsic sizes to layout and pixels to the renderer as resource updates, and evicts least-recently-used textures over budget. AVIF decoding is not built yet.
 
 ### Network & IO
 
@@ -202,9 +204,9 @@ squark-net
 
 Backs fetch, WebSocket and EventSource.
 
-- **Does:** Streaming `fetch` with `AbortController`, `WebSocket`, `EventSource`, and file reads for native modules. Requests are checked against the host allowlist in `squark.config.ts`. Completions are queued as tasks on the document thread.
+- **Does:** Streaming `fetch` with `AbortController`, `WebSocket`, `EventSource`, and file reads for native modules once they exist (§13). Requests are checked against the host allowlist, `network.allow` in `squark.config.ts`. Completions are queued as tasks on the document thread.
 
-- **Built on:** tokio, hyper, rustls, tungstenite.
+- **Built on:** tokio, reqwest (over hyper), rustls, tokio-tungstenite.
 
 ### JS engine adapter
 
@@ -217,6 +219,8 @@ One interface over the engines Strange Quark can embed.
 - **Does:** Module loading, microtask checkpoints, the shared journal buffer, fast native calls for `__squark.query`, `FinalizationRegistry` hooks, startup snapshots or bytecode, and the inspector protocol for Chrome DevTools.
 
 - **Backends:** V8 through rusty_v8 by default. QuickJS-ng for small and JIT-less targets.
+
+- **Built so far:** V8 only, with compiled modules kept in an on-disk code cache. Fast native calls, startup snapshots, the inspector and the QuickJS-ng backend are planned.
 
 ## §3 Frame lifecycle
 
@@ -244,17 +248,17 @@ The budgets below are for 60 Hz. They are targets for a mid-range laptop, not me
 
 **Missed deadline.** The compositor presents the previous frame again, with current scroll offsets and compositor animations applied, so the screen keeps moving. The late frame shows at the following vsync. Only content changes are delayed.
 
-**Forced layout.** A layout read in step 2 or 3 runs steps 4 to 6 early for the dirty subtree only. When step 4 comes, there is less left to do. Interleaving writes and reads in a loop repeats that work, which the dev build reports (§16).
+**Forced layout.** A layout read in step 2 or 3 runs steps 4 to 6 early for the dirty subtree only. When step 4 comes, there is less left to do. Interleaving writes and reads in a loop repeats that work, which the planned forced-layout detector reports (§16).
 
 ### Startup
 
 - The process starts on the main thread and creates the window, hidden.
 
-- In parallel: the render thread requests a wgpu adapter and device, the document thread starts the JS engine from its snapshot, and the asset pack is memory-mapped.
+- In parallel: the render thread requests a wgpu adapter and device, the document thread starts the JS engine (from a startup snapshot, once those are built), and the asset pack is memory-mapped.
 
 - `document.bin` builds the initial document from `index.html` (head, body, `#root`) without parsing HTML at runtime.
 
-- `app.js` runs. Its first import is the squark-dom prelude, so `window` and `document` exist before any library checks `typeof window`. Stylo parses `app.css`.
+- The app's scripts run. squark-dom is installed in the realm before them, so `window` and `document` exist before any library checks `typeof window`. Stylo parses the app's stylesheets.
 
 - `createRoot(…).render(<App />)` commits, and frame steps 4 to 15 produce the first frame.
 
@@ -266,7 +270,7 @@ react-dom makes thousands of DOM calls to mount a screen, and many of them are r
 
 When a Radix popover opens, Floating UI measures in a layout effect, right after React’s commit. The first read pays for the flush, restyle and relayout. The second is a cache hit. Writing `transform` costs one record and no layout, because transforms live in the property trees.
 
-**Three calls cross from JavaScript to Rust:** `__squark.flush(buffer, length)`, `__squark.query(kind, nodeId, arg)` and `__squark.parseFragment(html)`. In the other direction, Rust queues tasks: DOM events with a target id, observer entries, scroll offsets, and resource events such as an image’s `load` with its natural size.
+**Three calls carry the document traffic from JavaScript to Rust:** `__squark.flush(buffer, length)`, `__squark.query(kind, nodeId, arg)` and `__squark.parseFragment(html)`. Other `__squark` functions back Web API facades such as Canvas 2D, fonts, crypto and the network. In the other direction, Rust queues tasks: DOM events with a target id, observer entries, scroll offsets, and resource events such as an image’s `load` with its natural size.
 
 ### Journal records
 
@@ -290,6 +294,8 @@ Each record is 16 bytes: an opcode byte, a flags byte, two bytes of padding and 
 | 0x0E | FOCUS | id, flags (blur, preventScroll) | `focus()`, `blur()` |
 | 0x0F | RELEASE | id | `FinalizationRegistry` callback for a detached node |
 
+The code adds records 0x10 to 0x17: atom definitions, Canvas 2D submits and sizes, font faces, other node types, listener flags, text selection and IME preedit. `crates/squark-types/src/journal.rs` has the full list.
+
 ### Synchronous reads
 
 | Read | Forces | Notes |
@@ -311,6 +317,8 @@ The JS object is the node, so `===`, expandos and `WeakMap` keys behave as they 
 ## §5 Compat and Direct modes
 
 Compat mode is the default and the reason Strange Quark exists. Direct mode is an opt-in for apps that do not need the npm DOM ecosystem and want less memory per node. A root uses one mode or the other.
+
+Only Compat mode is built. Direct mode and `@strange-quark/reconciler` are planned.
 
 The two modes differ in one layer. Direct mode replaces react-dom and squark-dom with a react-reconciler host config whose `createInstance`, `appendChild` and `commitUpdate` write journal records directly.
 
@@ -368,15 +376,17 @@ Paint records display items. Every item points at nodes in four property trees: 
 
 Render thread work happens in order for each frame, then one submission runs five GPU passes in dependency order. Vello runs before the tile passes because its coverage textures are inputs to them.
 
+The shaders are in `crates/squark-gpu/shaders/`. One shader, `static.wgsl`, draws every item kind in the table below except effect groups, and picks the kind per instance. `effects.wgsl` runs effect groups. Both include `text_coverage.wgsl`, which matches Chromium’s text antialiasing. `hello.wgsl` serves only the `squark-hello` demo.
+
 | Display item | From | GPU path |
 | --- | --- | --- |
-| Rect, rounded rect | `background-color`, `border-radius` | `quad.wgsl`: instanced, coverage from a rounded-rect SDF with per-corner radii. Opaque rects go in the depth-tested opaque pass. |
-| Border | `border-*` | `border.wgsl`: SDF ring with per-side width and color. Dashed and dotted use arc length along the ring. |
-| Box shadow | `box-shadow`, outset and inset | `shadow.wgsl`: closed-form approximation of a blurred rounded rect, so no blur pass. Spread folds into the rect. |
-| Gradient | `linear-`, `radial-`, `conic-gradient()` | `gradient.wgsl`: stops baked into one row of the gradient ramp texture, interpolated in the color space CSS specifies. |
-| Image | `<img>`, `background-image` | `image.wgsl`: atlas for images up to 512 px, own texture above that, mipmapped when drawn smaller. `object-fit` is resolved in paint. |
-| Text run | text fragments | `glyph.wgsl`: R8 mask atlas for regular glyphs, RGBA8 atlas for color glyphs. Glyph positions snap to device pixels along the baseline. |
-| Path | inline SVG, `clip-path: path()`, Canvas 2D (tier 2) | Vello compute renders coverage into a texture, then `image.wgsl` draws it. GLES targets lack compute and use Vello’s hybrid CPU/GPU renderer. |
+| Rect, rounded rect | `background-color`, `border-radius` | Instanced, coverage from a rounded-rect SDF with per-corner radii. Opaque rects go in the depth-tested opaque pass. |
+| Border | `border-*` | SDF ring with per-side width and color. Dashed and dotted use arc length along the ring. |
+| Box shadow | `box-shadow`, outset and inset | Closed-form approximation of a blurred rounded rect, so no blur pass. Spread folds into the rect. |
+| Gradient | `linear-`, `radial-`, `conic-gradient()` | Stops baked into one row of the gradient ramp texture, interpolated in the color space CSS specifies. |
+| Image | `<img>`, `background-image` | Atlas for images up to 512 px, own texture above that, mipmapped when drawn smaller. `object-fit` is resolved in paint. |
+| Text run | text fragments | R8 mask atlas for regular glyphs, RGBA8 atlas for color glyphs. Glyph positions snap to device pixels along the baseline. |
+| Path | inline SVG, `clip-path: path()`, Canvas 2D | Vello compute renders coverage into a texture, then the item shader samples it. Canvas 2D commands run in squark-canvas, also on Vello. GLES targets lack compute and use Vello’s hybrid CPU/GPU renderer. |
 | Clip | `overflow`, rounded overflow, `clip-path` | Scissor for axis-aligned rects; an SDF test inside the item shader for one rounded rect; a mask texture otherwise. |
 | Effect group | `opacity` over overlapping content, `filter`, `mix-blend-mode`, `backdrop-filter` | Offscreen surface, filter passes (separable Gaussian, color matrix), composited with the blend mode. Opacity on a single item folds into its color and allocates nothing. |
 | Transform | `transform`, scroll and sticky offsets | A transform tree node. Instances carry a node index into a storage buffer of 4×4 matrices. |
@@ -387,7 +397,7 @@ Render thread work happens in order for each frame, then one submission runs fiv
 
 **Color and antialiasing.** Blending happens in sRGB-encoded space, with `Rgba8Unorm` and `Bgra8Unorm` targets rather than the `*Srgb` formats, because browsers blend that way and designs are tuned against it. Edges get analytic coverage from SDFs, so no MSAA is needed.
 
-**Default budgets.** Glyph atlases start as one 2048² R8 page and one 2048² RGBA8 page and grow by pages. The image atlas is 4096² RGBA8. Tiles, atlases and images share `textureBudgetMB` (256 by default) and are evicted least recently used.
+**Default budgets.** Glyph atlases start as one 2048² R8 page and one 2048² RGBA8 page and grow by pages. The image atlas is 4096² RGBA8. Tiles, atlases and images share a 256 MiB texture budget and are evicted least recently used.
 
 ## §9 Input and events
 
@@ -407,13 +417,13 @@ Consider a click on a span inside a button, on a 2× display. Release produces p
 
 - **Form controls.** Buttons, checkboxes, radios, ranges, text fields and selects are drawn by Strange Quark from the UA stylesheet, so `appearance: none` and Tailwind’s preflight reset behave as in browsers. An open `<select>` is a top-layer popup in the same window on desktop and the platform picker on mobile.
 
-- **Assistive technology.** A screen reader’s activate action arrives through AccessKit as a click on the node. Set value goes through the same path as typing.
+- **Assistive technology (planned).** A screen reader’s activate action arrives through AccessKit as a click on the node. Set value goes through the same path as typing.
 
 ## §10 Threads and memory
 
 | Thread | Runs | Owns | Talks to others through |
 | --- | --- | --- | --- |
-| Main | winit event loop, input routing, hit testing, IME, clipboard, AccessKit adapter | Window handles, input state | Task queue to the document thread; scroll channel to the render thread |
+| Main | winit event loop, input routing, hit testing, IME, clipboard, AccessKit adapter (planned) | Window handles, input state | Task queue to the document thread; scroll channel to the render thread |
 | Document | JS engine, squark-dom, journal, mirror, style, layout, paint | JS heap, node arena, stylesheets, computed values, fragment tree | Frame mailbox to the render thread; rayon scopes and channels to the pools |
 | Render | Compositor, GPU renderer, present | Layer tree, scroll offsets, compositor animations, every GPU resource | Hit-test data to the main thread; scroll offsets and animation-finished events to the document thread |
 | Worker pool | Parallel restyle, image decode, glyph rasterization, CPU path fallback | Nothing between tasks | Results as resource updates |
@@ -430,12 +440,12 @@ squark-dom implements what React and popular libraries actually call, in tiers. 
 | Area | TIER 1 · v1 | TIER 2 | NOT PLANNED |
 | --- | --- | --- | --- |
 | DOM | Node, Element, Text, Comment, DocumentFragment, Document, selectors API, `contains`, `compareDocumentPosition`, MutationObserver, `innerHTML` through html5ever | Shadow DOM, custom elements, `moveBefore`, Range | `document.write`, XPath, iframes |
-| Events | EventTarget with capture, `passive`, `once`, `signal`; Pointer, Mouse, Keyboard, Focus, Input, Composition, Wheel, Touch, Custom events | Drag and drop, clipboard events with rich data |  |
+| Events | EventTarget with capture, `passive`, `once`, `signal`; Pointer, Mouse, Keyboard, Focus, Input, Composition, Wheel, Touch, Clipboard, Custom events | Drag and drop |  |
 | CSSOM | `element.style`, `CSSStyleSheet`, `document.styleSheets`, `getComputedStyle`, `CSS.supports`, `matchMedia` | `adoptedStyleSheets`, Typed OM |  |
 | Geometry | Rects, offset, client and scroll metrics, `scrollTo`, `scrollIntoView`, ResizeObserver, IntersectionObserver, `elementFromPoint` |  |  |
-| Timing | `setTimeout`, `setInterval`, `queueMicrotask`, `MessageChannel`, rAF, `requestIdleCallback`, `performance.now`, `mark`, `measure` | Web Workers, Web Animations API |  |
-| Network, storage | `fetch`, Headers, Request, Response, AbortController, WebSocket, EventSource, URL, TextEncoder, file-backed `localStorage`, `crypto.getRandomValues`, `crypto.randomUUID` | IndexedDB, `crypto.subtle` | Service workers, cookies, CORS |
-| Graphics, media | `<img>`, inline SVG (shapes, paths, text, gradients, `clipPath`) | Canvas 2D on Vello, `<video>` and `<audio>` through platform decoders, `navigator.gpu` over wgpu | WebGL |
+| Timing | `setTimeout`, `setInterval`, `queueMicrotask`, `MessageChannel`, rAF, `performance.now` | Web Workers, Web Animations API, `requestIdleCallback`, `performance.mark` and `measure` |  |
+| Network, storage | `fetch`, Headers, Request, Response, AbortController, WebSocket, EventSource, URL, TextEncoder, file-backed `localStorage`, IndexedDB, `crypto.getRandomValues`, `crypto.randomUUID`, `crypto.subtle` (SHA digests and AES-GCM) |  | Service workers, cookies, CORS |
+| Graphics, media | `<img>`, inline SVG (shapes, paths, text, gradients, `clipPath`), Canvas 2D on Vello | `<video>` and `<audio>` through platform decoders, `navigator.gpu` over wgpu | WebGL |
 | Forms, editing | Text, number, password, checkbox, radio and range inputs; `textarea`, `select`, `button`, `label`, form `submit` events | `contenteditable`, Selection |  |
 | Navigation | History API (in memory), `location`, `<a href>` routed to the app or the system browser |  | Multiple documents, cross-origin navigation |
 
@@ -452,25 +462,27 @@ squark-dom implements what React and popular libraries actually call, in tiers. 
 | TanStack Virtual, react-window | `scrollTop`, `scroll` events, ResizeObserver | TIER 1 Scroll reads can lag the compositor by a frame. |
 | Recharts, visx | SVG elements, `getBBox`, text measurement | TIER 1 |
 | Motion (Framer Motion) | rAF and style writes; `element.animate()` for hardware-accelerated values | TIER 1 for rAF animations; WAAPI is tier 2. |
-| Chart.js, Konva | Canvas 2D | TIER 2 |
+| Chart.js, Konva | Canvas 2D | TIER 1 Canvas 2D is built, as Excalidraw uses it; these libraries are not checked yet. |
 | Lexical, Slate, ProseMirror, TipTap | `contenteditable`, Selection, Range, `beforeinput` | LATER The hardest gap. Needs a full editing host. |
-| three.js, react-three-fiber | WebGL | NO Use `<GpuView>` (§13), or the WebGPU renderer once `navigator.gpu` lands. |
+| three.js, react-three-fiber | WebGL | NO Use `<GpuView>` (§13, planned), or the WebGPU renderer once `navigator.gpu` lands. |
 
 ## §12 Toolchain
 
-The Vite plugin produces four files. `squark build` turns them and the Rust crates into one binary per target. The CSS support report lists every property the app uses that layout or paint would ignore.
+`squark build` runs the app’s own build, compiles its `index.html` into `document.bin`, packs the output into a `.sqpak` archive and appends it to the prebuilt `squark-runtime` binary. On macOS it writes an app bundle instead. No Rust is compiled. Debug builds of the runtime warn about every CSS property layout or paint would ignore (§16).
+
+The `squark` CLI has five commands: `pack` packs a built directory directly, `inspect` dumps a pack, `dev` runs the live-reload loop, `build` builds and packs an app as above, and `screenshot` renders an HTML file, directory or pack headlessly to PNG.
 
 ### Dev loop: `squark dev`
 
-- Starts Vite and the native runtime. The runtime loads modules from the dev server over HTTP, so edits need no rebuild of Rust.
+- Starts Vite with `@strange-quark/vite-plugin`, which only `squark dev` uses, and the native runtime. The runtime loads modules from the dev server over HTTP, so edits need no rebuild of Rust.
 
 - Vite’s HMR client connects over the WebSocket squark-dom provides. React Fast Refresh is the stock `react-refresh` runtime.
 
-- React DevTools runs standalone and connects through `react-devtools-core`.
+- Planned: React DevTools runs standalone and connects through `react-devtools-core`.
 
-- The V8 inspector exposes the Chrome DevTools Protocol for breakpoints and CPU profiles.
+- Planned: the V8 inspector exposes the Chrome DevTools Protocol for breakpoints and CPU profiles.
 
-- `squark inspect` overlays layout boxes, paint flashing, layer borders, overdraw and the atlases.
+- `squark inspect --dump-pack <file>` validates and dumps a `.sqpak`, a packed binary or a `document.bin`, with `--json` for JSON. Overlays for layout boxes, paint flashing, layer borders, overdraw and the atlases are planned (§16).
 
 ```tsx
 // src/main.tsx: the same file Vite would run in a browser
@@ -482,22 +494,26 @@ createRoot(document.getElementById('root')!).render(<App />);
 ```
 
 ```tsx
-// squark.config.ts
-import { defineConfig } from 'strange-quark/config';
+// squark.config.ts: every key is optional
+import { defineConfig } from 'strange-quark';
 
 export default defineConfig({
-  entry: 'src/main.tsx',
-  html: 'index.html',
-  mode: 'compat',                       // or 'direct' (§5)
-  window: { title: 'Acme Console', width: 1280, height: 800, minWidth: 720 },
-  engine: { desktop: 'v8', ios: 'v8-jitless', embedded: 'quickjs' },
-  renderer: { tileSize: 512, textureBudgetMB: 256 },
+  name: 'acme-console',                 // binary name; defaults to package.json's name
+  window: { title: 'Acme Console', width: 1280, height: 800 },
+  build: {
+    command: 'npm run build',           // the app's own build; detected if omitted
+    distDir: 'dist',                    // its output; dist/ or build/ if omitted
+    entryHtml: 'index.html',
+    env: { VITE_API_URL: 'https://api.acme.dev' },
+  },
   network: { allow: ['api.acme.dev', 'wss://events.acme.dev'] },
-  native: { modules: ['fs:read', 'dialog', 'notifications'] },
+  assets: [{ path: '/fonts/Inter.woff2', file: 'fonts/Inter.woff2' }],  // extra files at exact pack paths
 });
 ```
 
 ## §13 Native escape hatches
+
+Neither escape hatch is built yet. `@strange-quark/native`, `<GpuView>` and the `squark::` macros below are planned.
 
 **`<GpuView>`** reserves a box in layout like any element. Each frame it is visible, the render thread calls a registered Rust renderer to draw into a texture sized to the box in device pixels. The texture is composited as a layer in paint order, so DOM content can overlay it, clip it and round its corners, and pointer events over it still go through squark-dom first.
 
@@ -544,76 +560,84 @@ async fn read_text(path: String) -> Result<String, SquarkError> {
 | Embedded Linux | squark-host DRM/KMS backend, no compositor | GLES or Vulkan | QuickJS-ng | None | Kiosks, appliances, in-vehicle displays |
 | Web (wasm32) | Canvas element | WebGPU | The browser’s | None | For tests and demos. squark-dom runs in the page’s own JS. |
 
+Only the three desktop targets are built, and each uses one wgpu backend: Direct3D 12 on Windows, Metal on macOS and Vulkan on Linux, without the fallbacks. No target has an accessibility adapter yet. Android, iOS, embedded Linux and the web target are planned.
+
 ## §15 Repository layout
 
 ```tsx
 strange-quark/
 ├─ crates/
-│  ├─ squark-host/         window, event loop, input routing, frame clock (winit)
-│  ├─ squark-js/           engine trait + backends: v8/, quickjs/
-│  ├─ squark-journal/      record decoding, string table, atoms
+│  ├─ squark-host/         window, event loop, input routing, frame clock (winit); the squark-runtime binary
+│  ├─ squark-js/           V8 embedding, module loader, event loop, __squark bindings
+│  ├─ squark-journal/      record validation and encoding, string table, atoms
 │  ├─ squark-mirror/       node arena, dirty bits, Stylo DOM traits
-│  ├─ squark-style/        Stylo integration, UA stylesheet, computed-value split
+│  ├─ squark-style/        Stylo integration, UA stylesheet, CSS warnings
 │  ├─ squark-layout/       Taffy integration, inline formatting, positioning
 │  ├─ squark-text/         fonts, shaping, glyph raster, text editing
-│  ├─ squark-paint/        display list, property trees, hit-test tree, damage
-│  ├─ squark-compositor/   layers, scrolling, compositor animations, tiles
-│  ├─ squark-gpu/          wgpu renderer, batcher, atlases, shaders/*.wgsl
-│  ├─ squark-a11y/         AccessKit tree builder
-│  ├─ squark-assets/       loader, image decode, asset pack (.sqpak)
-│  ├─ squark-net/          fetch, WebSocket, EventSource (tokio)
-│  └─ squark-cli/          squark dev | build | inspect
+│  ├─ squark-paint/        display list, property trees, hit testing, damage
+│  ├─ squark-compositor/   frame mailbox, scroll offsets, compositor animations
+│  ├─ squark-gpu/          wgpu renderer, atlases, tiles, Vello paths, shaders/*.wgsl
+│  ├─ squark-canvas/       Canvas 2D command playback on the GPU (Vello)
+│  ├─ squark-assets/       asset pack (.sqpak) reader, initial document, image and SVG decode
+│  ├─ squark-net/          fetch, WebSocket, EventSource, host allowlist (tokio)
+│  ├─ squark-types/        types shared across crates, one module per seam
+│  └─ squark-cli/          squark pack | inspect | dev | build | screenshot
 ├─ packages/
-│  ├─ strange-quark/               npm entry: CLI shim, config types
-│  ├─ @strange-quark/dom/          JS DOM, CSSOM, events, journal encoder
-│  ├─ @strange-quark/reconciler/   Direct mode host config
-│  ├─ @strange-quark/vite-plugin/  bundling, CSS lowering, asset pack
-│  ├─ @strange-quark/native/       <GpuView>, native modules, window API
-│  └─ @strange-quark/devtools/     inspector overlay client
+│  ├─ strange-quark/               npm entry: squark CLI shim, config types
+│  ├─ @strange-quark/dom/          JS DOM, CSSOM, events, Web API facades, journal encoder
+│  └─ @strange-quark/vite-plugin/  Vite dev-server plugin and launcher for squark dev
+├─ npm/            per-platform runtime packages (cli-<os>-<cpu>)
+├─ apps/           test apps: counter, todomvc, shadcn, virtual-list, excalidraw
+├─ vendor/         Excalidraw (submodule) and patched Stylo
+├─ scripts/        check.sh, check.mjs and other tooling
 └─ tests/
-   ├─ wpt/        imported Web Platform Tests subset
-   ├─ reftests/   HTML/CSS cases diffed against headless Chromium
-   └─ compat/     library storybooks, pixel and behavior diffs
+   ├─ wpt/         imported Web Platform Tests subsets (DOM, Canvas 2D)
+   ├─ reftests/    HTML/CSS cases diffed against the pinned Chromium
+   ├─ react-dom/   react-dom's own test suite on squark-dom
+   ├─ compat/      app interaction scripts, DOM and pixel diffs against Chromium
+   └─ excalidraw/  Excalidraw end-to-end flow and scenes
 ```
+
+Direct mode, accessibility, native modules and the devtools client (§5, §13, §16) have no crate or package yet.
 
 ## §16 Testing and observability
 
 ### Testing
 
-- **react-dom’s own test suite** runs against squark-dom, adapted from its jsdom environment, on every React release.
+- **react-dom’s own test suite** runs against squark-dom, adapted from its jsdom environment (`tests/react-dom`). It is pinned to React 19.0.0; the aim is to run it on every React release.
 
-- **Web Platform Tests** for DOM, UI Events, Pointer Events, ResizeObserver, IntersectionObserver and CSS layout and painting.
+- **Web Platform Tests**: pinned subsets for DOM and Canvas 2D (`tests/wpt`). UI Events, Pointer Events, ResizeObserver, IntersectionObserver and CSS layout and painting are to follow.
 
-- **Reftests** render each HTML/CSS case in Strange Quark and headless Chromium and compare pixels with a per-test tolerance for antialiasing.
+- **Reftests** render each HTML/CSS case in Strange Quark and the pinned headless Chromium and compare pixels with a per-test tolerance for antialiasing.
 
-- **Compat suite**: the storybooks of Radix, shadcn/ui, Mantine, MUI and TanStack Table run in both engines with the same interaction scripts, comparing DOM state and screenshots.
+- **Compat suite**: the apps in `apps/` (a counter, TodoMVC, shadcn/ui and a virtual list) run in both engines with the same interaction scripts, comparing DOM state and screenshots. Excalidraw has its own end-to-end flow in `tests/excalidraw`. Storybooks of Radix, Mantine, MUI and TanStack Table are planned.
 
-- **GPU determinism**: CI renders on software adapters (llvmpipe, WARP) for stable pixels; nightly runs on real Metal, Vulkan and D3D12 hardware.
+- **GPU determinism**: CI (`.github/workflows/ci.yml`) renders on Mesa’s lavapipe software adapter for stable pixels. Its macOS and Windows jobs build and run the tests without a GPU. Runs on real Metal, Vulkan and Direct3D 12 hardware are made by hand and recorded in `tests/results/`; a nightly hardware job is planned.
 
 ### Observability
 
-- **Frame timeline** with one span per step in §3: puffin in dev builds, Tracy in profiling builds.
+- **Frame timeline**: `SQUARK_FRAME_TIMELINE` records per-frame samples, and debug builds write a puffin trace when `SQUARK_PUFFIN_TRACE` is set. One span per step in §3, and Tracy in profiling builds, are planned.
 
-- **Forced-layout detector**: a read that forces layout during React’s render phase, or inside an interleaved write-read loop, logs both JS stack traces.
+- **Forced-layout detector** (planned): a read that forces layout during React’s render phase, or inside an interleaved write-read loop, logs both JS stack traces.
 
-- **Overlays**: layout boxes, paint flashing from damage rects, layer and tile borders, overdraw heatmap, atlas viewer.
+- **Overlays** (planned): layout boxes, paint flashing from damage rects, layer and tile borders, overdraw heatmap, atlas viewer.
 
-- **Unsupported CSS warnings** with the property, value, stylesheet and line.
+- **Unsupported CSS warnings** in debug builds, with the property, value, stylesheet, line and column.
 
-- **Journal tap**: record the journal for a session and replay it in Rust without JavaScript, to reproduce rendering bugs.
+- **Journal tap** (planned): record the journal for a session and replay it in Rust without JavaScript, to reproduce rendering bugs.
 
 ## §17 Design decisions
 
 | Decision | Chosen | Rejected | Why |
 | --- | --- | --- | --- |
 | Where the DOM lives | JavaScript, with a journal to Rust | A native DOM behind bindings; a custom reconciler only | Structural reads are property lookups. react-dom’s expandos and prototype accessors work unchanged. Writes batch for free. |
-| JS engine | V8 by default, QuickJS-ng behind the same trait | JavaScriptCore, Hermes | V8 has startup snapshots, fast native calls and a mature inspector. QuickJS-ng is small and runs without a JIT. |
+| JS engine | V8 by default, QuickJS-ng behind the same trait (planned) | JavaScriptCore, Hermes | V8 has startup snapshots, fast native calls and a mature inspector. QuickJS-ng is small and runs without a JIT. |
 | Style | Stylo, with the mirror implementing its DOM traits | A hand-written cascade | Parsing, cascade, invalidation, style sharing and parallel traversal already exist, and Blitz has shown Stylo works outside Servo. |
 | Layout | Taffy for block, flex and grid; Parley for inline | Yoga; a hand-written engine | Taffy covers the three main algorithms and has a measure hook. Parley handles rich text with inline boxes. |
 | 2D rendering | Instanced primitive renderer, with Vello for paths | Vello for everything; Skia; WebRender | UI frames are mostly boxes and text, which are cheap as instanced quads. Vello excels at paths but needs compute shaders. Skia adds a C++ build and a GPU backend outside wgpu. |
 | Threads | Main, document and render, plus pools | One thread; a separate layout thread | Meets the main-thread rule on Apple platforms, answers layout reads on the asking thread, and isolates scrolling from long JS tasks. |
 | Blending | sRGB-encoded space | Linear-light blending | Matches browser output, so designs look as they do in Chrome. |
-| Accessibility | AccessKit | Per-platform bridges | One tree format, existing adapters for Windows, macOS, Linux and Android. |
+| Accessibility | AccessKit (planned) | Per-platform bridges | One tree format, existing adapters for Windows, macOS, Linux and Android. |
 
 ## §18 Risks and open questions
 
@@ -631,7 +655,7 @@ Inputs that feel native need selection handles, IME, autocorrect, dictation, spe
 
 **Binary size** (medium)
 
-V8 adds tens of megabytes. The QuickJS-ng backend keeps small targets small. ICU data that Parley already provides can be stripped from V8.
+V8 adds tens of megabytes. The planned QuickJS-ng backend keeps small targets small. ICU data that Parley already provides can be stripped from V8.
 
 **react-dom drift** (medium)
 
@@ -643,13 +667,13 @@ Libraries branch on `navigator.userAgent`, `CSS.supports` and `'ontouchstart' in
 
 **Security model** (low)
 
-App code is trusted and bundled, as in Electron without remote content, so no site isolation is needed. Native modules and network hosts are allowlisted in config.
+App code is trusted and bundled, as in Electron without remote content, so no site isolation is needed. Network hosts are allowlisted in config (`network.allow`), and native modules will be too once they exist (§13).
 
 ### Open questions
 
 - One JS realm per window, or one realm with a document per window?
 
-- Does Canvas 2D move into v1 for charting libraries, ahead of `contenteditable`?
+- Answered: Canvas 2D moved into v1, ahead of `contenteditable`, because Excalidraw draws with it.
 
 - Should `navigator.gpu` be exposed to JavaScript over wgpu, as Deno does, so three.js’s WebGPU renderer can run inside a box?
 
