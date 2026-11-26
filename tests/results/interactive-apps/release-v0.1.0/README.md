@@ -1,7 +1,8 @@
 # Release verification for v0.1.0: interactive apps
 
-Every check below was run on commit `756a0d2` on 2026-11-25, on this
-machine:
+Every check below was run on 2026-11-25 at commit `756a0d2`, from the history
+before this repository was published (it starts from a snapshot without that
+history), on this machine:
 
 - **GPUs:** an AMD RX 9060 XT (RADV GFX1200), and lavapipe (llvmpipe, LLVM 23.1.3) from Mesa 26.2.5.
 - **Reference browser:** Google Chrome for Testing 159.0.8154.6.

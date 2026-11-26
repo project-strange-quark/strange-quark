@@ -1,6 +1,8 @@
 # Release verification for v0.1.0: Excalidraw
 
-Every check below was run on commit `9b24112` on 2026-11-26.
+Every check below was run on 2026-11-26 at commit `9b24112`, from the history
+before this repository was published (it starts from a snapshot without that
+history).
 
 - **GPUs:** AMD RX 9060 XT (RADV GFX1200), and lavapipe (llvmpipe, LLVM 23.1.3) from Mesa 26.2.5.
 - **Reference browser:** Google Chrome for Testing 159.0.8154.6.
