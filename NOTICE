@@ -17,11 +17,14 @@ and crates/squark-layout/src/css.rs.
 
 Servo Stylo 0.24.0, used under MPL-2.0, in vendor/stylo. Commit 32359dc3f17780ee269980cb7a3a7f8597a1dc0e.
 
-Bundled R1 reftest fonts under tests/reftests/cases/r1/_assets/fonts/
-(used only by the test suite, not shipped in any crate or build output):
-- Liberation Fonts v2.1.5 (LiberationSans, LiberationMono), SIL OFL-1.1.
-- Google Noto Naskh Arabic (2026-10-01), SIL OFL-1.1.
-- Assistant Regular (from Excalidraw v0.18.1), SIL OFL-1.1.
+Bundled reftest fonts under tests/reftests/cases/r1/_assets/fonts/, with
+copies of LiberationSans-Regular and Assistant-Regular under
+tests/reftests/cases/r3-canvas/_assets/fonts/ (used only by the test suite,
+not shipped in any crate or build output). Each directory holds the fonts'
+licence texts, OFL-*.txt:
+- Liberation Fonts 2.1.5 (LiberationSans, LiberationMono), SIL OFL-1.1.
+- Noto Naskh Arabic 2.021, SIL OFL-1.1.
+- Assistant 3.000 (from Excalidraw v0.18.1), SIL OFL-1.1.
 
 web-platform-tests contributors, used under the 3-Clause BSD licence.
 Commit f4d3f2eba09697ebcb2f338b8f2d709a3ce85217.
