@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+# The workflows pin every action to a commit SHA; Dependabot proposes the
+# updates, version comment included.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
