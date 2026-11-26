@@ -1,0 +1,151 @@
+# SPDX-License-Identifier: MIT
+name: Release
+
+# Builds the stripped squark and squark-runtime for every npm platform package,
+# stages and verifies all eight packages (scripts/npm/README.md), and
+# publishes them on a version tag. A manual run builds, stages and verifies
+# without publishing unless `publish` is ticked.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to npm (otherwise build, stage and verify only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.id }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # `smoke` runs the npm install smoke test where the runner can run
+          # the binaries it built.
+          - { id: darwin-arm64, runner: macos-15, triple: aarch64-apple-darwin, smoke: true }
+          - { id: darwin-x64, runner: macos-15, triple: x86_64-apple-darwin, smoke: false }
+          - { id: linux-x64, runner: ubuntu-24.04, triple: x86_64-unknown-linux-gnu, smoke: true }
+          - { id: linux-arm64, runner: ubuntu-24.04-arm, triple: aarch64-unknown-linux-gnu, smoke: true }
+          - { id: win32-x64, runner: windows-2025, triple: x86_64-pc-windows-msvc, smoke: true }
+          - { id: win32-arm64, runner: windows-11-arm, triple: aarch64-pc-windows-msvc, smoke: true }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libfontconfig1-dev libclang-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+          targets: ${{ matrix.triple }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+
+      # squark-host's build script compiles squark-dom with npm.
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build the stripped binaries
+        run: cargo build --locked --profile dist --target ${{ matrix.triple }} -p squark-cli --bin squark -p squark-host --bin squark-runtime
+
+      - name: Smoke-test the npm install
+        if: matrix.smoke
+        shell: bash
+        run: |
+          npm run build --workspace packages/strange-quark --workspace packages/@strange-quark/vite-plugin
+          node scripts/npm/stage.mjs --platform ${{ matrix.id }}
+          node scripts/npm/verify.mjs
+          node scripts/npm/smoke-test.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.id }}
+          path: |
+            target/${{ matrix.triple }}/dist/squark
+            target/${{ matrix.triple }}/dist/squark-runtime
+            target/${{ matrix.triple }}/dist/squark.exe
+            target/${{ matrix.triple }}/dist/squark-runtime.exe
+          if-no-files-found: error
+
+  publish:
+    name: Stage, verify and publish
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # npm provenance attests the build with this workflow's OIDC token.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install and build the JavaScript packages
+        run: |
+          npm ci
+          npm run build --workspace packages/strange-quark --workspace packages/@strange-quark/vite-plugin
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bin-*
+          path: target/artifacts
+
+      - name: Place the binaries
+        run: node scripts/npm/collect-artifacts.mjs target/artifacts
+
+      - name: Check the package versions agree with each other and the tag
+        run: |
+          node scripts/npm/set-version.mjs --check
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="$(node -p "require('./packages/strange-quark/package.json').version")"
+            test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME does not match version $version"; exit 1; }
+          fi
+
+      - name: Stage and verify all packages
+        run: |
+          node scripts/npm/stage.mjs --require-all
+          node scripts/npm/verify.mjs --require-all
+
+      # Platform packages first, so Strange Quark's optionalDependencies resolve
+      # the moment it is published.
+      - name: Publish
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          version="$(node -p "require('./packages/strange-quark/package.json').version")"
+          # A prerelease (such as 0.2.0-rc.1) goes to the "next" dist-tag;
+          # an untagged publish would make it "latest" for every user.
+          tag=latest
+          if [[ "$version" == *-* ]]; then tag=next; fi
+          for dir in target/npm/stage/cli-*; do
+            (cd "$dir" && npm publish --provenance --access public --tag "$tag")
+          done
+          (cd target/npm/stage/vite-plugin && npm publish --provenance --access public --tag "$tag")
+          (cd target/npm/stage/strange-quark && npm publish --provenance --tag "$tag")

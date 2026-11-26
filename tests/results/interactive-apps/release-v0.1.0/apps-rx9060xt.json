@@ -1,0 +1,145 @@
+{
+  "apps": [
+    "shadcn",
+    "virtual-list"
+  ],
+  "reportOnly": false,
+  "gpuAdapter": "auto",
+  "headless": true,
+  "tolerance": {
+    "maxChannelDelta": 8,
+    "maxDiffRatio": 0.005
+  },
+  "generatedAt": "2026-11-25T19:30:51.771Z",
+  "results": [
+    {
+      "app": "shadcn",
+      "mode": "headless",
+      "viewport": {
+        "width": 800,
+        "height": 600,
+        "dpr": 1
+      },
+      "pass": true,
+      "error": null,
+      "checkpointsTotal": 9,
+      "checkpointsPassed": 9,
+      "checkpointsExactMatch": true,
+      "checkpoints": [
+        {
+          "name": "initial",
+          "pass": true
+        },
+        {
+          "name": "tab-security",
+          "pass": true
+        },
+        {
+          "name": "tab-prefs",
+          "pass": true
+        },
+        {
+          "name": "dialog-open",
+          "pass": true
+        },
+        {
+          "name": "dialog-confirmed",
+          "pass": true
+        },
+        {
+          "name": "popover-toggled",
+          "pass": true
+        },
+        {
+          "name": "menu-selected",
+          "pass": true
+        },
+        {
+          "name": "form-invalid",
+          "pass": true
+        },
+        {
+          "name": "form-submitted",
+          "pass": true
+        }
+      ],
+      "screenshotsTotal": 3,
+      "screenshotsPassed": 3,
+      "screenshots": [
+        {
+          "name": "shadcn-initial",
+          "pass": true,
+          "diffRatio": 0.0036666666666666666,
+          "maxDelta": 150,
+          "diffPixels": 1760,
+          "meanChannelError": 0.07732291666666667,
+          "reason": null
+        },
+        {
+          "name": "shadcn-dialog",
+          "pass": true,
+          "diffRatio": 0.00369375,
+          "maxDelta": 90,
+          "diffPixels": 1773,
+          "meanChannelError": 0.16701614583333332,
+          "reason": null
+        },
+        {
+          "name": "shadcn-submitted",
+          "pass": true,
+          "diffRatio": 0.00474375,
+          "maxDelta": 150,
+          "diffPixels": 2277,
+          "meanChannelError": 0.09343489583333334,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "app": "virtual-list",
+      "mode": "headless",
+      "viewport": {
+        "width": 800,
+        "height": 600,
+        "dpr": 1
+      },
+      "pass": false,
+      "error": null,
+      "checkpointsTotal": 2,
+      "checkpointsPassed": 2,
+      "checkpointsExactMatch": true,
+      "checkpoints": [
+        {
+          "name": "top",
+          "pass": true
+        },
+        {
+          "name": "after-fling",
+          "pass": true
+        }
+      ],
+      "screenshotsTotal": 2,
+      "screenshotsPassed": 0,
+      "screenshots": [
+        {
+          "name": "virtual-list-top",
+          "pass": false,
+          "diffRatio": 0.006289583333333334,
+          "maxDelta": 71,
+          "diffPixels": 3019,
+          "meanChannelError": 0.1104984375,
+          "reason": "diffPixels=3019 (0.629%), maxDelta=71"
+        },
+        {
+          "name": "virtual-list-scrolled",
+          "pass": false,
+          "diffRatio": 0.0077875,
+          "maxDelta": 64,
+          "diffPixels": 3738,
+          "meanChannelError": 0.12994166666666668,
+          "reason": "diffPixels=3738 (0.779%), maxDelta=64"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>position: sticky at scroll offset 0 sits in normal flow</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .sc { width: 280px; height: 200px; overflow: hidden; margin: 20px; border: 2px solid #475569; background: #f8fafc; }
+    .hdr { position: sticky; top: 0; height: 40px; background: #0f172a; }
+    .row { height: 48px; margin: 8px; background: #93c5fd; }
+  </style>
+</head>
+<body>
+  <div class="sc"><div class="hdr"></div><div class="row"></div><div class="row"></div><div class="row"></div></div>
+</body>
+</html>

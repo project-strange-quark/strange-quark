@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+[package]
+name = "squark-compositor"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+arc-swap = "=1.9.5"
+squark-paint = { version = "=0.0.0", path = "../squark-paint" }
+squark-types.workspace = true
+puffin = "=0.20.0"
+
+[lints]
+workspace = true

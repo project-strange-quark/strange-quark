@@ -1,0 +1,53 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Path2D from SVG path data, fill and stroke</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script>
+    const ctx = document.getElementById("c").getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 480, 320);
+
+    // `new Path2D(d)` with SVG path data, as Excalidraw's roundRect lowering uses.
+    const heart = new Path2D(
+      "M 120 90 C 60 40, 30 110, 120 170 C 210 110, 180 40, 120 90 Z",
+    );
+    ctx.fillStyle = "#fecdd3";
+    ctx.fill(heart);
+    ctx.strokeStyle = "#be123c";
+    ctx.lineWidth = 4;
+    ctx.stroke(heart);
+
+    const arcPath = new Path2D("M 260 60 A 70 50 0 0 1 400 60 L 400 140 L 260 140 Z");
+    ctx.fillStyle = "#bfdbfe";
+    ctx.fill(arcPath);
+    ctx.strokeStyle = "#1d4ed8";
+    ctx.lineWidth = 3;
+    ctx.stroke(arcPath);
+
+    // fill(path, rule) and stroke(path) on a multi-subpath path.
+    const glyph = new Path2D("M 40 230 h 60 v 60 h -60 Z M 120 230 h 60 v 60 h -60 Z");
+    ctx.fillStyle = "#bbf7d0";
+    ctx.fill(glyph, "evenodd");
+    ctx.strokeStyle = "#166534";
+    ctx.stroke(glyph);
+
+    // A path translated by a transform before stroking.
+    ctx.save();
+    ctx.translate(260, 190);
+    ctx.scale(1.4, 1.4);
+    const badge = new Path2D("M 0 0 L 60 0 L 60 40 L 30 70 L 0 40 Z");
+    ctx.fillStyle = "#fde68a";
+    ctx.fill(badge);
+    ctx.strokeStyle = "#b45309";
+    ctx.stroke(badge);
+    ctx.restore();
+  </script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+296 frames presented, 295/300 deadlines met (98.33%), commit p95 6.547 ms
+271 frames presented, 253/300 deadlines met (84.33%), commit p95 13.389 ms
+298 frames presented, 298/300 deadlines met (99.33%), commit p95 4.069 ms
+286 frames presented, 284/300 deadlines met (94.67%), commit p95 7.272 ms

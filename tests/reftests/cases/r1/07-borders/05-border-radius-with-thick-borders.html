@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":6,"maxDiffRatio":0.01} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Rounded rectangles with thick uniform and mixed borders</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 20px; padding: 24px; }
+    .a { width: 150px; height: 120px; border: 12px solid #1d4ed8; border-radius: 28px; background: #dbeafe; }
+    .b { width: 150px; height: 120px; border-top: 14px solid #ef4444; border-right: 8px solid #10b981; border-bottom: 14px solid #f59e0b; border-left: 8px solid #6366f1; border-radius: 24px; background: #ffffff; }
+  </style>
+</head>
+<body>
+  <div class="a"></div><div class="b"></div>
+</body>
+</html>

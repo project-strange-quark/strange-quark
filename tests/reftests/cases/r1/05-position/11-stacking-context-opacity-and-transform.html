@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>opacity < 1 and transform create stacking contexts</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .op { opacity: 0.99; width: 160px; height: 100px; margin: 20px; background: #cbd5e1; }
+    .op-child { position: relative; top: 30px; left: 30px; width: 120px; height: 90px; background: #f59e0b; z-index: 100; }
+    .over { position: relative; margin-top: -60px; margin-left: 70px; width: 130px; height: 90px; background: #8b5cf6; z-index: 1; }
+  </style>
+</head>
+<body>
+  <div class="op"><div class="op-child"></div></div><div class="over"></div>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>min-width, max-width, min-height, max-height constraints</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 16px; }
+    .a { width: 50%; min-width: 240px; height: 40px; background: #2563eb; margin-bottom: 12px; }
+    .b { width: 90%; max-width: 180px; height: 120px; max-height: 60px; background: #16a34a; margin-bottom: 12px; }
+    .c { width: 140px; height: 20px; min-height: 70px; background: #f59e0b; }
+  </style>
+</head>
+<body>
+  <div class="a"></div>
+  <div class="b"></div>
+  <div class="c"></div>
+</body>
+</html>

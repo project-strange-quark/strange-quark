@@ -1,0 +1,105 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "strange-quark",
+  "elements": [
+    {
+      "id": "rectangle-0001",
+      "type": "rectangle",
+      "x": 160,
+      "y": 160,
+      "width": 240,
+      "height": 150,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#a5d8ff",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": {
+        "type": 3
+      },
+      "seed": 107919,
+      "version": 1,
+      "versionNonce": 104729,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1735689600000,
+      "link": null,
+      "locked": false
+    },
+    {
+      "id": "ellipse-0002",
+      "type": "ellipse",
+      "x": 460,
+      "y": 160,
+      "width": 220,
+      "height": 150,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#b2f2bb",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": {
+        "type": 2
+      },
+      "seed": 115838,
+      "version": 1,
+      "versionNonce": 209458,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1735689600000,
+      "link": null,
+      "locked": false
+    },
+    {
+      "id": "diamond-0003",
+      "type": "diamond",
+      "x": 740,
+      "y": 150,
+      "width": 220,
+      "height": 170,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffec99",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": {
+        "type": 2
+      },
+      "seed": 123757,
+      "version": 1,
+      "versionNonce": 314187,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1735689600000,
+      "link": null,
+      "locked": false
+    }
+  ],
+  "appState": {
+    "gridSize": null,
+    "viewBackgroundColor": "#ffffff",
+    "theme": "light",
+    "scrollX": 0,
+    "scrollY": 0,
+    "zoom": {
+      "value": 1
+    }
+  },
+  "files": {}
+}

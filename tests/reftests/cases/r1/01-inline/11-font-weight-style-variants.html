@@ -1,0 +1,28 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Font weights, styles, and sizes</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; padding: 16px; }
+    p { margin: 0 0 10px 0; }
+    .reg { font-weight: 400; font-size: 16px; }
+    .bold { font-weight: 700; font-size: 16px; }
+    .italic { font-style: italic; font-size: 16px; }
+    .big { font-size: 28px; font-weight: 700; color: #1d4ed8; }
+    .mono { font-family: "TestMono", monospace; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <p class="reg">Regular 400 TestSans 16px</p>
+  <p class="bold">Bold 700 TestSans 16px</p>
+  <p class="italic">Italic TestSans 16px</p>
+  <p class="big">Heading 28px Bold</p>
+  <p class="mono">Monospace 14px 0123456789</p>
+</body>
+</html>

@@ -1,0 +1,1606 @@
+{
+  "suite": "r1",
+  "cases": {
+    "01-inline/01-whitespace-across-spans": {
+      "width": 400,
+      "height": 300,
+      "dpr": 1,
+      "elements": {
+        "collapse-1": {
+          "boundingRect": {
+            "x": 16,
+            "y": 16,
+            "width": 280,
+            "height": 42
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 16,
+              "width": 280,
+              "height": 42
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 25,
+              "y": 28,
+              "width": 45.375,
+              "height": 17
+            },
+            {
+              "x": 25,
+              "y": 28,
+              "width": 45.375,
+              "height": 17
+            },
+            {
+              "x": 70.375,
+              "y": 28,
+              "width": 32.922,
+              "height": 17
+            },
+            {
+              "x": 70.375,
+              "y": 28,
+              "width": 32.922,
+              "height": 17
+            },
+            {
+              "x": 103.297,
+              "y": 28,
+              "width": 4.453,
+              "height": 17
+            },
+            {
+              "x": 107.75,
+              "y": 28,
+              "width": 61.344,
+              "height": 17
+            },
+            {
+              "x": 107.75,
+              "y": 28,
+              "width": 61.344,
+              "height": 17
+            },
+            {
+              "x": 169.094,
+              "y": 28,
+              "width": 41.797,
+              "height": 17
+            },
+            {
+              "x": 169.094,
+              "y": 28,
+              "width": 41.797,
+              "height": 17
+            },
+            {
+              "x": 210.891,
+              "y": 28,
+              "width": 52.484,
+              "height": 17
+            }
+          ]
+        },
+        "collapse-2": {
+          "boundingRect": {
+            "x": 16,
+            "y": 70,
+            "width": 280,
+            "height": 42
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 70,
+              "width": 280,
+              "height": 42
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 25,
+              "y": 82,
+              "width": 56.953,
+              "height": 17
+            },
+            {
+              "x": 25,
+              "y": 82,
+              "width": 56.953,
+              "height": 17
+            },
+            {
+              "x": 81.953,
+              "y": 82,
+              "width": 4.453,
+              "height": 17
+            },
+            {
+              "x": 86.406,
+              "y": 82,
+              "width": 0,
+              "height": 17
+            },
+            {
+              "x": 86.406,
+              "y": 82,
+              "width": 81.531,
+              "height": 17
+            },
+            {
+              "x": 86.406,
+              "y": 82,
+              "width": 81.531,
+              "height": 17
+            },
+            {
+              "x": 167.938,
+              "y": 82,
+              "width": 51.875,
+              "height": 17
+            },
+            {
+              "x": 167.938,
+              "y": 82,
+              "width": 51.875,
+              "height": 17
+            }
+          ]
+        }
+      }
+    },
+    "01-inline/02-preserved-line-breaks": {
+      "width": 400,
+      "height": 300,
+      "dpr": 1,
+      "elements": {
+        "ws-pre": {
+          "boundingRect": {
+            "x": 12,
+            "y": 12,
+            "width": 200,
+            "height": 54
+          },
+          "clientRects": [
+            {
+              "x": 12,
+              "y": 12,
+              "width": 200,
+              "height": 54
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 19,
+              "y": 21,
+              "width": 39.016,
+              "height": 15
+            },
+            {
+              "x": 58.016,
+              "y": 21,
+              "width": 0,
+              "height": 15
+            },
+            {
+              "x": 19,
+              "y": 41,
+              "width": 62.422,
+              "height": 15
+            }
+          ]
+        },
+        "ws-pre-wrap": {
+          "boundingRect": {
+            "x": 12,
+            "y": 74,
+            "width": 200,
+            "height": 54
+          },
+          "clientRects": [
+            {
+              "x": 12,
+              "y": 74,
+              "width": 200,
+              "height": 54
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 19,
+              "y": 83,
+              "width": 179.438,
+              "height": 15
+            },
+            {
+              "x": 198.438,
+              "y": 83,
+              "width": 23.406,
+              "height": 15
+            },
+            {
+              "x": 19,
+              "y": 103,
+              "width": 179.438,
+              "height": 15
+            }
+          ]
+        },
+        "ws-pre-line": {
+          "boundingRect": {
+            "x": 12,
+            "y": 136,
+            "width": 200,
+            "height": 54
+          },
+          "clientRects": [
+            {
+              "x": 12,
+              "y": 136,
+              "width": 200,
+              "height": 54
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 19,
+              "y": 145,
+              "width": 124.828,
+              "height": 15
+            },
+            {
+              "x": 143.828,
+              "y": 145,
+              "width": 0,
+              "height": 15
+            },
+            {
+              "x": 19,
+              "y": 165,
+              "width": 93.625,
+              "height": 15
+            }
+          ]
+        },
+        "ws-br": {
+          "boundingRect": {
+            "x": 12,
+            "y": 198,
+            "width": 200,
+            "height": 74
+          },
+          "clientRects": [
+            {
+              "x": 12,
+              "y": 198,
+              "width": 200,
+              "height": 74
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 19,
+              "y": 207,
+              "width": 62.422,
+              "height": 15
+            },
+            {
+              "x": 81.422,
+              "y": 207,
+              "width": 0,
+              "height": 15
+            },
+            {
+              "x": 19,
+              "y": 227,
+              "width": 62.422,
+              "height": 15
+            },
+            {
+              "x": 81.422,
+              "y": 227,
+              "width": 0,
+              "height": 15
+            },
+            {
+              "x": 19,
+              "y": 247,
+              "width": 78.016,
+              "height": 15
+            }
+          ]
+        }
+      }
+    },
+    "01-inline/03-nested-inline-block-baselines": {
+      "width": 400,
+      "height": 300,
+      "dpr": 1,
+      "elements": {
+        "ib-row-1": {
+          "boundingRect": {
+            "x": 16,
+            "y": 16,
+            "width": 368,
+            "height": 78
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 16,
+              "width": 368,
+              "height": 78
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 25,
+              "y": 58,
+              "width": 33.797,
+              "height": 17
+            },
+            {
+              "x": 58.797,
+              "y": 25,
+              "width": 72,
+              "height": 60
+            },
+            {
+              "x": 64.797,
+              "y": 34,
+              "width": 38.25,
+              "height": 17
+            },
+            {
+              "x": 64.797,
+              "y": 58,
+              "width": 38.25,
+              "height": 17
+            },
+            {
+              "x": 130.797,
+              "y": 58,
+              "width": 4.453,
+              "height": 17
+            },
+            {
+              "x": 135.25,
+              "y": 40,
+              "width": 40,
+              "height": 32
+            },
+            {
+              "x": 175.25,
+              "y": 58,
+              "width": 31.141,
+              "height": 17
+            }
+          ]
+        },
+        "ib-multi": {
+          "boundingRect": {
+            "x": 58.797,
+            "y": 25,
+            "width": 72,
+            "height": 60
+          },
+          "clientRects": [
+            {
+              "x": 58.797,
+              "y": 25,
+              "width": 72,
+              "height": 60
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 64.797,
+              "y": 34,
+              "width": 38.25,
+              "height": 17
+            },
+            {
+              "x": 103.047,
+              "y": 34,
+              "width": 0,
+              "height": 17
+            },
+            {
+              "x": 64.797,
+              "y": 58,
+              "width": 38.25,
+              "height": 17
+            }
+          ]
+        },
+        "ib-empty": {
+          "boundingRect": {
+            "x": 135.25,
+            "y": 40,
+            "width": 40,
+            "height": 32
+          },
+          "clientRects": [
+            {
+              "x": 135.25,
+              "y": 40,
+              "width": 40,
+              "height": 32
+            }
+          ],
+          "rangeRects": []
+        },
+        "ib-row-2": {
+          "boundingRect": {
+            "x": 16,
+            "y": 106,
+            "width": 368,
+            "height": 85
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 106,
+              "width": 368,
+              "height": 85
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 25,
+              "y": 161,
+              "width": 51.594,
+              "height": 17
+            },
+            {
+              "x": 76.594,
+              "y": 115,
+              "width": 72,
+              "height": 60
+            },
+            {
+              "x": 82.594,
+              "y": 124,
+              "width": 37.359,
+              "height": 17
+            },
+            {
+              "x": 82.594,
+              "y": 148,
+              "width": 37.359,
+              "height": 17
+            },
+            {
+              "x": 148.594,
+              "y": 161,
+              "width": 36.469,
+              "height": 17
+            }
+          ]
+        },
+        "ib-clip": {
+          "boundingRect": {
+            "x": 76.594,
+            "y": 115,
+            "width": 72,
+            "height": 60
+          },
+          "clientRects": [
+            {
+              "x": 76.594,
+              "y": 115,
+              "width": 72,
+              "height": 60
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 82.594,
+              "y": 124,
+              "width": 37.359,
+              "height": 17
+            },
+            {
+              "x": 119.953,
+              "y": 124,
+              "width": 0,
+              "height": 17
+            },
+            {
+              "x": 82.594,
+              "y": 148,
+              "width": 37.359,
+              "height": 17
+            }
+          ]
+        }
+      }
+    },
+    "01-inline/04-vertical-align-modes": {
+      "width": 400,
+      "height": 300,
+      "dpr": 1,
+      "elements": {
+        "va-line-1": {
+          "boundingRect": {
+            "x": 16,
+            "y": 16,
+            "width": 368,
+            "height": 58
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 16,
+              "width": 368,
+              "height": 58
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 23,
+              "y": 36,
+              "width": 24.016,
+              "height": 17
+            },
+            {
+              "x": 47.016,
+              "y": 35,
+              "width": 33.859,
+              "height": 22
+            },
+            {
+              "x": 52.016,
+              "y": 40,
+              "width": 23.859,
+              "height": 12
+            },
+            {
+              "x": 80.875,
+              "y": 36,
+              "width": 4.453,
+              "height": 17
+            },
+            {
+              "x": 85.328,
+              "y": 23,
+              "width": 25.297,
+              "height": 22
+            },
+            {
+              "x": 90.328,
+              "y": 28,
+              "width": 15.297,
+              "height": 12
+            },
+            {
+              "x": 110.625,
+              "y": 36,
+              "width": 4.453,
+              "height": 17
+            },
+            {
+              "x": 115.078,
+              "y": 34.766,
+              "width": 27.734,
+              "height": 22
+            },
+            {
+              "x": 120.078,
+              "y": 39.766,
+              "width": 17.734,
+              "height": 12
+            },
+            {
+              "x": 142.813,
+              "y": 36,
+              "width": 4.453,
+              "height": 17
+            },
+            {
+              "x": 147.266,
+              "y": 45,
+              "width": 25.297,
+              "height": 22
+            },
+            {
+              "x": 152.266,
+              "y": 50,
+              "width": 15.297,
+              "height": 12
+            }
+          ]
+        },
+        "va-base": {
+          "boundingRect": {
+            "x": 47.016,
+            "y": 35,
+            "width": 33.859,
+            "height": 22
+          },
+          "clientRects": [
+            {
+              "x": 47.016,
+              "y": 35,
+              "width": 33.859,
+              "height": 22
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 52.016,
+              "y": 40,
+              "width": 23.859,
+              "height": 12
+            }
+          ]
+        },
+        "va-top": {
+          "boundingRect": {
+            "x": 85.328,
+            "y": 23,
+            "width": 25.297,
+            "height": 22
+          },
+          "clientRects": [
+            {
+              "x": 85.328,
+              "y": 23,
+              "width": 25.297,
+              "height": 22
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 90.328,
+              "y": 28,
+              "width": 15.297,
+              "height": 12
+            }
+          ]
+        },
+        "va-mid": {
+          "boundingRect": {
+            "x": 115.078,
+            "y": 34.766,
+            "width": 27.734,
+            "height": 22
+          },
+          "clientRects": [
+            {
+              "x": 115.078,
+              "y": 34.766,
+              "width": 27.734,
+              "height": 22
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 120.078,
+              "y": 39.766,
+              "width": 17.734,
+              "height": 12
+            }
+          ]
+        },
+        "va-bot": {
+          "boundingRect": {
+            "x": 147.266,
+            "y": 45,
+            "width": 25.297,
+            "height": 22
+          },
+          "clientRects": [
+            {
+              "x": 147.266,
+              "y": 45,
+              "width": 25.297,
+              "height": 22
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 152.266,
+              "y": 50,
+              "width": 15.297,
+              "height": 12
+            }
+          ]
+        },
+        "va-line-2": {
+          "boundingRect": {
+            "x": 16,
+            "y": 88,
+            "width": 368,
+            "height": 58
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 88,
+              "width": 368,
+              "height": 58
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 23,
+              "y": 108,
+              "width": 11.563,
+              "height": 17
+            },
+            {
+              "x": 34.563,
+              "y": 111.188,
+              "width": 16.125,
+              "height": 22
+            },
+            {
+              "x": 39.563,
+              "y": 116.188,
+              "width": 6.125,
+              "height": 12
+            },
+            {
+              "x": 50.688,
+              "y": 108,
+              "width": 24.891,
+              "height": 17
+            },
+            {
+              "x": 75.578,
+              "y": 100.672,
+              "width": 16.125,
+              "height": 22
+            },
+            {
+              "x": 80.578,
+              "y": 105.672,
+              "width": 6.125,
+              "height": 12
+            },
+            {
+              "x": 91.703,
+              "y": 108,
+              "width": 4.453,
+              "height": 17
+            },
+            {
+              "x": 96.156,
+              "y": 99,
+              "width": 34.172,
+              "height": 22
+            },
+            {
+              "x": 101.156,
+              "y": 104,
+              "width": 24.172,
+              "height": 12
+            }
+          ]
+        },
+        "va-sub": {
+          "boundingRect": {
+            "x": 34.563,
+            "y": 111.188,
+            "width": 16.125,
+            "height": 22
+          },
+          "clientRects": [
+            {
+              "x": 34.563,
+              "y": 111.188,
+              "width": 16.125,
+              "height": 22
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 39.563,
+              "y": 116.188,
+              "width": 6.125,
+              "height": 12
+            }
+          ]
+        },
+        "va-sup": {
+          "boundingRect": {
+            "x": 75.578,
+            "y": 100.672,
+            "width": 16.125,
+            "height": 22
+          },
+          "clientRects": [
+            {
+              "x": 75.578,
+              "y": 100.672,
+              "width": 16.125,
+              "height": 22
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 80.578,
+              "y": 105.672,
+              "width": 6.125,
+              "height": 12
+            }
+          ]
+        },
+        "va-px": {
+          "boundingRect": {
+            "x": 96.156,
+            "y": 99,
+            "width": 34.172,
+            "height": 22
+          },
+          "clientRects": [
+            {
+              "x": 96.156,
+              "y": 99,
+              "width": 34.172,
+              "height": 22
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 101.156,
+              "y": 104,
+              "width": 24.172,
+              "height": 12
+            }
+          ]
+        }
+      }
+    },
+    "01-inline/05-mixed-bidi-inline-image": {
+      "width": 400,
+      "height": 300,
+      "dpr": 1,
+      "elements": {
+        "bidi-ltr": {
+          "boundingRect": {
+            "x": 16,
+            "y": 16,
+            "width": 340,
+            "height": 48
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 16,
+              "width": 340,
+              "height": 48
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 25,
+              "y": 30,
+              "width": 46.031,
+              "height": 20
+            },
+            {
+              "x": 71.031,
+              "y": 30,
+              "width": 36.75,
+              "height": 20
+            },
+            {
+              "x": 71.031,
+              "y": 30,
+              "width": 36.75,
+              "height": 20
+            },
+            {
+              "x": 107.781,
+              "y": 30,
+              "width": 5.016,
+              "height": 20
+            },
+            {
+              "x": 112.797,
+              "y": 29.25,
+              "width": 24,
+              "height": 24
+            },
+            {
+              "x": 136.797,
+              "y": 30,
+              "width": 83.063,
+              "height": 20
+            }
+          ]
+        },
+        "bidi-img-1": {
+          "boundingRect": {
+            "x": 112.797,
+            "y": 29.25,
+            "width": 24,
+            "height": 24
+          },
+          "clientRects": [
+            {
+              "x": 112.797,
+              "y": 29.25,
+              "width": 24,
+              "height": 24
+            }
+          ],
+          "rangeRects": []
+        },
+        "bidi-rtl": {
+          "boundingRect": {
+            "x": 16,
+            "y": 76,
+            "width": 340,
+            "height": 48
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 76,
+              "width": 340,
+              "height": 48
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 305.25,
+              "y": 90,
+              "width": 41.75,
+              "height": 20
+            },
+            {
+              "x": 246.203,
+              "y": 90,
+              "width": 59.047,
+              "height": 20
+            },
+            {
+              "x": 246.203,
+              "y": 90,
+              "width": 59.047,
+              "height": 20
+            },
+            {
+              "x": 241.188,
+              "y": 90,
+              "width": 5.016,
+              "height": 20
+            },
+            {
+              "x": 217.188,
+              "y": 89.25,
+              "width": 24,
+              "height": 24
+            },
+            {
+              "x": 150.172,
+              "y": 90,
+              "width": 30.047,
+              "height": 20
+            },
+            {
+              "x": 180.219,
+              "y": 90,
+              "width": 36.969,
+              "height": 20
+            }
+          ]
+        },
+        "bidi-img-2": {
+          "boundingRect": {
+            "x": 217.188,
+            "y": 89.25,
+            "width": 24,
+            "height": 24
+          },
+          "clientRects": [
+            {
+              "x": 217.188,
+              "y": 89.25,
+              "width": 24,
+              "height": 24
+            }
+          ],
+          "rangeRects": []
+        }
+      }
+    },
+    "01-inline/06-fractional-widths-wrapping": {
+      "width": 400,
+      "height": 300,
+      "dpr": 1,
+      "elements": {
+        "frac-1": {
+          "boundingRect": {
+            "x": 12,
+            "y": 12,
+            "width": 137.5,
+            "height": 50
+          },
+          "clientRects": [
+            {
+              "x": 12,
+              "y": 12,
+              "width": 137.5,
+              "height": 50
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 17,
+              "y": 19,
+              "width": 117.625,
+              "height": 16
+            },
+            {
+              "x": 17,
+              "y": 39,
+              "width": 33.609,
+              "height": 16
+            }
+          ]
+        },
+        "frac-2": {
+          "boundingRect": {
+            "x": 12,
+            "y": 72,
+            "width": 144.25,
+            "height": 70
+          },
+          "clientRects": [
+            {
+              "x": 12,
+              "y": 72,
+              "width": 144.25,
+              "height": 70
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 17,
+              "y": 79,
+              "width": 84.016,
+              "height": 16
+            },
+            {
+              "x": 17,
+              "y": 99,
+              "width": 92.422,
+              "height": 16
+            },
+            {
+              "x": 17,
+              "y": 119,
+              "width": 58.813,
+              "height": 16
+            }
+          ]
+        },
+        "frac-3": {
+          "boundingRect": {
+            "x": 12,
+            "y": 152,
+            "width": 112.75,
+            "height": 70
+          },
+          "clientRects": [
+            {
+              "x": 12,
+              "y": 152,
+              "width": 112.75,
+              "height": 70
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 17,
+              "y": 159,
+              "width": 58.813,
+              "height": 16
+            },
+            {
+              "x": 17,
+              "y": 179,
+              "width": 84.016,
+              "height": 16
+            },
+            {
+              "x": 17,
+              "y": 199,
+              "width": 67.219,
+              "height": 16
+            }
+          ]
+        }
+      }
+    },
+    "01-inline/07-webfont-linebreak-change": {
+      "width": 400,
+      "height": 300,
+      "dpr": 1,
+      "elements": {
+        "wf-sans": {
+          "boundingRect": {
+            "x": 16,
+            "y": 16,
+            "width": 180,
+            "height": 42
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 16,
+              "width": 180,
+              "height": 42
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 26,
+              "y": 28,
+              "width": 144.016,
+              "height": 17
+            }
+          ]
+        },
+        "wf-mono": {
+          "boundingRect": {
+            "x": 16,
+            "y": 70,
+            "width": 180,
+            "height": 64
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 70,
+              "width": 180,
+              "height": 64
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 26,
+              "y": 82,
+              "width": 201.641,
+              "height": 18
+            },
+            {
+              "x": 26,
+              "y": 104,
+              "width": 86.422,
+              "height": 18
+            }
+          ]
+        },
+        "wf-asst": {
+          "boundingRect": {
+            "x": 16,
+            "y": 146,
+            "width": 180,
+            "height": 64
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 146,
+              "width": 180,
+              "height": 64
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 26,
+              "y": 156,
+              "width": 151.375,
+              "height": 21
+            },
+            {
+              "x": 26,
+              "y": 178,
+              "width": 85.922,
+              "height": 21
+            }
+          ]
+        }
+      }
+    },
+    "01-inline/08-flex-grid-intrinsic-inline": {
+      "width": 400,
+      "height": 300,
+      "dpr": 1,
+      "elements": {
+        "flex-short": {
+          "boundingRect": {
+            "x": 25,
+            "y": 25,
+            "width": 49.859,
+            "height": 58
+          },
+          "clientRects": [
+            {
+              "x": 25,
+              "y": 25,
+              "width": 49.859,
+              "height": 58
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 32,
+              "y": 34,
+              "width": 35.859,
+              "height": 17
+            }
+          ]
+        },
+        "flex-med": {
+          "boundingRect": {
+            "x": 82.859,
+            "y": 25,
+            "width": 64.984,
+            "height": 58
+          },
+          "clientRects": [
+            {
+              "x": 82.859,
+              "y": 25,
+              "width": 64.984,
+              "height": 58
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 89.859,
+              "y": 34,
+              "width": 27.516,
+              "height": 17
+            },
+            {
+              "x": 89.859,
+              "y": 56,
+              "width": 40.016,
+              "height": 17
+            }
+          ]
+        },
+        "flex-long": {
+          "boundingRect": {
+            "x": 155.844,
+            "y": 25,
+            "width": 219.156,
+            "height": 58
+          },
+          "clientRects": [
+            {
+              "x": 155.844,
+              "y": 25,
+              "width": 219.156,
+              "height": 58
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 162.844,
+              "y": 34,
+              "width": 173.453,
+              "height": 17
+            },
+            {
+              "x": 162.844,
+              "y": 56,
+              "width": 110.891,
+              "height": 17
+            }
+          ]
+        },
+        "grid-min": {
+          "boundingRect": {
+            "x": 25,
+            "y": 117,
+            "width": 63.203,
+            "height": 80
+          },
+          "clientRects": [
+            {
+              "x": 25,
+              "y": 117,
+              "width": 63.203,
+              "height": 80
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 32,
+              "y": 126,
+              "width": 24.172,
+              "height": 17
+            },
+            {
+              "x": 32,
+              "y": 148,
+              "width": 49.219,
+              "height": 17
+            },
+            {
+              "x": 32,
+              "y": 170,
+              "width": 40.016,
+              "height": 17
+            }
+          ]
+        },
+        "grid-max": {
+          "boundingRect": {
+            "x": 96.203,
+            "y": 117,
+            "width": 95.719,
+            "height": 80
+          },
+          "clientRects": [
+            {
+              "x": 96.203,
+              "y": 117,
+              "width": 95.719,
+              "height": 80
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 103.203,
+              "y": 126,
+              "width": 81.719,
+              "height": 17
+            }
+          ]
+        },
+        "grid-fr": {
+          "boundingRect": {
+            "x": 199.922,
+            "y": 117,
+            "width": 175.078,
+            "height": 80
+          },
+          "clientRects": [
+            {
+              "x": 199.922,
+              "y": 117,
+              "width": 175.078,
+              "height": 80
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 206.922,
+              "y": 126,
+              "width": 121.734,
+              "height": 17
+            },
+            {
+              "x": 206.922,
+              "y": 148,
+              "width": 76.703,
+              "height": 17
+            }
+          ]
+        }
+      }
+    },
+    "01-inline/09-inline-clipping-ellipsis": {
+      "width": 400,
+      "height": 300,
+      "dpr": 1,
+      "elements": {
+        "clip-plain": {
+          "boundingRect": {
+            "x": 16,
+            "y": 16,
+            "width": 180,
+            "height": 40
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 16,
+              "width": 180,
+              "height": 40
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 24,
+              "y": 27,
+              "width": 345.078,
+              "height": 17
+            }
+          ]
+        },
+        "clip-ellipsis": {
+          "boundingRect": {
+            "x": 16,
+            "y": 68,
+            "width": 180,
+            "height": 40
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 68,
+              "width": 180,
+              "height": 40
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 24,
+              "y": 79,
+              "width": 337.938,
+              "height": 17
+            },
+            {
+              "x": 24,
+              "y": 79,
+              "width": 145.844,
+              "height": 17
+            }
+          ]
+        },
+        "clip-multiline": {
+          "boundingRect": {
+            "x": 16,
+            "y": 120,
+            "width": 180,
+            "height": 42
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 120,
+              "width": 180,
+              "height": 42
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 24,
+              "y": 131,
+              "width": 148.563,
+              "height": 17
+            },
+            {
+              "x": 24,
+              "y": 155,
+              "width": 152.984,
+              "height": 17
+            },
+            {
+              "x": 24,
+              "y": 179,
+              "width": 136.641,
+              "height": 17
+            }
+          ]
+        }
+      }
+    },
+    "01-inline/10-missing-image-fallback": {
+      "width": 400,
+      "height": 300,
+      "dpr": 1,
+      "elements": {
+        "img-row-1": {
+          "boundingRect": {
+            "x": 16,
+            "y": 16,
+            "width": 368,
+            "height": 58
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 16,
+              "width": 368,
+              "height": 58
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 25,
+              "y": 34.969,
+              "width": 48.375,
+              "height": 17
+            },
+            {
+              "x": 73.375,
+              "y": 25,
+              "width": 64,
+              "height": 40
+            },
+            {
+              "x": 137.375,
+              "y": 34.969,
+              "width": 34.188,
+              "height": 17
+            }
+          ]
+        },
+        "img-missing-sized": {
+          "boundingRect": {
+            "x": 73.375,
+            "y": 25,
+            "width": 64,
+            "height": 40
+          },
+          "clientRects": [
+            {
+              "x": 73.375,
+              "y": 25,
+              "width": 64,
+              "height": 40
+            }
+          ],
+          "rangeRects": []
+        },
+        "img-row-2": {
+          "boundingRect": {
+            "x": 16,
+            "y": 86,
+            "width": 368,
+            "height": 43.031
+          },
+          "clientRects": [
+            {
+              "x": 16,
+              "y": 86,
+              "width": 368,
+              "height": 43.031
+            }
+          ],
+          "rangeRects": [
+            {
+              "x": 25,
+              "y": 98,
+              "width": 36.422,
+              "height": 17
+            },
+            {
+              "x": 61.422,
+              "y": 96.031,
+              "width": 24,
+              "height": 24
+            },
+            {
+              "x": 85.422,
+              "y": 98,
+              "width": 85.078,
+              "height": 17
+            }
+          ]
+        },
+        "img-valid": {
+          "boundingRect": {
+            "x": 61.422,
+            "y": 96.031,
+            "width": 24,
+            "height": 24
+          },
+          "clientRects": [
+            {
+              "x": 61.422,
+              "y": 96.031,
+              "width": 24,
+              "height": 24
+            }
+          ],
+          "rangeRects": []
+        }
+      }
+    }
+  }
+}

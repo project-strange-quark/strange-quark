@@ -1,0 +1,32 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Grid justify-items, align-items, justify-content, align-content</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .g {
+      display: grid;
+      grid-template-columns: repeat(2, 100px);
+      grid-template-rows: repeat(2, 70px);
+      justify-content: space-between;
+      align-content: space-between;
+      justify-items: center;
+      align-items: center;
+      width: 320px;
+      height: 220px;
+      padding: 12px;
+      margin: 16px;
+      background: #f1f5f9;
+      border: 2px solid #475569;
+    }
+    .g > div { width: 44px; height: 32px; background: #2563eb; }
+  </style>
+</head>
+<body>
+  <div class="g"><div></div><div></div><div></div><div></div></div>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.025} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tooltip pill with rotated ::before arrow</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestAssistant", sans-serif; padding: 56px 40px; background: #f8f9fa; }
+    .tip {
+      position: relative;
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: #1b1b1f;
+      color: #ffffff;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .tip::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: -5px;
+      width: 10px;
+      height: 10px;
+      margin-left: -5px;
+      background: #1b1b1f;
+      transform: rotate(45deg);
+    }
+  </style>
+</head>
+<body>
+  <div class="tip">Rectangle — R or 2</div>
+</body>
+</html>

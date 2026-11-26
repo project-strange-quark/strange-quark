@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":4,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Zero-blur spread box-shadow focus rings</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 40px; padding: 44px; }
+    .a { width: 110px; height: 80px; background: #3b82f6; border-radius: 8px; box-shadow: 0 0 0 6px #93c5fd; }
+    .b { width: 110px; height: 80px; background: #10b981; border-radius: 12px; box-shadow: 0 0 0 3px #ffffff, 0 0 0 7px #059669; }
+  </style>
+</head>
+<body>
+  <div class="a"></div><div class="b"></div>
+</body>
+</html>

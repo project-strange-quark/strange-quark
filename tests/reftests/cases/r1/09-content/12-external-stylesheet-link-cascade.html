@@ -1,0 +1,22 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>External <link rel=stylesheet> cascade with inline <style> override</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <link rel="stylesheet" href="../_assets/external-override.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 16px; padding: 20px; }
+    .ext-card { border-radius: 10px; margin-bottom: 12px; }
+    .ext-override { background: #16a34a; }
+  </style>
+</head>
+<body>
+  <div class="ext-card">Styled by external-override.css</div>
+  <div class="ext-card ext-override">Background overridden by later inline style</div>
+</body>
+</html>

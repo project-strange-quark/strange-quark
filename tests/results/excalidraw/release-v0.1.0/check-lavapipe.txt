@@ -1,0 +1,5 @@
+4/4 checks passed (5736.25 ms, adapter software, ICD /usr/share/vulkan/icd.d/lvp_icd.json, runtime 74.9 MiB dist, binary 95.8 MiB, first frame 1583.83617 ms, peak RSS 849 MiB); module errors reported: true; missing APIs: none
+Excalidraw e2e (headless): Chromium 20/20 steps passed (passing); native 20/20 steps passed (passing); DOM checkpoints 20/20 matched
+==> R1 reftest compare
+reftests/r1 compare (software): 149/150 passed (99.3%), 1 failed, 0 render errors
+==> lavapipe check passed; log: target/lavapipe-check.log

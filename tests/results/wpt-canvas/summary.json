@@ -1,0 +1,1155 @@
+{
+  "engine": "chromium",
+  "revision": "f4d3f2eba09697ebcb2f338b8f2d709a3ce85217",
+  "total": 66,
+  "passed": 66,
+  "failed": 0,
+  "passRate": 1,
+  "subtestsTotal": 69,
+  "subtestsPassed": 69,
+  "cases": [
+    {
+      "file": "element/drawing-images-to-the-canvas/2d.drawImage.3arg.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.drawImage.3arg",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/drawing-images-to-the-canvas/2d.drawImage.5arg.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.drawImage.5arg",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/drawing-images-to-the-canvas/2d.drawImage.9arg.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.drawImage.9arg.basic",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/drawing-images-to-the-canvas/2d.drawImage.alpha.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.drawImage.alpha",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/drawing-images-to-the-canvas/2d.drawImage.canvas.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.drawImage.canvas",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/drawing-images-to-the-canvas/2d.drawImage.transform.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.drawImage.transform",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/drawing-rectangles-to-the-canvas/2d.clearRect.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "clearRect clears to transparent black",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/drawing-rectangles-to-the-canvas/2d.clearRect.transform.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "clearRect is affected by transforms",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/drawing-rectangles-to-the-canvas/2d.fillRect.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "fillRect works",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/drawing-rectangles-to-the-canvas/2d.fillRect.transform.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "fillRect is affected by transforms",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/drawing-rectangles-to-the-canvas/2d.strokeRect.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "strokeRect works",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/drawing-rectangles-to-the-canvas/2d.strokeRect.clip.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "strokeRect is affected by clipping regions",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/fill-and-stroke-styles/2d.fillStyle.default.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.fillStyle.default",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/fill-and-stroke-styles/2d.fillStyle.get.solid.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.fillStyle.get.solid",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/fill-and-stroke-styles/2d.fillStyle.invalidstring.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.fillStyle.invalidstring",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsl-1.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.fillStyle.parse.css-color-4-hsl-1",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/fill-and-stroke-styles/2d.fillStyle.parse.hex3.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.fillStyle.parse.hex3",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/fill-and-stroke-styles/2d.strokeStyle.default.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.strokeStyle.default",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/line-styles/2d.line.cap.round.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "lineCap 'round' is rendered correctly",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/line-styles/2d.line.defaults.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.line.defaults",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/line-styles/2d.line.join.miter.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "lineJoin 'miter' is rendered correctly",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/line-styles/2d.line.join.round.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "lineJoin 'round' is rendered correctly",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/line-styles/2d.line.width.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "lineWidth determines the width of line strokes",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/line-styles/2d.line.width.scaledefault.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Default lineWidth strokes are affected by scale transformations",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.arc.shape.1.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "arc() from 0 to pi does not draw anything in the wrong half",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.bezierCurveTo.shape.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.path.bezierCurveTo.shape",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.clip.basic.1.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.path.clip.basic.1",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.clip.intersect.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.path.clip.intersect",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.closePath.newline.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.path.closePath.newline",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.ellipse.basics.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Verify canvas throws error when drawing ellipse with negative radii.",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.fill.overlap.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.path.fill.overlap",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.fill.winding.evenodd.1.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "evenodd winding number rule works in fill",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.lineTo.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.path.lineTo.basic",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.moveTo.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.path.moveTo.basic",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.quadraticCurveTo.shape.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.path.quadraticCurveTo.shape",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.rect.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.path.rect.basic",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.roundrect.1.radius.double.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Verify that when one radius is given to roundRect(), specified as a double, it applies to all corners.",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.roundrect.2.radii.1.double.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Verify that when two radii are given to roundRect(), the first radius, specified as a double, applies to the top-left and bottom-right corners.",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.roundrect.radius.none.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Check that roundRect throws an RangeError if radii is an empty array.",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.stroke.overlap.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Stroked subpaths are combined before being drawn",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.stroke.prune.curve.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Zero-length line segments from quadraticCurveTo and bezierCurveTo are removed before stroking",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/path-objects/2d.path.stroke.scale1.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Stroke line widths are scaled by the current transformation matrix",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/pixel-manipulation/2d.imageData.create1.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "createImageData(imgdata) exists and returns something",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/pixel-manipulation/2d.imageData.get.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "getImageData() exists and returns something",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/pixel-manipulation/2d.imageData.get.order.rgb.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "getImageData() returns R then G then B",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/pixel-manipulation/2d.imageData.object.properties.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "ImageData objects have the right properties",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/pixel-manipulation/2d.imageData.put.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "putImageData() puts image data from getImageData() onto the canvas",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/pixel-manipulation/2d.imageData.put.dirty.rect1.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "putImageData() only modifies areas inside the dirty rectangle, using width and height",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/text/2d.text.align.valid.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.text.align.valid",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/text/2d.text.baseline.valid.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.text.baseline.valid",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/text/2d.text.draw.align.center.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "textAlign center is the center of the em squares (not the bounding box)",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/text/2d.text.draw.baseline.alphabetic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.text.draw.baseline.alphabetic",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/text/2d.text.draw.fill.maxWidth.bound.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "fillText handles maxWidth based on line size, not bounding box size",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/text/2d.text.font.parse.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.text.font.parse.basic",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/text/2d.text.measure.width.space.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Space characters are converted to U+0020 and NOT collapsed",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/the-canvas-state/2d.state.saverestore.bitmap.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "save()/restore() does not affect the current bitmap",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/the-canvas-state/2d.state.saverestore.clip.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "save()/restore() affects the clipping path",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/the-canvas-state/2d.state.saverestore.fillStyle.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 4,
+      "subtestsPassed": 4,
+      "subtests": [
+        {
+          "name": "save()/restore() restores fillStyle, for a canvas of size (300, 150).",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        },
+        {
+          "name": "save() does not modify fillStyle, for a canvas of size (300, 150).",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        },
+        {
+          "name": "save()/restore() restores fillStyle, for a canvas of size (0, 0).",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        },
+        {
+          "name": "save() does not modify fillStyle, for a canvas of size (0, 0).",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/the-canvas-state/2d.state.saverestore.stack.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "save()/restore() can be nested as a stack",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/the-canvas-state/2d.state.saverestore.transformation.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "save()/restore() affects the current transformation matrix",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/transformations/2d.transformation.order.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Transformations are applied in the right order",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/transformations/2d.transformation.rotate.radians.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "rotate() uses radians",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/transformations/2d.transformation.scale.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "scale() works",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/transformations/2d.transformation.setTransform.skewed.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "Canvas test: 2d.transformation.setTransform.skewed",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/transformations/2d.transformation.transform.multiply.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "transform() multiplies the CTM",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    },
+    {
+      "file": "element/transformations/2d.transformation.translate.basic.html",
+      "status": "ok",
+      "harnessStatus": "PASS",
+      "pass": true,
+      "subtestsTotal": 1,
+      "subtestsPassed": 1,
+      "subtests": [
+        {
+          "name": "translate() works",
+          "status": "PASS",
+          "message": "",
+          "pass": true,
+          "expected": null
+        }
+      ]
+    }
+  ]
+}

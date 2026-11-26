@@ -1,0 +1,565 @@
+# SPDX-License-Identifier: MIT
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**", "LICENSE", "NOTICE"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**", "LICENSE", "NOTICE"]
+
+concurrency:
+  # A newer push supersedes an older run on every ref, main included. The
+  # newest commit's run is the one that matters, and a run per push cost
+  # about 46 runner-minutes. Docs-only pushes do not run CI at all.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Strip DWARF debuginfo on 2-vCPU / 14 GB CI runners so linking ~20 test binaries
+  # with V8 + Stylo + wgpu does not exhaust disk space (SIGBUS in rust-lld) and
+  # compiles/caches much faster.
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+
+jobs:
+  rust-check:
+    name: Rust build, lint, test & cargo-deny
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libfontconfig1-dev \
+            libclang-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: dev-nodebug
+
+      - name: Refetch the V8 static library after a cache restore
+        # rust-cache keeps v8's build-script output but prunes target/*/gn_out,
+        # where that script downloaded librusty_v8.a. Cargo then treats the
+        # script as fresh and links against a missing file. Dropping v8's
+        # build state makes the script run and download the library again.
+        run: rm -rf target/*/build/v8-* target/*/.fingerprint/v8-*
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Build JS workspaces (squark-host and squark-js embed squark-dom)
+        run: |
+          timeout 180 npm ci
+          timeout 180 npm run build --workspaces --if-present
+
+      - name: Format check
+        run: timeout 60 cargo fmt --all -- --check
+
+      - name: Clippy
+        run: timeout 1200 cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Build workspace tests
+        run: timeout 1200 cargo test --workspace --no-run
+
+      - name: Test workspace (no window system)
+        run: timeout 300 cargo test --workspace
+
+      - name: Install cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses bans sources
+
+  js-and-reftests:
+    name: Node packages, licence check & Chromium reftests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 26
+        uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Install test fonts (plus a fallback system Chromium)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends chromium-browser fonts-dejavu-core fonts-liberation || \
+          sudo apt-get install -y --no-install-recommends chromium fonts-dejavu-core fonts-liberation
+
+      - name: Install workspace dependencies
+        run: timeout 180 npm ci || timeout 180 npm install
+
+      - name: Cache the pinned Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install the pinned reference Chromium
+        run: |
+          node node_modules/playwright-core/cli.js install chromium
+          echo "SQUARK_CHROMIUM_PATH=$(node scripts/chromium-path.mjs)" >> "$GITHUB_ENV"
+          node scripts/chromium-path.mjs --version
+
+      - name: Check npm licences
+        run: timeout 60 node scripts/check-licenses.mjs
+
+      - name: Cache unmodified React 19.0.0 test checkout
+        uses: actions/cache@v4
+        with:
+          path: target/react-19.0.0
+          key: react-v19.0.0-7aa5dda3b3e4c2baa905a59b922ae7ec14734b24-${{ runner.os }}
+
+      - name: Prepare React 19.0.0 test checkout (on cache miss)
+        run: timeout 360 node tests/react-dom/prepare.mjs
+
+      - name: Run npm test (R1/R3, DOM and Canvas WPT, React suites)
+        run: timeout 600 npm test
+
+  gpu-headless-lavapipe:
+    name: Headless GPU tests (Mesa lavapipe)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Vulkan loader, Mesa lavapipe ICD, Chromium, and build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            mesa-vulkan-drivers \
+            libvulkan1 \
+            vulkan-tools \
+            pkg-config \
+            libfontconfig1-dev \
+            libclang-dev \
+            fonts-dejavu-core \
+            fonts-liberation
+          sudo apt-get install -y --no-install-recommends chromium-browser || \
+          sudo apt-get install -y --no-install-recommends chromium
+
+      - name: Locate lavapipe Vulkan ICD
+        run: |
+          echo "Listing /usr/share/vulkan/icd.d/:"
+          ls -la /usr/share/vulkan/icd.d/ || true
+          icd="$(find /usr/share/vulkan/icd.d /etc/vulkan/icd.d -maxdepth 1 -name '*lvp*.json' 2>/dev/null | head -n 1 || true)"
+          if [ -z "$icd" ] || [ ! -r "$icd" ]; then
+            echo "ERROR: lavapipe Vulkan ICD JSON not found in /usr/share/vulkan/icd.d/ or /etc/vulkan/icd.d/" >&2
+            exit 1
+          fi
+          echo "Using lavapipe ICD: $icd"
+          echo "VK_ICD_FILENAMES=$icd" >> "$GITHUB_ENV"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: dev-nodebug
+
+      - name: Refetch the V8 static library after a cache restore
+        # rust-cache keeps v8's build-script output but prunes target/*/gn_out,
+        # where that script downloaded librusty_v8.a. Cargo then treats the
+        # script as fresh and links against a missing file. Dropping v8's
+        # build state makes the script run and download the library again.
+        run: rm -rf target/*/build/v8-* target/*/.fingerprint/v8-*
+
+      - name: Setup Node.js 26
+        uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Install and build workspace JS dependencies
+        run: |
+          timeout 180 npm ci || timeout 180 npm install
+          timeout 180 npm run build --workspaces --if-present
+
+      - name: Cache the pinned Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install the pinned reference Chromium
+        run: |
+          node node_modules/playwright-core/cli.js install chromium
+          echo "SQUARK_CHROMIUM_PATH=$(node scripts/chromium-path.mjs)" >> "$GITHUB_ENV"
+          node scripts/chromium-path.mjs --version
+
+      - name: Verify lavapipe Vulkan device
+        run: timeout 60 vulkaninfo --summary
+
+      - name: Build workspace binaries and test executables
+        run: timeout 1200 cargo test --workspace --no-run
+
+      - name: Build the stripped dist-profile runtime for the Excalidraw native tests
+        run: timeout 2400 cargo build --profile dist -p squark-host --bin squark-runtime
+
+      - name: Run R1 inline geometry comparison (squark-layout)
+        run: |
+          rm -rf target/r1-packs
+          mkdir -p target/r1-packs/01-inline
+          for f in tests/reftests/cases/r1/01-inline/*.html; do
+            name="$(basename "$f" .html)"
+            timeout 30 target/debug/squark pack tests/reftests/cases/r1 --html "$f" --out "target/r1-packs/01-inline/${name}.sqpak" >/dev/null
+          done
+          SQUARK_R1_PACKS="$PWD/target/r1-packs" timeout 120 cargo test --workspace -- --ignored compares_r1_layout_to_chromium --nocapture
+
+      - name: Run headless GPU tests
+        env:
+          SQUARK_GPU_TESTS: "1"
+          SQUARK_GPU_ADAPTER: software
+        run: timeout 300 cargo test --workspace
+
+      - name: Run apps/counter build and headless runtime smoke test
+        env:
+          SQUARK_GPU_TESTS: "1"
+          SQUARK_GPU_ADAPTER: software
+        run: timeout 180 npm test --workspace=@strange-quark/smoke
+
+      - name: Measure native squark dev save-to-presented
+        env:
+          SQUARK_GPU_TESTS: "1"
+          SQUARK_NATIVE_DEV_TESTS: "1"
+        run: timeout 600 npm run test:native --workspace=@strange-quark/dev-tests
+
+      - name: Run the Excalidraw native smoke test (report-only)
+        continue-on-error: true
+        env:
+          SQUARK_GPU_TESTS: "1"
+        run: timeout 900 npm run test:native --workspace=@strange-quark/excalidraw-native
+
+      - name: Check the 10 canonical scene baselines in Chromium
+        run: timeout 900 npm run scenes:check --workspace=@strange-quark/excalidraw-native
+
+      - name: Run the Excalidraw end-to-end flow (native report-only)
+        continue-on-error: true
+        env:
+          SQUARK_GPU_TESTS: "1"
+        run: timeout 1200 npm run e2e --workspace=@strange-quark/excalidraw-native
+
+      - name: Write the platform report (R3 report-only)
+        env:
+          SQUARK_GPU_TESTS: "1"
+        run: timeout 900 npm test --workspace=@strange-quark/platform-report
+
+      - name: Upload the platform report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-report
+          path: |
+            tests/results/platform/
+            tests/results/excalidraw/
+            tests/results/r3-canvas/
+          if-no-files-found: ignore
+
+      - name: Run R1 reftest compare suite on lavapipe
+        run: |
+          timeout 600 node tests/reftests/src/cli.mjs \
+            --suite r1 \
+            --mode compare \
+            --gpu-adapter software \
+            --squark-bin target/debug/squark \
+            --runtime target/debug/squark-runtime \
+            --min-pass-rate 0.90
+
+      - name: Run the React app interaction scripts (counter and todomvc) on lavapipe
+        run: |
+          timeout 300 node --experimental-vm-modules tests/compat/src/compare-apps.mjs \
+            --apps counter,todomvc \
+            --gpu-adapter software \
+            --squark-bin target/debug/squark \
+            --runtime target/debug/squark-runtime
+
+  shipped-binary:
+    name: Stripped shipping runtime and app binary size
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libfontconfig1-dev \
+            libclang-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: dist-strip
+
+      - name: Refetch the V8 static library after a cache restore
+        # Same rust-cache/v8 interaction as the other jobs: the cached build
+        # script outlives the pruned target/*/gn_out librusty_v8.a, so the
+        # dist-profile link would fail with a missing library.
+        run: rm -rf target/*/build/v8-* target/*/.fingerprint/v8-*
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Build workspace JS dependencies
+        run: |
+          timeout 180 npm ci || timeout 180 npm install
+          timeout 180 npm run build --workspaces --if-present
+
+      # [profile.dist] is release + strip = "symbols": the runtime that ships.
+      - name: Build the stripped dist-profile runtime
+        run: |
+          timeout 3000 cargo build --profile dist -p squark-host --bin squark-runtime
+          runtime_size="$(stat -c%s target/dist/squark-runtime)"
+          echo "stripped squark-runtime: ${runtime_size} bytes ($((runtime_size / 1024 / 1024)) MiB)"
+
+      - name: Build the squark CLI
+        run: timeout 900 cargo build -p squark-cli --bin squark
+
+      - name: Build a shipped app and check its size
+        run: |
+          # No --runtime: squark build must prefer target/dist/squark-runtime over a
+          # debug sibling, so shipped binaries carry no debug info.
+          timeout 300 target/debug/squark build apps/counter --out target/dist/counter
+          size="$(stat -c%s target/dist/counter)"
+          echo "shipped apps/counter binary: ${size} bytes ($((size / 1024 / 1024)) MiB)"
+          # Size ceiling that catches a runtime shipped with debug info (a debug
+          # build was 229 MB; the stripped runtime is about 72 MiB).
+          test "${size}" -lt 157286400
+
+  interactive-apps-report:
+    name: Interactive apps (shadcn, virtual-list; report-only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    # Report-only: a failing app is reported in
+    # the summary and the job stays green.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vulkan loader, Mesa lavapipe ICD, Chromium, and build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            mesa-vulkan-drivers \
+            libvulkan1 \
+            vulkan-tools \
+            pkg-config \
+            libfontconfig1-dev \
+            libclang-dev \
+            fonts-dejavu-core \
+            fonts-liberation
+          sudo apt-get install -y --no-install-recommends chromium-browser || \
+          sudo apt-get install -y --no-install-recommends chromium
+
+      - name: Locate lavapipe Vulkan ICD
+        run: |
+          icd="$(find /usr/share/vulkan/icd.d /etc/vulkan/icd.d -maxdepth 1 -name '*lvp*.json' 2>/dev/null | head -n 1 || true)"
+          if [ -z "$icd" ] || [ ! -r "$icd" ]; then
+            echo "ERROR: lavapipe Vulkan ICD JSON not found" >&2
+            exit 1
+          fi
+          echo "VK_ICD_FILENAMES=$icd" >> "$GITHUB_ENV"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: dev-nodebug
+
+      - name: Refetch the V8 static library after a cache restore
+        # rust-cache keeps v8's build-script output but prunes target/*/gn_out,
+        # where that script downloaded librusty_v8.a. Cargo then treats the
+        # script as fresh and links against a missing file. Dropping v8's
+        # build state makes the script run and download the library again.
+        run: rm -rf target/*/build/v8-* target/*/.fingerprint/v8-*
+
+      - name: Setup Node.js 26
+        uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Install and build workspace JS dependencies
+        run: |
+          timeout 180 npm ci || timeout 180 npm install
+          timeout 180 npm run build --workspaces --if-present
+
+      - name: Cache the pinned Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install the pinned reference Chromium
+        run: |
+          node node_modules/playwright-core/cli.js install chromium
+          echo "SQUARK_CHROMIUM_PATH=$(node scripts/chromium-path.mjs)" >> "$GITHUB_ENV"
+          node scripts/chromium-path.mjs --version
+
+      - name: Build squark and squark-runtime
+        run: timeout 1200 cargo build --workspace --bins
+
+      - name: Run the interactive app interaction scripts (report-only)
+        run: |
+          timeout 900 node tests/compat/src/compare-apps.mjs \
+            --apps shadcn,virtual-list \
+            --report-only \
+            --gpu-adapter software \
+            --squark-bin target/debug/squark \
+            --runtime target/debug/squark-runtime \
+            --summary target/interactive-apps-report.json
+
+      - name: Upload the interactive app report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: interactive-apps-report
+          path: |
+            target/interactive-apps-report.json
+            tests/results/interactive-apps/
+          if-no-files-found: ignore
+
+  excalidraw-submodule-clean:
+    name: Verify vendor/excalidraw is unmodified
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Check submodule pin and cleanliness
+        run: |
+          test -z "$(git -C vendor/excalidraw status --porcelain)"
+          test "$(git -C vendor/excalidraw rev-parse HEAD)" = "a2ec2889babf7d2295469c6d90ebe77fae57df84"
+
+  # The macOS and Windows ports are in progress. These jobs build and test the
+  # workspace on each host but do not fail the run yet; remove
+  # continue-on-error once the ports are green.
+  macos-port:
+    name: macOS build and tests (port in progress)
+    continue-on-error: true
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: macos-port
+
+      - name: Refetch the V8 static library after a cache restore
+        # rust-cache prunes target/*/gn_out (librusty_v8.a) but keeps V8's
+        # build-script fingerprint, so a cached build links a missing archive.
+        run: rm -rf target/*/build/v8-* target/*/.fingerprint/v8-*
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Install the test fonts used by the Linux baselines
+        run: brew install --cask font-liberation font-dejavu
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build JS workspaces (squark-host and squark-js embed squark-dom)
+        run: npm run build --workspaces --if-present
+
+      - name: Build workspace
+        run: cargo build --workspace
+
+      - name: Test workspace (no window system, no GPU tests)
+        run: cargo test --workspace
+
+      - name: Cache the pinned Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install the pinned reference Chromium
+        run: |
+          node node_modules/playwright-core/cli.js install chromium
+          echo "SQUARK_CHROMIUM_PATH=$(node scripts/chromium-path.mjs)" >> "$GITHUB_ENV"
+          node scripts/chromium-path.mjs --version
+
+      - name: Run npm test (root)
+        run: npm test
+
+  windows-port:
+    name: Windows build and tests (port in progress)
+    continue-on-error: true
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: windows-port
+
+      - name: Refetch the V8 static library after a cache restore
+        # Same V8/rust-cache interaction as macOS; Git Bash provides rm on
+        # Windows runners.
+        shell: bash
+        run: rm -rf target/*/build/v8-* target/*/.fingerprint/v8-*
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build JS workspaces (squark-host and squark-js embed squark-dom)
+        run: npm run build --workspaces --if-present
+
+      - name: Build workspace
+        run: cargo build --workspace
+
+      - name: Test workspace (no window system, no GPU tests)
+        run: cargo test --workspace

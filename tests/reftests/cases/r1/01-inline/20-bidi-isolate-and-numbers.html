@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.03} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Bidi isolation with numbers and punctuation</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", "TestArabic", sans-serif; font-size: 17px; line-height: 30px; padding: 16px; }
+    .row { width: 320px; border: 1px solid #94a3b8; padding: 8px; margin-bottom: 10px; }
+    .iso { unicode-bidi: isolate; background: #fef3c7; padding: 0 4px; }
+  </style>
+</head>
+<body>
+  <div class="row">User <bdi class="iso">أحمد</bdi>: 3 posts (2026)</div>
+  <div class="row" dir="rtl">العدد <bdi class="iso">42px</bdi> في السطر</div>
+</body>
+</html>

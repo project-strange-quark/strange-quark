@@ -1,0 +1,52 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>rough.js dashed strokes and a rough curve</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+  <script src="../_assets/lib/rough.js"></script>
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script>
+    const rc = rough.canvas(document.getElementById("c"), {
+      options: { seed: 4711, roughness: 1.0 },
+    });
+
+    // Excalidraw's dashed element outlines use strokeLineDash and an offset.
+    rc.rectangle(24, 24, 180, 120, {
+      stroke: "#334155",
+      strokeWidth: 2,
+      strokeLineDash: [12, 8],
+      strokeLineDashOffset: 3,
+      fill: "none",
+    });
+
+    rc.line(240, 30, 450, 30, {
+      stroke: "#0369a1",
+      strokeWidth: 4,
+      strokeLineDash: [2, 6],
+    });
+
+    // A curve drawn as a path with rounded caps and joins.
+    rc.path("M 30 200 C 120 150, 220 260, 320 200 S 430 140, 450 230", {
+      stroke: "#be123c",
+      strokeWidth: 3,
+      strokeLineDash: [18, 6, 3, 6],
+      roughness: 0.8,
+    });
+
+    rc.linearPath(
+      [
+        [40, 290],
+        [140, 260],
+        [240, 300],
+        [340, 265],
+      ],
+      { stroke: "#166534", strokeWidth: 2, strokeLineDash: [10, 10] },
+    );
+  </script>
+</body>
+</html>

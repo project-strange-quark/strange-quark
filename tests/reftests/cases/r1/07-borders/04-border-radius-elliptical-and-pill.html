@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":4,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Elliptical border-radius, circle, and pill</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 16px; align-items: center; padding: 28px; }
+    .circle { width: 96px; height: 96px; border-radius: 50%; background: #ef4444; }
+    .pill { width: 120px; height: 48px; border-radius: 9999px; background: #6366f1; }
+    .ell { width: 110px; height: 90px; border-radius: 40px / 18px; background: #f59e0b; }
+  </style>
+</head>
+<body>
+  <div class="circle"></div><div class="pill"></div><div class="ell"></div>
+</body>
+</html>

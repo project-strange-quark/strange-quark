@@ -1,0 +1,23 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.015} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Inline SVG rect, circle, ellipse, line, polygon</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 20px; } svg { border: 1px solid #cbd5e1; background: #f8fafc; }
+  </style>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" width="340" height="220" viewBox="0 0 340 220">
+    <rect x="16" y="16" width="90" height="64" rx="10" fill="#3b82f6" stroke="#1e3a8a" stroke-width="3"/>
+    <circle cx="170" cy="54" r="34" fill="#ef4444"/>
+    <ellipse cx="276" cy="54" rx="44" ry="24" fill="#10b981"/>
+    <line x1="20" y1="130" x2="140" y2="196" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
+    <polygon points="220,120 290,198 165,198" fill="#f59e0b" stroke="#92400e" stroke-width="3"/>
+  </svg>
+</body>
+</html>

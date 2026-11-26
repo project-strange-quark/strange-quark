@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":4,"maxDiffRatio":0.01} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Radial gradients circle and ellipse</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 16px; padding: 20px; }
+    .a { width: 160px; height: 160px; background: radial-gradient(circle at center, #fef08a 0%, #f97316 55%, #7c2d12 100%); }
+    .b { width: 180px; height: 120px; background: radial-gradient(ellipse at 30% 35%, #38bdf8 0%, #1d4ed8 70%, #1e1b4b 100%); }
+  </style>
+</head>
+<body>
+  <div class="a"></div><div class="b"></div>
+</body>
+</html>

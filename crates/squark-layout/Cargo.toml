@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: MIT
+[package]
+name = "squark-layout"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+squark-assets = { path = "../squark-assets", version = "=0.0.0" }
+squark-style = { path = "../squark-style", version = "=0.0.0" }
+squark-text = { path = "../squark-text", version = "=0.0.0" }
+squark-mirror = { version = "=0.0.0", path = "../squark-mirror" }
+squark-types.workspace = true
+parley.workspace = true
+rayon = "1.12"
+serde_json = "1"
+euclid = "0.22"
+html5ever.workspace = true
+stylo.workspace = true
+stylo_traits.workspace = true
+taffy.workspace = true
+url = "2.5"
+
+[dev-dependencies]
+tempfile = "3"
+squark-journal.workspace = true
+
+[lints]
+workspace = true

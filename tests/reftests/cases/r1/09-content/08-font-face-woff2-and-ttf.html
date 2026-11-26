@@ -1,0 +1,24 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>@font-face loading both WOFF2 and TTF fonts</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 16px; }
+    div { margin-bottom: 12px; padding: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 18px; }
+    .w2 { font-family: "TestMono", monospace; }
+    .ttf { font-family: "TestMonoTTF", monospace; }
+    .asst { font-family: "TestAssistant", sans-serif; }
+  </style>
+</head>
+<body>
+  <div class="w2">WOFF2 TestMono: 0123 ABC abc</div>
+  <div class="ttf">TTF TestMonoTTF: 0123 ABC abc</div>
+  <div class="asst">WOFF2 TestAssistant: Excalidraw</div>
+</body>
+</html>

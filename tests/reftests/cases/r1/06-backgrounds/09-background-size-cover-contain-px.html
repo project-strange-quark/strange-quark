@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":6,"maxDiffRatio":0.015} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>background-size cover, contain, and explicit px</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 14px; padding: 20px; }
+    .b { width: 108px; height: 140px; border: 2px solid #334155; background-color: #f1f5f9; background-image: url("../_assets/images/photo-64x48.png"); background-repeat: no-repeat; background-position: center; }
+    .cov { background-size: cover; }
+    .con { background-size: contain; }
+    .px { background-size: 80px 40px; }
+  </style>
+</head>
+<body>
+  <div class="b cov"></div><div class="b con"></div><div class="b px"></div>
+</body>
+</html>

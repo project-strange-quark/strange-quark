@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>inline-flex shrink-to-fit inside text flow</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 16px; line-height: 28px; padding: 16px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; background: #ede9fe; border: 1px solid #7c3aed; border-radius: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #7c3aed; }
+  </style>
+</head>
+<body>
+  <div>Status: <span class="badge"><span class="dot"></span><span>Active</span></span> ready.</div>
+</body>
+</html>

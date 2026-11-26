@@ -1,0 +1,28 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Radix/Excalidraw [data-state], [aria-selected], :not(:last-child)</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestAssistant", sans-serif; padding: 24px; }
+    .menu { width: 220px; border: 1px solid #e5e5ea; border-radius: 8px; padding: 6px; background: #ffffff; }
+    .row { padding: 8px 10px; border-radius: 6px; font-size: 14px; }
+    .row:not(:last-child) { margin-bottom: 4px; }
+    .row[data-state="open"] { background: #e0dfff; color: #5b57d1; }
+    .row[aria-selected="true"] { background: #6965db; color: #ffffff; }
+    .row[disabled] { opacity: 0.45; }
+  </style>
+</head>
+<body>
+  <div class="menu">
+    <div class="row" data-state="open">Open submenu</div>
+    <div class="row" aria-selected="true">Selected item</div>
+    <div class="row" disabled>Disabled item</div>
+  </div>
+</body>
+</html>

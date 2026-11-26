@@ -1,0 +1,36 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<html style="background: red">
+<head><meta charset="utf-8"><title>Ordered canvas readback</title></head>
+<body>
+<script>
+  const canvas = document.createElement("canvas");
+  canvas.width = 3;
+  canvas.height = 2;
+  const context = canvas.getContext("2d");
+  const pixel = () => Array.from(context.getImageData(1, 0, 1, 1).data).join(",");
+  const fill = color => {
+    context.fillStyle = color;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  };
+
+  fill("#2468ac");
+  const clipped = context.getImageData(-1, 0, 4, 1).data;
+  const ordered = pixel() === "36,104,172,255" &&
+    Array.from(clipped).join(",") === "0,0,0,0,36,104,172,255,36,104,172,255,36,104,172,255";
+  const encoders = canvas.toDataURL("application/unknown").startsWith("data:image/png;base64,iVBORw0") &&
+    canvas.toDataURL("image/jpeg", 0.5).startsWith("data:image/jpeg;base64,/9j/") &&
+    canvas.toDataURL("image/webp").startsWith("data:image/webp;base64,UklGR");
+  canvas.width = canvas.width;
+  if (ordered && encoders && pixel() === "0,0,0,0") {
+    document.documentElement.style.backgroundColor = "#2468ac";
+  }
+
+  window.canvasAfterPaint = () => {
+    fill("#13579b");
+    canvas.toBlob(blob => { window.canvasBlob = [blob.type, blob.size] }, "image/webp");
+    return pixel();
+  };
+</script>
+</body>
+</html>

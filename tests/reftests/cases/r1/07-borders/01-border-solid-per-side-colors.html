@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Per-side solid border widths and colors</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 24px; padding: 28px; }
+    .a { width: 140px; height: 120px; border-top: 12px solid #ef4444; border-right: 16px solid #3b82f6; border-bottom: 12px solid #10b981; border-left: 8px solid #f59e0b; background: #f8fafc; }
+    .tri { width: 0; height: 0; border-left: 48px solid transparent; border-right: 48px solid transparent; border-bottom: 84px solid #6366f1; }
+  </style>
+</head>
+<body>
+  <div class="a"></div><div class="tri"></div>
+</body>
+</html>

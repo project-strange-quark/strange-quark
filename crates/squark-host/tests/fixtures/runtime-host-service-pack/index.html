@@ -1,0 +1,32 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Host service test</title>
+<style>
+  body { margin: 0; }
+  a { display: block; position: absolute; left: 4px; width: 100px; height: 20px; }
+  #external { top: 4px; }
+  #same-origin { top: 30px; }
+  #javascript { top: 56px; }
+</style>
+<body>
+<a id="external" href="https://example.com/b">External link</a>
+<a id="same-origin" href="/same-origin">Same-origin link</a>
+<a id="javascript" href="javascript:window.javascriptRan = true">JavaScript link</a>
+<script>
+  window.linkClicks = [];
+  window.javascriptRan = false;
+  window.addEventListener("click", event => {
+    const link = event.target.closest("a");
+    if (link) linkClicks.push(link.id);
+  });
+  window.openResult = window.open("https://example.com/a");
+  window.clipboardResult = { settled: false };
+  navigator.clipboard.readText().then(
+    value => Object.assign(clipboardResult, { settled: true, ok: true, value }),
+    error => Object.assign(clipboardResult, { settled: true, ok: false, name: error.name, message: error.message }),
+  );
+</script>
+</body>
+</html>

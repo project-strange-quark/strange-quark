@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>::before and ::after generated boxes and content</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 16px; padding: 20px; }
+    .tag { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #e0f2fe; border: 1px solid #0284c7; border-radius: 6px; margin-bottom: 14px; }
+    .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #0284c7; display: inline-block; }
+    .tag::after { content: "NEW"; font-size: 11px; font-weight: 700; color: #ffffff; background: #2563eb; padding: 2px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="tag">Feature label</div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Solid colors in hex, rgb, hsl, and alpha over backdrop</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .grid { display: grid; grid-template-columns: repeat(3, 100px); gap: 12px; padding: 20px; background: #f1f5f9; }
+    .grid > div { height: 70px; }
+    .c1 { background: #ef4444; }
+    .c2 { background: rgb(37, 99, 235); }
+    .c3 { background: hsl(142, 71%, 45%); }
+    .c4 { background: rgba(239, 68, 68, 0.45); }
+    .c5 { background: #2563eb80; }
+    .c6 { background: hsla(270, 91%, 65%, 0.6); }
+  </style>
+</head>
+<body>
+  <div class="grid"><div class="c1"></div><div class="c2"></div><div class="c3"></div><div class="c4"></div><div class="c5"></div><div class="c6"></div></div>
+</body>
+</html>

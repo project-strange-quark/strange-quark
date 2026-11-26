@@ -1,0 +1,23 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>flex-direction row-reverse and column-reverse</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 16px; }
+    .rr { display: flex; flex-direction: row-reverse; gap: 8px; padding: 8px; background: #f1f5f9; margin-bottom: 16px; }
+    .cr { display: flex; flex-direction: column-reverse; gap: 8px; width: 160px; padding: 8px; background: #f1f5f9; }
+    .i1 { width: 60px; height: 36px; background: #ef4444; }
+    .i2 { width: 60px; height: 36px; background: #f59e0b; }
+    .i3 { width: 60px; height: 36px; background: #10b981; }
+  </style>
+</head>
+<body>
+  <div class="rr"><div class="i1"></div><div class="i2"></div><div class="i3"></div></div>
+  <div class="cr"><div class="i1"></div><div class="i2"></div><div class="i3"></div></div>
+</body>
+</html>

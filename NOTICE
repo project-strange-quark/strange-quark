@@ -1,0 +1,31 @@
+Strange Quark
+Copyright (c) 2026 Ofek Bickel. Licensed under the MIT licence (see LICENSE).
+
+Third-party code included in this repository is listed below with its
+licence and the exact version or commit it came from. Dependencies pulled in
+by Cargo or npm are not listed here; `cargo deny` and the npm licence check
+enforce their licences (see AGENTS.md).
+
+DioxusLabs/blitz (blitz-dom), used under the MIT licence.
+Commit 846ca67795b1e4fb0952fd05a91d682b44330268 (v0.3.0-beta.5).
+Parts of packages/blitz-dom/src/stylo/dom.rs and stylo/traversal.rs
+are adapted in crates/squark-mirror/src/stylo.rs. Test mappings in
+crates/squark-layout/tests/engine_pipeline.rs adapt packages/blitz-dom/src/
+stylo_to_parley.rs and packages/stylo_taffy/src/convert.rs (also MIT).
+Production mappings from the same files live in crates/squark-text/src/css.rs
+and crates/squark-layout/src/css.rs.
+
+Servo Stylo 0.24.0, used under MPL-2.0, in vendor/stylo. Commit 32359dc3f17780ee269980cb7a3a7f8597a1dc0e.
+
+Bundled R1 reftest fonts under tests/reftests/cases/r1/_assets/fonts/
+(used only by the test suite, not shipped in any crate or build output):
+- Liberation Fonts v2.1.5 (LiberationSans, LiberationMono), SIL OFL-1.1.
+- Google Noto Naskh Arabic (2026-10-01), SIL OFL-1.1.
+- Assistant Regular (from Excalidraw v0.18.1), SIL OFL-1.1.
+
+web-platform-tests contributors, used under the 3-Clause BSD licence.
+Commit f4d3f2eba09697ebcb2f338b8f2d709a3ce85217.
+Unmodified DOM test files and their licence are in tests/wpt/vendor/.
+
+Code copied into the repository gets an entry here in the commit that brings
+it in (see AGENTS.md, "Licences").

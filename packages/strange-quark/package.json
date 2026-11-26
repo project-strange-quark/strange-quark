@@ -1,0 +1,57 @@
+{
+  "name": "strange-quark",
+  "version": "0.1.0",
+  "description": "Run unmodified React apps as native desktop applications with no WebView.",
+  "keywords": [
+    "react",
+    "react-dom",
+    "native",
+    "desktop",
+    "gui",
+    "wgpu",
+    "v8",
+    "strange-quark"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/project-strange-quark/strange-quark#readme",
+  "bugs": {
+    "url": "https://github.com/project-strange-quark/strange-quark/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/project-strange-quark/strange-quark.git",
+    "directory": "packages/strange-quark"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "squark": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.10",
+    "typescript": "6.0.3"
+  }
+}

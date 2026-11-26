@@ -1,0 +1,139 @@
+{
+  "container": "appended-binary",
+  "file_bytes": 9989,
+  "trailer": {
+    "pack_offset": 4096,
+    "pack_len": 5861,
+    "pack_crc32": 369585119,
+    "crc_valid": true
+  },
+  "pack": {
+    "entry_count": 8,
+    "strings_offset": 288,
+    "strings_len": 137,
+    "data_offset": 448,
+    "total_bytes": 5861,
+    "crc32": 369585119,
+    "entries": [
+      {
+        "path": "/__squark/document.bin",
+        "path_hash": 11784159679018408988,
+        "mime": "application/octet-stream",
+        "mime_id": 0,
+        "data_off": 0,
+        "data_len": 4256
+      },
+      {
+        "path": "/__squark/manifest.json",
+        "path_hash": 4379351130537465409,
+        "mime": "application/json",
+        "mime_id": 4,
+        "data_off": 4256,
+        "data_len": 77
+      },
+      {
+        "path": "/assets/main.js",
+        "path_hash": 3163291243356456026,
+        "mime": "text/javascript; charset=utf-8",
+        "mime_id": 2,
+        "data_off": 4336,
+        "data_len": 81
+      },
+      {
+        "path": "/data/config.json",
+        "path_hash": 11057712183118494123,
+        "mime": "application/json",
+        "mime_id": 4,
+        "data_off": 4424,
+        "data_len": 34
+      },
+      {
+        "path": "/fonts/sample.woff2",
+        "path_hash": 14549863749428947725,
+        "mime": "font/woff2",
+        "mime_id": 5,
+        "data_off": 4464,
+        "data_len": 24
+      },
+      {
+        "path": "/images/dot.png",
+        "path_hash": 5764126498389124061,
+        "mime": "image/png",
+        "mime_id": 8,
+        "data_off": 4488,
+        "data_len": 70
+      },
+      {
+        "path": "/index.html",
+        "path_hash": 13896725103783414129,
+        "mime": "text/html; charset=utf-8",
+        "mime_id": 1,
+        "data_off": 4560,
+        "data_len": 773
+      },
+      {
+        "path": "/styles/app.css",
+        "path_hash": 12577622724144151501,
+        "mime": "text/css; charset=utf-8",
+        "mime_id": 3,
+        "data_off": 5336,
+        "data_len": 77
+      }
+    ]
+  },
+  "document": {
+    "quirks_mode": "standards",
+    "document_node_id": 1,
+    "batch_count": 1,
+    "total_records": 133,
+    "atom_count": 29,
+    "inline_styles": [
+      {
+        "node_id": 13,
+        "css": "body { margin: 0; color: #222; }"
+      }
+    ],
+    "scripts": [
+      {
+        "kind": "external-stylesheet",
+        "defer": false,
+        "async": false,
+        "node_id": 11,
+        "payload": "/styles/app.css",
+        "base_url": "/styles/app.css"
+      },
+      {
+        "kind": "inline-classic",
+        "defer": false,
+        "async": false,
+        "node_id": 16,
+        "payload": "window.__boot = 1;",
+        "base_url": "/index.html"
+      },
+      {
+        "kind": "external-module",
+        "defer": false,
+        "async": false,
+        "node_id": 19,
+        "payload": "/assets/main.js",
+        "base_url": "/assets/main.js"
+      },
+      {
+        "kind": "external-classic",
+        "defer": true,
+        "async": true,
+        "node_id": 21,
+        "payload": "https://cdn.example.test/ext.js",
+        "base_url": "https://cdn.example.test/ext.js"
+      },
+      {
+        "kind": "inline-module",
+        "defer": false,
+        "async": false,
+        "node_id": 41,
+        "payload": "import \"./assets/main.js\";",
+        "base_url": "/index.html"
+      }
+    ]
+  }
+}

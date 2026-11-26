@@ -1,0 +1,51 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>drawImage from canvas to canvas: 3, 5 and 9 arguments</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script type="module">
+    import { offscreen, checker } from "../_assets/r3.js";
+
+    const ctx = document.getElementById("c").getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 480, 320);
+
+    // Excalidraw caches each element on its own canvas and blits it here.
+    const source = offscreen(160, 120);
+    const sctx = source.getContext("2d");
+    checker(sctx, 160, 120, 10);
+    sctx.fillStyle = "#1d4ed8";
+    sctx.beginPath();
+    sctx.arc(80, 60, 44, 0, Math.PI * 2);
+    sctx.fill();
+    sctx.strokeStyle = "#0f172a";
+    sctx.lineWidth = 4;
+    sctx.strokeRect(6, 6, 148, 108);
+
+    // 3-argument form: place at natural size.
+    ctx.drawImage(source, 20, 20);
+
+    // 5-argument form: scale to 200x90.
+    ctx.drawImage(source, 210, 20, 200, 90);
+
+    // 9-argument form: crop the top-left 80x60 into a 160x120 dest rect.
+    ctx.drawImage(source, 0, 0, 80, 60, 20, 170, 160, 120);
+
+    // 9-argument form with a mirrored crop, like flipped images.
+    ctx.drawImage(source, 80, 60, 80, 60, 300, 170, 160, 120);
+
+    // Transformed blit.
+    ctx.save();
+    ctx.translate(400, 130);
+    ctx.rotate(Math.PI / 8);
+    ctx.drawImage(source, -40, 0, 80, 60);
+    ctx.restore();
+  </script>
+</body>
+</html>

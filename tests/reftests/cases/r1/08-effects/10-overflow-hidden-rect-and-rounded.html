@@ -1,0 +1,22 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":6,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>overflow: hidden rectangular and rounded-rect clipping</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 24px; padding: 28px; }
+    .box { width: 150px; height: 140px; overflow: hidden; border: 3px solid #1e293b; background: #f1f5f9; }
+    .round { border-radius: 32px; }
+    .big { width: 200px; height: 90px; background: #ef4444; margin: -20px 0 0 -20px; }
+    .big2 { width: 200px; height: 90px; background: #3b82f6; margin-left: 30px; }
+  </style>
+</head>
+<body>
+  <div class="box"><div class="big"></div><div class="big2"></div></div>
+  <div class="box round"><div class="big"></div><div class="big2"></div></div>
+</body>
+</html>

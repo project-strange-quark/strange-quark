@@ -1,0 +1,18 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>position: fixed containing block is nearest transformed ancestor</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .xform { width: 240px; height: 160px; margin: 40px; background: #dbeafe; border: 2px solid #1d4ed8; transform: translate(10px, 10px); }
+    .fix { position: fixed; right: 10px; bottom: 10px; width: 64px; height: 40px; background: #f97316; }
+  </style>
+</head>
+<body>
+  <div class="xform"><div class="fix"></div></div>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":640,"height":400,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.025} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Full static Excalidraw workspace shell layout</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    :root {
+      --bg: #ffffff;
+      --island: #ffffff;
+      --border: #e5e5ea;
+      --accent: #6965db;
+      --accent-soft: #e0dfff;
+      --ink: #1b1b1f;
+    }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: "TestAssistant", sans-serif; color: var(--ink); background: var(--bg); }
+    .canvas-area { position: fixed; inset: 0; background: radial-gradient(circle at 20px 20px, #e9ecef 1px, transparent 1px) 0 0 / 24px 24px; }
+    .top-bar { position: fixed; top: 14px; left: 14px; right: 14px; display: flex; justify-content: space-between; align-items: center; }
+    .island { background: var(--island); border-radius: 10px; box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.07); }
+    .menu-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; }
+    .toolbar { display: flex; gap: 4px; padding: 5px; }
+    .tool { width: 34px; height: 34px; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+    .tool.active { background: var(--accent-soft); color: var(--accent); }
+    .share { padding: 8px 14px; border-radius: 8px; background: var(--accent); color: #ffffff; font-size: 13px; }
+    .props { position: fixed; left: 14px; top: 72px; width: 176px; padding: 12px; }
+    .props-title { font-size: 11px; color: #6c757d; margin-bottom: 6px; }
+    .swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 12px; }
+    .sw { height: 22px; border-radius: 5px; }
+    .zoom { position: fixed; left: 14px; bottom: 14px; display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 13px; }
+    .help { position: fixed; right: 14px; bottom: 14px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="canvas-area"></div>
+  <div class="top-bar">
+    <div class="island menu-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></div>
+    <div class="island toolbar">
+      <div class="tool"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l7 17 2.5-6.5L20 12z"/></svg></div>
+      <div class="tool active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div>
+      <div class="tool"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg></div>
+      <div class="tool"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19L19 5M12 5h7v7"/></svg></div>
+    </div>
+    <div class="share">Share</div>
+  </div>
+  <div class="island props">
+    <div class="props-title">Stroke</div>
+    <div class="swatches">
+      <div class="sw" style="background:#1e1e1e;outline:2px solid #6965db;outline-offset:1px"></div>
+      <div class="sw" style="background:#e03131"></div>
+      <div class="sw" style="background:#2f9e44"></div>
+      <div class="sw" style="background:#1971c2"></div>
+      <div class="sw" style="background:#f08c00"></div>
+    </div>
+    <div class="props-title">Background</div>
+    <div class="swatches">
+      <div class="sw" style="background:#f1f3f5;border:1px solid #ced4da"></div>
+      <div class="sw" style="background:#ffc9c9"></div>
+      <div class="sw" style="background:#b2f2bb"></div>
+      <div class="sw" style="background:#a5d8ff"></div>
+      <div class="sw" style="background:#ffec99"></div>
+    </div>
+  </div>
+  <div class="island zoom"><span>-</span><span>100%</span><span>+</span></div>
+  <div class="island help">?</div>
+</body>
+</html>

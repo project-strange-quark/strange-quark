@@ -1,0 +1,25 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.025} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fixed modal backdrop with centered dialog card</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestAssistant", sans-serif; }
+    .page { padding: 20px; display: flex; gap: 12px; }
+    .bg-card { width: 160px; height: 120px; background: #dbeafe; border-radius: 8px; }
+    .backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(18, 18, 18, 0.45); display: flex; align-items: center; justify-content: center; }
+    .dialog { width: 260px; padding: 18px; background: #ffffff; border-radius: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25); }
+    .title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .desc { font-size: 13px; color: #495057; }
+  </style>
+</head>
+<body>
+  <div class="page"><div class="bg-card"></div><div class="bg-card"></div></div>
+  <div class="backdrop"><div class="dialog"><div class="title">Export image</div><div class="desc">Save scene as PNG or SVG.</div></div></div>
+</body>
+</html>

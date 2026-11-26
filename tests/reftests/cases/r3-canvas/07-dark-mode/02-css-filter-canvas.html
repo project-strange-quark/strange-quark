@@ -1,0 +1,67 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.03} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>dark mode: CSS filter invert(93%) hue-rotate(180deg) on a canvas element</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+  <style>
+    .dark {
+      filter: invert(93%) hue-rotate(180deg);
+    }
+    .invert-full {
+      filter: invert(100%) hue-rotate(180deg);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script type="module">
+    import { offscreen, checker } from "../_assets/r3.js";
+
+    const ctx = document.getElementById("c").getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 480, 320);
+
+    // The canvas paints a light scene; CSS filters the element afterwards.
+    const scene = offscreen(200, 140);
+    const sctx = scene.getContext("2d");
+    checker(sctx, 200, 140, 20, "#f8fafc", "#e2e8f0");
+    sctx.fillStyle = "#1d4ed8";
+    sctx.fillRect(16, 16, 70, 46);
+    sctx.fillStyle = "#f59e0b";
+    sctx.beginPath();
+    sctx.arc(140, 50, 32, 0, Math.PI * 2);
+    sctx.fill();
+    sctx.strokeStyle = "#111827";
+    sctx.lineWidth = 5;
+    sctx.strokeRect(20, 90, 160, 34);
+    sctx.fillStyle = "#15803d";
+    sctx.fillRect(110, 96, 60, 22);
+
+    // Element canvases are separate elements, so the CSS filter applies per element.
+    for (const [index, className] of ["dark", "invert-full"].entries()) {
+      const layer = document.createElement("canvas");
+      layer.width = 200;
+      layer.height = 140;
+      layer.className = className;
+      layer.style.position = "absolute";
+      layer.style.left = `${20 + index * 240}px`;
+      layer.style.top = "20px";
+      layer.getContext("2d").drawImage(scene, 0, 0);
+      document.body.appendChild(layer);
+    }
+
+    // An unfiltered copy for comparison.
+    const plain = document.createElement("canvas");
+    plain.width = 200;
+    plain.height = 140;
+    plain.style.position = "absolute";
+    plain.style.left = "130px";
+    plain.style.top = "170px";
+    plain.getContext("2d").drawImage(scene, 0, 0);
+    document.body.appendChild(plain);
+  </script>
+</body>
+</html>

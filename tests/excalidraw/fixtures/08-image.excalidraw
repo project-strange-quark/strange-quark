@@ -1,0 +1,96 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "strange-quark",
+  "elements": [
+    {
+      "id": "image-0026",
+      "type": "image",
+      "x": 240,
+      "y": 220,
+      "width": 240,
+      "height": 240,
+      "angle": 0,
+      "strokeColor": "transparent",
+      "backgroundColor": "transparent",
+      "fillStyle": "hachure",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 305894,
+      "version": 1,
+      "versionNonce": 2722954,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1735689600000,
+      "link": null,
+      "locked": false,
+      "fileId": "fixture-image",
+      "status": "saved",
+      "scale": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "text-0027",
+      "type": "text",
+      "x": 540,
+      "y": 260,
+      "width": 215.60000000000002,
+      "height": 35,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 313813,
+      "version": 1,
+      "versionNonce": 2827683,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1735689600000,
+      "link": null,
+      "locked": false,
+      "text": "embedded image",
+      "originalText": "embedded image",
+      "fontSize": 28,
+      "fontFamily": 1,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "containerId": null,
+      "lineHeight": 1.25,
+      "baseline": 28,
+      "autoResize": true
+    }
+  ],
+  "appState": {
+    "gridSize": null,
+    "viewBackgroundColor": "#ffffff",
+    "theme": "light",
+    "scrollX": 0,
+    "scrollY": 0,
+    "zoom": {
+      "value": 1
+    }
+  },
+  "files": {
+    "fixture-image": {
+      "id": "fixture-image",
+      "mimeType": "image/png",
+      "dataURL": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA2UlEQVR4AQXBQRECABADsXCDLETwQstKqEi8QPL49voRhjCEIR9DGMIQhhxhCEMYwhCGMIQhzDGEIQxhCEMYwhCGHGEIQxjCEIYwhCHMMYQhDGEIQxjCEIYcYQhDGMIQhjCEIcwxhCEMYQhDGMIQhhxhCEMYwhCGMIQhzNN7CEMYwhCGMIQhDDnCEIYwhCEMYQhDmGMIQxjCEIYwhCEMOcIQhjCEIQxhCEOYYwhDGMIQhjCEIQw5whCGMIQhDGEIQ5hjCEMYwhCGMIQhDDnCEIYwhCEMYQhDmD9EqILP6VdyDgAAAABJRU5ErkJggg==",
+      "created": 1735689600000,
+      "lastRetrieved": 1735689600000
+    }
+  }
+}

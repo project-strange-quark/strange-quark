@@ -1,0 +1,49 @@
+{
+  "name": "@strange-quark/cli-linux-x64",
+  "version": "0.1.0",
+  "description": "Native squark CLI and squark-runtime binaries for Linux x64 (glibc).",
+  "keywords": [
+    "strange-quark",
+    "react",
+    "native",
+    "desktop",
+    "linux",
+    "x64"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/project-strange-quark/strange-quark#readme",
+  "bugs": {
+    "url": "https://github.com/project-strange-quark/strange-quark/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/project-strange-quark/strange-quark.git",
+    "directory": "npm/cli-linux-x64"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "files": [
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./bin/squark": "./bin/squark",
+    "./bin/squark-runtime": "./bin/squark-runtime"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@strange-quark/dom",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./journal": "./dist/journal.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test && node --experimental-vm-modules ../../../tests/wpt/run.mjs"
+  },
+  "devDependencies": {
+    "@emotion/cache": "11.14.0",
+    "@emotion/react": "11.14.0",
+    "@radix-ui/react-dismissable-layer": "1.1.11",
+    "@radix-ui/react-focus-scope": "1.1.7",
+    "styled-components": "6.1.19",
+    "typescript": "6.0.3"
+  }
+}

@@ -1,0 +1,25 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fixed-height sidebar panel clipping overflow with sticky header</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestAssistant", sans-serif; background: #f1f5f9; padding: 20px; }
+    .sidebar { width: 220px; height: 220px; overflow: hidden; background: #ffffff; border: 1px solid #e5e5ea; border-radius: 10px; }
+    .hdr { position: sticky; top: 0; padding: 10px 12px; background: #f8f9fa; border-bottom: 1px solid #e5e5ea; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 10px; }
+    .card { height: 64px; border-radius: 6px; background: #e0dfff; border: 1px solid #c5c2ff; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="hdr">Library</div>
+    <div class="grid"><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>isolation: isolate traps child z-index</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .a { position: relative; isolation: isolate; width: 180px; height: 120px; margin: 20px; background: #e2e8f0; }
+    .a-hi { position: absolute; left: 40px; top: 40px; width: 120px; height: 100px; background: #ef4444; z-index: 999; }
+    .b { position: relative; margin-top: -80px; margin-left: 80px; width: 140px; height: 100px; background: #2563eb; z-index: 1; }
+  </style>
+</head>
+<body>
+  <div class="a"><div class="a-hi"></div></div><div class="b"></div>
+</body>
+</html>

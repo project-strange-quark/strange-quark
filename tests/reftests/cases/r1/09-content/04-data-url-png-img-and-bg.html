@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>data:image/png;base64 in <img> and CSS background-image</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 20px; padding: 24px; align-items: center; }
+    img { width: 72px; height: 72px; image-rendering: pixelated; border: 2px solid #334155; }
+    .bg { width: 160px; height: 112px; border: 2px solid #334155; background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAIUlEQVR42mN48ODBf3yYEGAYNWBYGEBIASELRg0YFgYAAMynza4jnjS7AAAAAElFTkSuQmCC"); background-repeat: repeat; }
+  </style>
+</head>
+<body>
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAMUlEQVR42mPgL8v7T0vMQDcLRHYsoyoetWCIWEAsGLVg1IJRCwazBaOF3TCzYMi2KgCnBcGIUbFCkgAAAABJRU5ErkJggg==" alt="badge"><div class="bg"></div>
+</body>
+</html>

@@ -1,0 +1,386 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-11-26T05:54:14.905Z",
+  "expectedTag": "v0.18.1",
+  "submodule": {
+    "commit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+    "tagCommit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+    "statusBefore": "",
+    "statusAfter": "",
+    "clean": true,
+    "matchesTag": true
+  },
+  "build": {
+    "command": "squark build vendor/excalidraw/excalidraw-app --skip-app-build --dist vendor/excalidraw/excalidraw-app/build --runtime target/dist/squark-runtime --config apps/excalidraw/squark.config.ts --out dist/excalidraw",
+    "appBuildCommand": "npx --yes yarn@1.22.22 --ignore-engines --cwd vendor/excalidraw/excalidraw-app vite build",
+    "runtimeBuildCommand": "cargo build --profile dist -p squark-host --bin squark-runtime",
+    "runtimeBuildDurationMs": 128.68,
+    "appAndPackDurationMs": 11681,
+    "totalDurationMs": 11809.86,
+    "environment": {
+      "VITE_APP_DISABLE_SENTRY": "true",
+      "VITE_APP_ENABLE_PWA": "false",
+      "VITE_APP_ENABLE_TRACKING": "false",
+      "VITE_APP_ENABLE_ESLINT": "false",
+      "VITE_APP_WS_SERVER_URL": "",
+      "VITE_APP_FIREBASE_CONFIG": "{}"
+    },
+    "collaboration": {
+      "enabled": false,
+      "websocketUrl": ""
+    },
+    "config": "apps/excalidraw/squark.config.ts",
+    "runtime": {
+      "path": "target/dist/squark-runtime",
+      "profile": "dist",
+      "bytes": 78568856
+    }
+  },
+  "binary": {
+    "path": "dist/excalidraw",
+    "regularFile": true,
+    "executable": true,
+    "fileType": "ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 4.4.0, BuildID[sha1]=89f2c2d0829e3cb5fa91a55b5c0f4cffab88b5c1, stripped",
+    "elfHeader": "ELF Header:\n  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 \n  Class:                             ELF64\n  Data:                              2's complement, little endian\n  Version:                           1 (current)\n  OS/ABI:                            UNIX - System V\n  ABI Version:                       0\n  Type:                              DYN (Position-Independent Executable file)\n  Machine:                           Advanced Micro Devices X86-64\n  Version:                           0x1\n  Entry point address:               0x184c000\n  Start of program headers:          64 (bytes into file)\n  Start of section headers:          78566552 (bytes into file)\n  Flags:                             0x0\n  Size of this header:               64 (bytes)\n  Size of program headers:           56 (bytes)\n  Number of program headers:         12\n  Size of section headers:           64 (bytes)\n  Number of section headers:         36\n  Section header string table index: 35",
+    "class": "ELF64",
+    "type": "DYN (Position-Independent Executable file)",
+    "machine": "Advanced Micro Devices X86-64",
+    "sizeBytes": 100425074,
+    "sizeMiB": 95.77,
+    "sizeLimitBytes": 157286400,
+    "xz9Bytes": 35624672,
+    "zstd19Bytes": 37922209,
+    "debugSections": [],
+    "stripped": true,
+    "isolatedDirectoryContents": [
+      "excalidraw"
+    ]
+  },
+  "libraries": {
+    "lddOutput": "linux-vdso.so.1 (0x00007f2682b80000)\n\tlibfontconfig.so.1 => /usr/lib/libfontconfig.so.1 (0x00007f267df85000)\n\tlibgcc_s.so.1 => /usr/lib/libgcc_s.so.1 (0x00007f2682b24000)\n\tlibm.so.6 => /usr/lib/libm.so.6 (0x00007f267de4e000)\n\tlibc.so.6 => /usr/lib/libc.so.6 (0x00007f267dc00000)\n\t/lib64/ld-linux-x86-64.so.2 => /usr/lib64/ld-linux-x86-64.so.2 (0x00007f2682b82000)\n\tlibfreetype.so.6 => /usr/lib/libfreetype.so.6 (0x00007f267db1b000)\n\tlibexpat.so.1 => /usr/lib/libexpat.so.1 (0x00007f267daec000)\n\tlibz.so.1 => /usr/lib/libz.so.1 (0x00007f267de33000)\n\tlibbz2.so.1.0 => /usr/lib/libbz2.so.1.0 (0x00007f267dad9000)\n\tlibpng16.so.16 => /usr/lib/libpng16.so.16 (0x00007f267da9c000)\n\tlibbrotlidec.so.1 => /usr/lib/libbrotlidec.so.1 (0x00007f267de24000)\n\tlibbrotlicommon.so.1 => /usr/lib/libbrotlicommon.so.1 (0x00007f267da79000)",
+    "resolved": [
+      {
+        "name": "libfontconfig.so.1",
+        "path": "/usr/lib/libfontconfig.so.1",
+        "canonicalPath": "/usr/lib/libfontconfig.so.1.17.0",
+        "systemPath": true,
+        "owner": "fontconfig",
+        "commonSystemPackage": true
+      },
+      {
+        "name": "libgcc_s.so.1",
+        "path": "/usr/lib/libgcc_s.so.1",
+        "canonicalPath": "/usr/lib/libgcc_s.so.1",
+        "systemPath": true,
+        "owner": "libgcc",
+        "commonSystemPackage": true
+      },
+      {
+        "name": "libm.so.6",
+        "path": "/usr/lib/libm.so.6",
+        "canonicalPath": "/usr/lib/libm.so.6",
+        "systemPath": true,
+        "owner": "glibc",
+        "commonSystemPackage": true
+      },
+      {
+        "name": "libc.so.6",
+        "path": "/usr/lib/libc.so.6",
+        "canonicalPath": "/usr/lib/libc.so.6",
+        "systemPath": true,
+        "owner": "glibc",
+        "commonSystemPackage": true
+      },
+      {
+        "name": "/lib64/ld-linux-x86-64.so.2",
+        "path": "/usr/lib64/ld-linux-x86-64.so.2",
+        "canonicalPath": "/usr/lib/ld-linux-x86-64.so.2",
+        "systemPath": true,
+        "owner": "glibc",
+        "commonSystemPackage": true
+      },
+      {
+        "name": "libfreetype.so.6",
+        "path": "/usr/lib/libfreetype.so.6",
+        "canonicalPath": "/usr/lib/libfreetype.so.6.20.7",
+        "systemPath": true,
+        "owner": "freetype2",
+        "commonSystemPackage": true
+      },
+      {
+        "name": "libexpat.so.1",
+        "path": "/usr/lib/libexpat.so.1",
+        "canonicalPath": "/usr/lib/libexpat.so.1.13.0",
+        "systemPath": true,
+        "owner": "expat",
+        "commonSystemPackage": true
+      },
+      {
+        "name": "libz.so.1",
+        "path": "/usr/lib/libz.so.1",
+        "canonicalPath": "/usr/lib/libz.so.1.3.2",
+        "systemPath": true,
+        "owner": "zlib",
+        "commonSystemPackage": true
+      },
+      {
+        "name": "libbz2.so.1.0",
+        "path": "/usr/lib/libbz2.so.1.0",
+        "canonicalPath": "/usr/lib/libbz2.so.1.0.8",
+        "systemPath": true,
+        "owner": "bzip2",
+        "commonSystemPackage": true
+      },
+      {
+        "name": "libpng16.so.16",
+        "path": "/usr/lib/libpng16.so.16",
+        "canonicalPath": "/usr/lib/libpng16.so.16.59.0",
+        "systemPath": true,
+        "owner": "libpng",
+        "commonSystemPackage": true
+      },
+      {
+        "name": "libbrotlidec.so.1",
+        "path": "/usr/lib/libbrotlidec.so.1",
+        "canonicalPath": "/usr/lib/libbrotlidec.so.1.2.0",
+        "systemPath": true,
+        "owner": "brotli",
+        "commonSystemPackage": true
+      },
+      {
+        "name": "libbrotlicommon.so.1",
+        "path": "/usr/lib/libbrotlicommon.so.1",
+        "canonicalPath": "/usr/lib/libbrotlicommon.so.1.2.0",
+        "systemPath": true,
+        "owner": "brotli",
+        "commonSystemPackage": true
+      }
+    ],
+    "systemOnly": true,
+    "commonPackagesOnly": true,
+    "dynamicLoadInfo": {
+      "note": "Informational candidates only: ldd shows startup dependencies, not all runtime dlopen calls.",
+      "candidates": [
+        {
+          "name": "libvulkan.so.1",
+          "inLdd": false,
+          "availableOnHost": true
+        },
+        {
+          "name": "libwayland-client.so.0",
+          "inLdd": false,
+          "availableOnHost": true
+        },
+        {
+          "name": "libxkbcommon.so.0",
+          "inLdd": false,
+          "availableOnHost": true
+        },
+        {
+          "name": "libX11.so.6",
+          "inLdd": false,
+          "availableOnHost": true
+        }
+      ],
+      "vulkanIcdDirectory": "/usr/share/vulkan/icd.d",
+      "icds": [
+        "lvp_icd.json",
+        "radeon_icd.json"
+      ]
+    }
+  },
+  "smoke": {
+    "ran": true,
+    "copiedBinaryOnly": true,
+    "appMounted": true,
+    "domEvalProbe": {
+      "dom": {
+        "canvas": {
+          "height": 800,
+          "width": 1280,
+          "x": 0,
+          "y": 0
+        },
+        "canvases": 2,
+        "dark": false,
+        "excalidraw": true,
+        "libraryOpen": false,
+        "theme": "light",
+        "toolbarButtons": 12,
+        "wysiwyg": null,
+        "zoomText": ""
+      },
+      "scene": {
+        "appState": null,
+        "elementCount": 0,
+        "elements": [],
+        "fileCount": null
+      },
+      "sceneError": null,
+      "sceneRawBytes": 0
+    }
+  },
+  "checks": {
+    "Excalidraw tag and cleanliness": {
+      "pass": true,
+      "detail": {
+        "commit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+        "tagCommit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+        "status": ""
+      }
+    },
+    "required build flags and collaboration disabled": {
+      "pass": true,
+      "detail": {
+        "disableSentry": "true",
+        "enablePwa": "false",
+        "enableTracking": "false",
+        "collaboration": {
+          "enabled": false,
+          "websocketUrl": ""
+        }
+      }
+    },
+    "stripped runtime build and Excalidraw pack": {
+      "pass": true,
+      "detail": {
+        "runtime": {
+          "path": "target/dist/squark-runtime",
+          "profile": "dist",
+          "bytes": 78568856
+        },
+        "runtimeBuildDurationMs": 128.68,
+        "appAndPackDurationMs": 11681
+      }
+    },
+    "single x86-64 ELF and stripped-size limits": {
+      "pass": true,
+      "detail": {
+        "fileType": "ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 4.4.0, BuildID[sha1]=89f2c2d0829e3cb5fa91a55b5c0f4cffab88b5c1, stripped",
+        "class": "ELF64",
+        "type": "DYN (Position-Independent Executable file)",
+        "machine": "Advanced Micro Devices X86-64",
+        "sizeBytes": 100425074,
+        "xz9Bytes": 35624672,
+        "zstd19Bytes": 37922209,
+        "debugSections": []
+      }
+    },
+    "system libraries and package ownership": {
+      "pass": true,
+      "detail": {
+        "resolved": [
+          {
+            "name": "libfontconfig.so.1",
+            "path": "/usr/lib/libfontconfig.so.1.17.0",
+            "package": "fontconfig"
+          },
+          {
+            "name": "libgcc_s.so.1",
+            "path": "/usr/lib/libgcc_s.so.1",
+            "package": "libgcc"
+          },
+          {
+            "name": "libm.so.6",
+            "path": "/usr/lib/libm.so.6",
+            "package": "glibc"
+          },
+          {
+            "name": "libc.so.6",
+            "path": "/usr/lib/libc.so.6",
+            "package": "glibc"
+          },
+          {
+            "name": "/lib64/ld-linux-x86-64.so.2",
+            "path": "/usr/lib/ld-linux-x86-64.so.2",
+            "package": "glibc"
+          },
+          {
+            "name": "libfreetype.so.6",
+            "path": "/usr/lib/libfreetype.so.6.20.7",
+            "package": "freetype2"
+          },
+          {
+            "name": "libexpat.so.1",
+            "path": "/usr/lib/libexpat.so.1.13.0",
+            "package": "expat"
+          },
+          {
+            "name": "libz.so.1",
+            "path": "/usr/lib/libz.so.1.3.2",
+            "package": "zlib"
+          },
+          {
+            "name": "libbz2.so.1.0",
+            "path": "/usr/lib/libbz2.so.1.0.8",
+            "package": "bzip2"
+          },
+          {
+            "name": "libpng16.so.16",
+            "path": "/usr/lib/libpng16.so.16.59.0",
+            "package": "libpng"
+          },
+          {
+            "name": "libbrotlidec.so.1",
+            "path": "/usr/lib/libbrotlidec.so.1.2.0",
+            "package": "brotli"
+          },
+          {
+            "name": "libbrotlicommon.so.1",
+            "path": "/usr/lib/libbrotlicommon.so.1.2.0",
+            "package": "brotli"
+          }
+        ],
+        "systemOnly": true,
+        "commonPackagesOnly": true,
+        "dynamicLoadInfo": {
+          "note": "Informational candidates only: ldd shows startup dependencies, not all runtime dlopen calls.",
+          "candidates": [
+            {
+              "name": "libvulkan.so.1",
+              "inLdd": false,
+              "availableOnHost": true
+            },
+            {
+              "name": "libwayland-client.so.0",
+              "inLdd": false,
+              "availableOnHost": true
+            },
+            {
+              "name": "libxkbcommon.so.0",
+              "inLdd": false,
+              "availableOnHost": true
+            },
+            {
+              "name": "libX11.so.6",
+              "inLdd": false,
+              "availableOnHost": true
+            }
+          ],
+          "vulkanIcdDirectory": "/usr/share/vulkan/icd.d",
+          "icds": [
+            "lvp_icd.json",
+            "radeon_icd.json"
+          ]
+        }
+      }
+    },
+    "isolated headless test-control smoke": {
+      "pass": true,
+      "detail": {
+        "appMounted": true,
+        "canvases": 2,
+        "isolatedDirectoryContents": [
+          "excalidraw"
+        ]
+      }
+    },
+    "submodule remains clean after build": {
+      "pass": true,
+      "detail": {
+        "status": ""
+      }
+    }
+  },
+  "pass": true
+}

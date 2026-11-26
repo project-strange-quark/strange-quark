@@ -1,0 +1,27 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.03} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Basic HTML table cells and borders</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 14px; padding: 16px; }
+    table { width: 320px; border-collapse: separate; border-spacing: 4px; background: #e2e8f0; }
+    th, td { padding: 8px; border: 1px solid #64748b; background: #ffffff; text-align: left; }
+    th { background: #dbeafe; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <table>
+    <thead><tr><th>Name</th><th>Role</th><th>Score</th></tr></thead>
+    <tbody>
+      <tr><td>Alpha</td><td>Core</td><td>98</td></tr>
+      <tr><td>Beta</td><td>Paint</td><td>95</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

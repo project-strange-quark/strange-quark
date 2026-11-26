@@ -1,0 +1,27 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":6,"maxDiffRatio":0.015} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title><img> object-fit fill, contain, cover, none, scale-down</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: grid; grid-template-columns: repeat(3, 104px); gap: 12px; padding: 16px; }
+    img { width: 104px; height: 104px; border: 2px solid #334155; background: #e2e8f0; display: block; }
+    .fill { object-fit: fill; }
+    .contain { object-fit: contain; }
+    .cover { object-fit: cover; }
+    .none { object-fit: none; }
+    .sd { object-fit: scale-down; }
+  </style>
+</head>
+<body>
+  <img class="fill" src="../_assets/images/photo-64x48.png" alt="fill">
+  <img class="contain" src="../_assets/images/photo-64x48.png" alt="contain">
+  <img class="cover" src="../_assets/images/photo-64x48.png" alt="cover">
+  <img class="none" src="../_assets/images/photo-64x48.png" alt="none">
+  <img class="sd" src="../_assets/images/photo-64x48.png" alt="scale-down">
+</body>
+</html>

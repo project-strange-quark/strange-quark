@@ -1,0 +1,35 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":410,"height":155,"dpr":1,"maxChannelDelta":12,"maxDiffRatio":0.025} -->
+<!doctype html>
+<meta charset="utf-8">
+<title>Live value text and author's control styling</title>
+<style>
+  body { margin: 12px; }
+  main { display: grid; grid-template-columns: 180px 180px; gap: 12px; }
+  button, input, textarea {
+    appearance: none;
+    box-sizing: border-box;
+    width: 180px;
+    height: 31px;
+    border: 1px solid #4f46e5;
+    border-radius: 5px;
+    padding: 0 7px;
+    background: white;
+    color: #172554;
+    font: 16px/19px "Liberation Sans", sans-serif;
+  }
+  input::placeholder { color: #9f1239; }
+  textarea { padding: 4px 7px; height: 57px; }
+  button { background: #4f46e5; color: white; }
+</style>
+<main>
+  <input id="value" data-geom="value" value="Initial text" aria-label="Live value">
+  <input id="clear" data-geom="clear" value="Initial text" placeholder="Hint after clear" aria-label="Cleared value">
+  <textarea id="lines" data-geom="textarea" rows="2" aria-label="Multiline value">Old</textarea>
+  <button data-geom="button"><strong>Nested</strong> label</button>
+</main>
+<script>
+  document.getElementById("value").value = "Updated field content that clips at its edge";
+  document.getElementById("clear").value = "";
+  document.getElementById("lines").value = "New first line\nSecond line";
+</script>

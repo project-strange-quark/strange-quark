@@ -1,0 +1,48 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.03} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>imageSmoothingEnabled on upscaled canvas images</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script type="module">
+    import { offscreen } from "../_assets/r3.js";
+
+    const ctx = document.getElementById("c").getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 480, 320);
+
+    // A small four-quadrant source, so nearest and linear sampling differ.
+    const source = offscreen(16, 16);
+    const sctx = source.getContext("2d");
+    sctx.fillStyle = "#1d4ed8";
+    sctx.fillRect(0, 0, 8, 8);
+    sctx.fillStyle = "#f59e0b";
+    sctx.fillRect(8, 0, 8, 8);
+    sctx.fillStyle = "#dc2626";
+    sctx.fillRect(0, 8, 8, 8);
+    sctx.fillStyle = "#15803d";
+    sctx.fillRect(8, 8, 8, 8);
+    sctx.fillStyle = "#111827";
+    sctx.fillRect(6, 6, 4, 4);
+
+    // Excalidraw sets imageSmoothingEnabled=false for pixelated images.
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(source, 20, 20, 200, 200);
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(source, 250, 20, 200, 200);
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.fillStyle = "#111827";
+    ctx.font = "16px TestSans";
+    ctx.fillText("nearest", 20, 245);
+    ctx.fillText("smooth", 250, 245);
+  </script>
+</body>
+</html>

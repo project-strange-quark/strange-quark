@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Implicit grid-auto-rows sizing</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .g { display: grid; grid-template-columns: 100px 100px; grid-auto-rows: 40px 64px; gap: 8px; padding: 12px; margin: 16px; background: #e2e8f0; width: fit-content; }
+    .g > div { background: #8b5cf6; }
+    .g > div:nth-child(n+3) { background: #ec4899; }
+    .g > div:nth-child(n+5) { background: #14b8a6; }
+  </style>
+</head>
+<body>
+  <div class="g"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+</body>
+</html>

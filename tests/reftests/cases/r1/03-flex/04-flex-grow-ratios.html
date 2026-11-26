@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>flex-grow proportional distribution</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .row { display: flex; width: 360px; height: 80px; margin: 20px; border: 2px solid #334155; }
+    .g1 { flex-grow: 1; flex-basis: 0; background: #3b82f6; }
+    .g2 { flex-grow: 2; flex-basis: 0; background: #10b981; }
+    .g3 { flex-grow: 3; flex-basis: 0; background: #f59e0b; }
+  </style>
+</head>
+<body>
+  <div class="row"><div class="g1"></div><div class="g2"></div><div class="g3"></div></div>
+</body>
+</html>

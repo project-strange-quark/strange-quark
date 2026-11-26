@@ -1,0 +1,60 @@
+{
+  "name": "@strange-quark/vite-plugin",
+  "version": "0.1.0",
+  "description": "Vite dev-server plugin and live-reload launcher for Strange Quark.",
+  "keywords": [
+    "vite",
+    "vite-plugin",
+    "react",
+    "hmr",
+    "desktop",
+    "strange-quark"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/project-strange-quark/strange-quark#readme",
+  "bugs": {
+    "url": "https://github.com/project-strange-quark/strange-quark/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/project-strange-quark/strange-quark.git",
+    "directory": "packages/@strange-quark/vite-plugin"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./launcher": {
+      "types": "./dist/launcher.d.ts",
+      "default": "./dist/launcher.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev-main": "node dist/dev-main.js",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "peerDependencies": {
+    "vite": "^6.0.0 || ^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.10",
+    "typescript": "6.0.3",
+    "vite": "6.4.6"
+  }
+}

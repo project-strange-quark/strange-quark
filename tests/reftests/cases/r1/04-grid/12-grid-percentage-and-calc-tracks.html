@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Grid percentage and calc() track sizes</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .g { display: grid; grid-template-columns: 25% calc(50% - 16px) 1fr; grid-template-rows: 80px; gap: 8px; width: 360px; padding: 12px; margin: 16px; background: #f1f5f9; }
+    .a { background: #ef4444; }
+    .b { background: #3b82f6; }
+    .c { background: #10b981; }
+  </style>
+</head>
+<body>
+  <div class="g"><div class="a"></div><div class="b"></div><div class="c"></div></div>
+</body>
+</html>

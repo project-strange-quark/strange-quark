@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Negative z-index child paints behind non-stacking parent background</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .sc { position: relative; z-index: 0; width: 280px; height: 180px; margin: 24px; padding: 24px; background: #f1f5f9; }
+    .mid { width: 180px; height: 100px; background: #3b82f6; position: relative; }
+    .neg { position: absolute; left: 30px; top: 30px; width: 180px; height: 100px; background: #ef4444; z-index: -1; }
+  </style>
+</head>
+<body>
+  <div class="sc"><div class="mid"><div class="neg"></div></div></div>
+</body>
+</html>

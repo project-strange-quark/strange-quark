@@ -1,0 +1,23 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":600,"height":240,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>@media viewport width query matching</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .box { width: 120px; height: 120px; margin: 24px; background: #ef4444; }
+    @media (min-width: 500px) {
+      .box { width: 320px; background: #16a34a; border-radius: 16px; }
+    }
+    @media (max-width: 400px) {
+      .box { background: #dc2626; }
+    }
+  </style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

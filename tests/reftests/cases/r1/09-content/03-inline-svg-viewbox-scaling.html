@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.015} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Inline SVG viewBox scaling across different CSS sizes</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 20px; align-items: flex-end; padding: 24px; } svg { border: 1px solid #94a3b8; }
+  </style>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#2563eb"/><path d="M8 12l3 3 5-6" fill="none" stroke="#fff" stroke-width="2.5"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#16a34a"/><path d="M8 12l3 3 5-6" fill="none" stroke="#fff" stroke-width="2.5"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" width="144" height="96" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#ea580c"/><path d="M8 12l3 3 5-6" fill="none" stroke="#fff" stroke-width="2.5"/></svg>
+</body>
+</html>

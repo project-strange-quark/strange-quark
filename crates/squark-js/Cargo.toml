@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: MIT
+[package]
+name = "squark-js"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+base64 = "0.22"
+encoding_rs = "0.8"
+image = { version = "=0.25.10", default-features = false, features = ["png"] }
+ring = "0.17"
+squark-assets = { version = "=0.0.0", path = "../squark-assets" }
+squark-journal.workspace = true
+squark-net = { version = "=0.0.0", path = "../squark-net" }
+squark-types.workspace = true
+percent-encoding = "2.3"
+data-url = "0.3.2"
+rustix = { version = "1", features = ["fs"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2.5"
+v8.workspace = true
+xml5ever.workspace = true
+
+[[test]]
+name = "v8_embedding"
+path = "tests/v8_embedding.rs"
+
+[dev-dependencies]
+squark-compositor = { version = "=0.0.0", path = "../squark-compositor" }
+squark-layout = { version = "=0.0.0", path = "../squark-layout" }

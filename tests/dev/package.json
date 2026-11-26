@@ -1,0 +1,17 @@
+{
+  "name": "@strange-quark/dev-tests",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "pretest": "cd ../../packages/@strange-quark/vite-plugin && npm run build --silent",
+    "test": "node --test src/*.test.mjs",
+    "measure": "node src/measure.mjs",
+    "test:native": "node --test src/native.test.mjs",
+    "measure:native": "node src/measure-native.mjs"
+  },
+  "dependencies": {
+    "@strange-quark/vite-plugin": "0.1.0"
+  }
+}

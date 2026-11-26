@@ -1,0 +1,195 @@
+{
+  "status": "measured",
+  "runs": 5,
+  "adapter": "hardware",
+  "cpuWeight": 10000,
+  "loadStart": [
+    7.14,
+    8.77,
+    6.9
+  ],
+  "loadEnd": [
+    7.14,
+    8.77,
+    6.9
+  ],
+  "runtime": {
+    "path": "target/dist/squark-runtime",
+    "profile": "dist",
+    "bytes": 78568856
+  },
+  "binary": {
+    "path": "target/excalidraw-native/excalidraw-native",
+    "bytes": 100425074
+  },
+  "v8CodeCache": {
+    "dir": "target/excalidraw/startup-cache",
+    "entriesAfterRuns": 0
+  },
+  "samples": [
+    {
+      "ms": 96.5,
+      "processMs": 111.3,
+      "load": [
+        7.14,
+        8.77,
+        6.9
+      ],
+      "presented": true,
+      "exitCode": 0,
+      "cacheEntriesBefore": 0,
+      "cacheEntriesAfter": 0,
+      "phases": {
+        "pack-v8-and-event-loop": 7.309,
+        "create-window": 0.717,
+        "initial-frame-tick": 0.001,
+        "instance-and-surface": 7.194,
+        "adapter": 6.482,
+        "device": 10.234,
+        "static-pipelines": 28.282,
+        "atlas-init": 0.002,
+        "surface-pipeline": 1.687,
+        "document-bootstrap-and-first-commit": 77.69,
+        "first-resource-drain-and-latch": 1.592,
+        "first-render-encode": 2.17,
+        "first-surface-present": 0.853,
+        "show-window": 0.004
+      }
+    },
+    {
+      "ms": 169,
+      "processMs": 187.6,
+      "load": [
+        7.14,
+        8.77,
+        6.9
+      ],
+      "presented": true,
+      "exitCode": 0,
+      "cacheEntriesBefore": 0,
+      "cacheEntriesAfter": 0,
+      "phases": {
+        "pack-v8-and-event-loop": 87.233,
+        "create-window": 0.726,
+        "initial-frame-tick": 0.001,
+        "instance-and-surface": 7.269,
+        "adapter": 6.081,
+        "device": 1.62,
+        "static-pipelines": 2.98,
+        "atlas-init": 0.002,
+        "surface-pipeline": 0.916,
+        "document-bootstrap-and-first-commit": 77.269,
+        "first-resource-drain-and-latch": 0.702,
+        "first-render-encode": 0.716,
+        "first-surface-present": 0.843,
+        "show-window": 0.004
+      }
+    },
+    {
+      "ms": 86.8,
+      "processMs": 102.9,
+      "load": [
+        7.14,
+        8.77,
+        6.9
+      ],
+      "presented": true,
+      "exitCode": 0,
+      "cacheEntriesBefore": 0,
+      "cacheEntriesAfter": 0,
+      "phases": {
+        "pack-v8-and-event-loop": 6.196,
+        "create-window": 0.682,
+        "initial-frame-tick": 0.002,
+        "instance-and-surface": 6.964,
+        "adapter": 4.304,
+        "device": 1.38,
+        "static-pipelines": 2.977,
+        "atlas-init": 0.001,
+        "surface-pipeline": 0.886,
+        "document-bootstrap-and-first-commit": 75.992,
+        "first-resource-drain-and-latch": 0.744,
+        "first-render-encode": 0.716,
+        "first-surface-present": 0.844,
+        "show-window": 0.003
+      }
+    },
+    {
+      "ms": 87.1,
+      "processMs": 103.4,
+      "load": [
+        7.14,
+        8.77,
+        6.9
+      ],
+      "presented": true,
+      "exitCode": 0,
+      "cacheEntriesBefore": 0,
+      "cacheEntriesAfter": 0,
+      "phases": {
+        "pack-v8-and-event-loop": 5.693,
+        "create-window": 0.674,
+        "initial-frame-tick": 0.002,
+        "instance-and-surface": 7.059,
+        "adapter": 4.574,
+        "device": 1.399,
+        "static-pipelines": 2.909,
+        "atlas-init": 0.002,
+        "surface-pipeline": 0.851,
+        "document-bootstrap-and-first-commit": 76.693,
+        "first-resource-drain-and-latch": 0.758,
+        "first-render-encode": 0.717,
+        "first-surface-present": 0.9,
+        "show-window": 0.003
+      }
+    },
+    {
+      "ms": 87.5,
+      "processMs": 104,
+      "load": [
+        7.14,
+        8.77,
+        6.9
+      ],
+      "presented": true,
+      "exitCode": 0,
+      "cacheEntriesBefore": 0,
+      "cacheEntriesAfter": 0,
+      "phases": {
+        "pack-v8-and-event-loop": 6.232,
+        "create-window": 0.71,
+        "initial-frame-tick": 0.002,
+        "instance-and-surface": 7.251,
+        "adapter": 4.274,
+        "device": 1.381,
+        "static-pipelines": 2.895,
+        "atlas-init": 0.002,
+        "surface-pipeline": 0.845,
+        "document-bootstrap-and-first-commit": 76.522,
+        "first-resource-drain-and-latch": 0.719,
+        "first-render-encode": 0.732,
+        "first-surface-present": 0.932,
+        "show-window": 0.003
+      }
+    }
+  ],
+  "phaseMediansMs": {
+    "pack-v8-and-event-loop": 6.232,
+    "create-window": 0.71,
+    "initial-frame-tick": 0.002,
+    "instance-and-surface": 7.194,
+    "adapter": 4.574,
+    "device": 1.399,
+    "static-pipelines": 2.977,
+    "atlas-init": 0.002,
+    "surface-pipeline": 0.886,
+    "document-bootstrap-and-first-commit": 76.693,
+    "first-resource-drain-and-latch": 0.744,
+    "first-render-encode": 0.717,
+    "first-surface-present": 0.853,
+    "show-window": 0.003
+  },
+  "medianMs": 87.5,
+  "limitMs": 1500,
+  "passed": true
+}

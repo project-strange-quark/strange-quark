@@ -1,0 +1,26 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>calc(), min(), max(), and clamp() lengths</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .stage { width: 320px; padding: 16px; margin: 16px; border: 1px solid #94a3b8; background: #f8fafc; }
+    .a { width: calc(100% - 40px); height: 32px; background: #2563eb; margin-bottom: 10px; }
+    .b { width: min(50%, 120px); height: 32px; background: #16a34a; margin-bottom: 10px; }
+    .c { width: max(30%, 180px); height: 32px; background: #ea580c; margin-bottom: 10px; }
+    .d { width: clamp(80px, 60%, 150px); height: 32px; background: #9333ea; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="a"></div>
+    <div class="b"></div>
+    <div class="c"></div>
+    <div class="d"></div>
+  </div>
+</body>
+</html>

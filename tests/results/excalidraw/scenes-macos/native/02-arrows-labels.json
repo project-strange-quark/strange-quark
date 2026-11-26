@@ -1,0 +1,20 @@
+{
+  "id": "02-arrows-labels",
+  "note": "arrows with text labels",
+  "pass": true,
+  "diffPixels": 4015,
+  "totalPixels": 1024000,
+  "diffRatio": 0.0039208984375,
+  "maxDelta": 216,
+  "meanChannelError": 0.0907,
+  "diffBounds": {
+    "x": 28,
+    "y": 16,
+    "width": 1225,
+    "height": 758
+  },
+  "reason": null,
+  "actual": "tests/results/excalidraw/scenes-macos/native/02-arrows-labels.png",
+  "expected": "tests/results/excalidraw/scenes/expected/02-arrows-labels.png",
+  "diff": null
+}

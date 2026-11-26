@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Absolute element with auto width/height shrinks to content</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 15px; }
+    .cb { position: relative; width: 320px; height: 180px; margin: 20px; background: #f1f5f9; border: 2px solid #475569; }
+    .tip { position: absolute; top: 24px; left: 32px; padding: 6px 12px; background: #0f172a; color: #ffffff; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="cb"><div class="tip">Auto sized tooltip</div></div>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Blob image test</title>
+<body>
+<img id="blob-image">
+<script>
+  const pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFNAAAAFElEQVR4nGP4z8DAAMH/gdR/EAUAScoI+MXuDPYAAAAASUVORK5CYII=";
+  const pngBytes = Uint8Array.from(atob(pngBase64), character => character.charCodeAt(0));
+  const blob = new Blob([pngBytes], { type: "image/png" });
+  window.blobUrl = URL.createObjectURL(blob);
+  window.blobImage = document.getElementById("blob-image");
+  window.blobLoadFired = false;
+  window.blobImage.addEventListener("load", () => { window.blobLoadFired = true; });
+  window.blobImage.src = window.blobUrl;
+</script>
+</body>
+</html>

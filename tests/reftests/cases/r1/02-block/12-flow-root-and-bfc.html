@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>display: flow-root establishes BFC and prevents margin collapse</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 16px; }
+    .fr { display: flow-root; width: 240px; background: #e0e7ff; margin-bottom: 16px; }
+    .child { height: 50px; margin: 20px; background: #4f46e5; }
+    .next { width: 240px; height: 40px; background: #0ea5e9; }
+  </style>
+</head>
+<body>
+  <div class="fr"><div class="child"></div></div>
+  <div class="next"></div>
+</body>
+</html>

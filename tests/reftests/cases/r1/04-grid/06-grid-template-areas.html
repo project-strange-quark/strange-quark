@@ -1,0 +1,35 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Named grid-template-areas layout</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .g {
+      display: grid;
+      width: 360px;
+      height: 240px;
+      margin: 16px;
+      gap: 8px;
+      padding: 8px;
+      background: #f1f5f9;
+      grid-template-columns: 90px 1fr;
+      grid-template-rows: 44px 1fr 36px;
+      grid-template-areas:
+        "head head"
+        "nav  main"
+        "foot foot";
+    }
+    .h { grid-area: head; background: #1e293b; }
+    .n { grid-area: nav; background: #64748b; }
+    .m { grid-area: main; background: #38bdf8; }
+    .f { grid-area: foot; background: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="g"><div class="h"></div><div class="n"></div><div class="m"></div><div class="f"></div></div>
+</body>
+</html>

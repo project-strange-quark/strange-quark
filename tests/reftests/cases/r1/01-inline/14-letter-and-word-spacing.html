@@ -1,0 +1,25 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Letter spacing and word spacing</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 16px; line-height: 28px; padding: 16px; }
+    div { margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+    .ls-wide { letter-spacing: 4px; }
+    .ls-tight { letter-spacing: -0.5px; }
+    .ws-wide { word-spacing: 16px; }
+  </style>
+</head>
+<body>
+  <div>Normal letter and word spacing</div>
+  <div class="ls-wide">Wide letter spacing 4px</div>
+  <div class="ls-tight">Tight letter spacing -0.5px</div>
+  <div class="ws-wide">Wide word spacing sixteen pixels</div>
+</body>
+</html>

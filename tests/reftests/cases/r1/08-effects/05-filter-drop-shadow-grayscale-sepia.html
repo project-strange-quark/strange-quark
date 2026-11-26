@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.025} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CSS filter: drop-shadow(), grayscale(), sepia()</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 20px; padding: 28px; }
+    .b { width: 96px; height: 96px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #3b82f6); }
+    .f1 { filter: drop-shadow(6px 8px 6px rgba(15, 23, 42, 0.45)); }
+    .f2 { filter: grayscale(100%); }
+    .f3 { filter: sepia(100%); }
+  </style>
+</head>
+<body>
+  <div class="b f1"></div><div class="b f2"></div><div class="b f3"></div>
+</body>
+</html>

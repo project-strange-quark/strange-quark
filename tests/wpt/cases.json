@@ -1,0 +1,22 @@
+[
+  "dom/abort/event.any.js",
+  "dom/collections/HTMLCollection-live-mutations.window.js",
+  "dom/events/AddEventListenerOptions-once.any.js",
+  "dom/events/AddEventListenerOptions-passive.any.js",
+  "dom/events/AddEventListenerOptions-signal.any.js",
+  "dom/events/Event-constructors.any.js",
+  "dom/events/Event-dispatch-order-at-target.html",
+  "dom/events/EventTarget-add-remove-listener.any.js",
+  "dom/events/EventTarget-addEventListener.any.js",
+  "dom/events/EventTarget-removeEventListener.any.js",
+  "dom/nodes/CharacterData-appendData.html",
+  "dom/nodes/CharacterData-data.html",
+  "dom/nodes/CharacterData-deleteData.html",
+  "dom/nodes/CharacterData-replaceData.html",
+  "dom/nodes/CharacterData-substringData.html",
+  "dom/nodes/CharacterData-surrogates.html",
+  "dom/nodes/Document-createComment.html",
+  "dom/nodes/Document-createTextNode.html",
+  "dom/nodes/Element-removeAttribute.html",
+  "dom/nodes/Node-parentElement.html"
+]

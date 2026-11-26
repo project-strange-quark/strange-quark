@@ -1,0 +1,31 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Flex and grid intrinsic inline sizing</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 15px; line-height: 22px; padding: 16px; }
+    .flex { display: flex; gap: 8px; border: 1px solid #94a3b8; padding: 8px; margin-bottom: 16px; }
+    .flex > div { background: #dbeafe; border: 1px solid #2563eb; padding: 6px; }
+    .grid { display: grid; grid-template-columns: min-content max-content 1fr; gap: 8px; border: 1px solid #94a3b8; padding: 8px; }
+    .grid > div { background: #dcfce7; border: 1px solid #16a34a; padding: 6px; }
+  </style>
+</head>
+<body>
+  <div class="flex">
+    <div data-geom="flex-short">Short</div>
+    <div data-geom="flex-med">Two words</div>
+    <div data-geom="flex-long">A longer inline phrase that wraps inside flex</div>
+  </div>
+  <div class="grid">
+    <div data-geom="grid-min">Min content wraps</div>
+    <div data-geom="grid-max">Max content</div>
+    <div data-geom="grid-fr">Flexible remaining column text</div>
+  </div>
+</body>
+</html>

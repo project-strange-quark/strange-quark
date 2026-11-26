@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":10,"maxDiffRatio":0.03} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CSS filter: blur(), brightness(), contrast()</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 20px; padding: 28px; }
+    .b { width: 96px; height: 96px; background: #2563eb; border: 6px solid #f59e0b; border-radius: 12px; }
+    .f1 { filter: blur(4px); }
+    .f2 { filter: brightness(1.4); }
+    .f3 { filter: contrast(1.8); }
+  </style>
+</head>
+<body>
+  <div class="b f1"></div><div class="b f2"></div><div class="b f3"></div>
+</body>
+</html>

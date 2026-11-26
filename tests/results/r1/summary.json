@@ -1,0 +1,1927 @@
+{
+  "suite": "r1",
+  "mode": "compare",
+  "gpuAdapter": "software",
+  "total": 150,
+  "passed": 149,
+  "failed": 1,
+  "renderErrors": 0,
+  "passRate": 0.9933333333333333,
+  "cases": [
+    {
+      "id": "01-inline/01-whitespace-across-spans",
+      "pass": true,
+      "diffRatio": 0.0023166666666666665,
+      "maxDelta": 61,
+      "diffPixels": 278,
+      "meanChannelError": 0.0595375,
+      "diffBounds": {
+        "x": 35,
+        "y": 30,
+        "width": 225,
+        "height": 69
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/02-preserved-line-breaks",
+      "pass": true,
+      "diffRatio": 0.002916666666666667,
+      "maxDelta": 73,
+      "diffPixels": 350,
+      "meanChannelError": 0.06724166666666667,
+      "diffBounds": {
+        "x": 21,
+        "y": 24,
+        "width": 177,
+        "height": 234
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/03-nested-inline-block-baselines",
+      "pass": true,
+      "diffRatio": 0.0010916666666666666,
+      "maxDelta": 45,
+      "diffPixels": 131,
+      "meanChannelError": 0.02572083333333333,
+      "diffBounds": {
+        "x": 30,
+        "y": 39,
+        "width": 174,
+        "height": 136
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/04-vertical-align-modes",
+      "pass": true,
+      "diffRatio": 0.0009166666666666666,
+      "maxDelta": 55,
+      "diffPixels": 110,
+      "meanChannelError": 0.023522916666666668,
+      "diffBounds": {
+        "x": 36,
+        "y": 32,
+        "width": 129,
+        "height": 91
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/05-mixed-bidi-inline-image",
+      "pass": true,
+      "diffRatio": 0.007233333333333333,
+      "maxDelta": 231,
+      "diffPixels": 868,
+      "meanChannelError": 0.47129583333333336,
+      "diffBounds": {
+        "x": 39,
+        "y": 31,
+        "width": 307,
+        "height": 81
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/06-fractional-widths-wrapping",
+      "pass": true,
+      "diffRatio": 0.0016166666666666666,
+      "maxDelta": 46,
+      "diffPixels": 194,
+      "meanChannelError": 0.040591666666666665,
+      "diffBounds": {
+        "x": 18,
+        "y": 23,
+        "width": 115,
+        "height": 188
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/07-webfont-linebreak-change",
+      "pass": true,
+      "diffRatio": 0.001825,
+      "maxDelta": 48,
+      "diffPixels": 219,
+      "meanChannelError": 0.043902083333333335,
+      "diffBounds": {
+        "x": 28,
+        "y": 33,
+        "width": 144,
+        "height": 161
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/08-flex-grid-intrinsic-inline",
+      "pass": true,
+      "diffRatio": 0.003175,
+      "maxDelta": 69,
+      "diffPixels": 381,
+      "meanChannelError": 0.08091666666666666,
+      "diffBounds": {
+        "x": 34,
+        "y": 38,
+        "width": 303,
+        "height": 146
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/09-inline-clipping-ellipsis",
+      "pass": true,
+      "diffRatio": 0.0017166666666666667,
+      "maxDelta": 231,
+      "diffPixels": 206,
+      "meanChannelError": 0.0609,
+      "diffBounds": {
+        "x": 36,
+        "y": 32,
+        "width": 151,
+        "height": 127
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/10-missing-image-fallback",
+      "pass": true,
+      "diffRatio": 0.00605,
+      "maxDelta": 231,
+      "diffPixels": 726,
+      "meanChannelError": 0.34395,
+      "diffBounds": {
+        "x": 30,
+        "y": 27,
+        "width": 141,
+        "height": 91
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/11-font-weight-style-variants",
+      "pass": true,
+      "diffRatio": 0.004433333333333333,
+      "maxDelta": 59,
+      "diffPixels": 532,
+      "meanChannelError": 0.0999,
+      "diffBounds": {
+        "x": 21,
+        "y": 19,
+        "width": 241,
+        "height": 135
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/12-line-height-unitless-and-px",
+      "pass": true,
+      "diffRatio": 0.003191666666666667,
+      "maxDelta": 49,
+      "diffPixels": 383,
+      "meanChannelError": 0.08477916666666667,
+      "diffBounds": {
+        "x": 17,
+        "y": 21,
+        "width": 129,
+        "height": 265
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/13-text-align-modes",
+      "pass": true,
+      "diffRatio": 0.00165,
+      "maxDelta": 60,
+      "diffPixels": 198,
+      "meanChannelError": 0.04575208333333333,
+      "diffBounds": {
+        "x": 27,
+        "y": 25,
+        "width": 298,
+        "height": 182
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/14-letter-and-word-spacing",
+      "pass": true,
+      "diffRatio": 0.0033166666666666665,
+      "maxDelta": 59,
+      "diffPixels": 398,
+      "meanChannelError": 0.0844125,
+      "diffBounds": {
+        "x": 23,
+        "y": 26,
+        "width": 291,
+        "height": 141
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/15-word-break-and-overflow-wrap",
+      "pass": true,
+      "diffRatio": 0.0017416666666666668,
+      "maxDelta": 46,
+      "diffPixels": 209,
+      "meanChannelError": 0.04107291666666667,
+      "diffBounds": {
+        "x": 22,
+        "y": 24,
+        "width": 99,
+        "height": 151
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/16-text-decoration-lines",
+      "pass": true,
+      "diffRatio": 0.0042,
+      "maxDelta": 233,
+      "diffPixels": 504,
+      "meanChannelError": 0.31237916666666665,
+      "diffBounds": {
+        "x": 16,
+        "y": 29,
+        "width": 161,
+        "height": 125
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/17-text-transform-and-shadow",
+      "pass": true,
+      "diffRatio": 0.003608333333333333,
+      "maxDelta": 57,
+      "diffPixels": 433,
+      "meanChannelError": 0.11534791666666666,
+      "diffBounds": {
+        "x": 18,
+        "y": 27,
+        "width": 235,
+        "height": 115
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/18-inline-padding-border-bg",
+      "pass": true,
+      "diffRatio": 0.00265,
+      "maxDelta": 251,
+      "diffPixels": 318,
+      "meanChannelError": 0.07465,
+      "diffBounds": {
+        "x": 28,
+        "y": 30,
+        "width": 208,
+        "height": 82
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/19-inline-block-shrink-to-fit-and-wrap",
+      "pass": true,
+      "diffRatio": 0.006941666666666666,
+      "maxDelta": 100,
+      "diffPixels": 833,
+      "meanChannelError": 0.12277083333333333,
+      "diffBounds": {
+        "x": 30,
+        "y": 30,
+        "width": 146,
+        "height": 106
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/20-bidi-isolate-and-numbers",
+      "pass": true,
+      "diffRatio": 0.0025416666666666665,
+      "maxDelta": 72,
+      "diffPixels": 305,
+      "meanChannelError": 0.058997916666666664,
+      "diffBounds": {
+        "x": 27,
+        "y": 29,
+        "width": 294,
+        "height": 80
+      },
+      "reason": null
+    },
+    {
+      "id": "02-block/01-block-stacking-basic",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/02-box-sizing-content-vs-border",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/03-margin-collapse-siblings",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/04-margin-collapse-parent-child",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/05-margin-collapse-prevented-padding-border",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/06-margin-auto-horizontal-centering",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/07-negative-margins",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 1,
+      "diffPixels": 0,
+      "meanChannelError": 0.0135,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/08-percentage-widths-and-padding",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/09-min-max-width-height",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/10-display-none-and-contents",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/11-aspect-ratio-block",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/12-flow-root-and-bfc",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/13-logical-margin-padding-inline-block",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/14-calc-min-max-clamp-sizes",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/15-viewport-units-and-rem",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-block/16-list-item-markers-ul-ol",
+      "pass": true,
+      "diffRatio": 0.002691666666666667,
+      "maxDelta": 238,
+      "diffPixels": 323,
+      "meanChannelError": 0.19155,
+      "diffBounds": {
+        "x": 27,
+        "y": 24,
+        "width": 123,
+        "height": 120
+      },
+      "reason": null
+    },
+    {
+      "id": "02-block/17-table-basic-grid-approx",
+      "pass": true,
+      "diffRatio": 0.0011666666666666668,
+      "maxDelta": 53,
+      "diffPixels": 140,
+      "meanChannelError": 0.033389583333333334,
+      "diffBounds": {
+        "x": 34,
+        "y": 31,
+        "width": 239,
+        "height": 87
+      },
+      "reason": null
+    },
+    {
+      "id": "03-flex/01-flex-row-basic",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/02-flex-column-basic",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/03-flex-row-and-column-reverse",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/04-flex-grow-ratios",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/05-flex-shrink-and-basis",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/06-flex-wrap-and-align-content",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/07-justify-content-variants",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/08-align-items-and-align-self",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/09-flex-gap-row-column",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/10-flex-order",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/11-flex-auto-margins",
+      "pass": true,
+      "diffRatio": 0.00105,
+      "maxDelta": 42,
+      "diffPixels": 126,
+      "meanChannelError": 0.0094625,
+      "diffBounds": {
+        "x": 20,
+        "y": 20,
+        "width": 360,
+        "height": 56
+      },
+      "reason": null
+    },
+    {
+      "id": "03-flex/12-inline-flex-sizing",
+      "pass": true,
+      "diffRatio": 0.0011916666666666666,
+      "maxDelta": 50,
+      "diffPixels": 143,
+      "meanChannelError": 0.0208375,
+      "diffBounds": {
+        "x": 19,
+        "y": 16,
+        "width": 170,
+        "height": 34
+      },
+      "reason": null
+    },
+    {
+      "id": "03-flex/13-nested-flex-dashboard",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/14-flex-min-width-zero-truncation",
+      "pass": true,
+      "diffRatio": 0.0008583333333333333,
+      "maxDelta": 114,
+      "diffPixels": 103,
+      "meanChannelError": 0.021345833333333335,
+      "diffBounds": {
+        "x": 26,
+        "y": 26,
+        "width": 218,
+        "height": 28
+      },
+      "reason": null
+    },
+    {
+      "id": "03-flex/15-flex-aspect-ratio-items",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "03-flex/16-flex-baseline-alignment",
+      "pass": true,
+      "diffRatio": 0.0018416666666666666,
+      "maxDelta": 65,
+      "diffPixels": 221,
+      "meanChannelError": 0.03841666666666667,
+      "diffBounds": {
+        "x": 38,
+        "y": 44,
+        "width": 213,
+        "height": 22
+      },
+      "reason": null
+    },
+    {
+      "id": "04-grid/01-grid-fixed-tracks",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/02-grid-fr-units",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/03-grid-repeat-and-minmax",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/04-grid-gap-row-column",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/05-grid-line-placement-and-spans",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/06-grid-template-areas",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/07-grid-auto-flow-row-column-dense",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/08-grid-auto-rows-and-columns",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/09-grid-alignment-justify-align",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/10-grid-place-self-and-margins",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/11-inline-grid-sizing",
+      "pass": true,
+      "diffRatio": 0.000425,
+      "maxDelta": 57,
+      "diffPixels": 51,
+      "meanChannelError": 0.009879166666666666,
+      "diffBounds": {
+        "x": 21,
+        "y": 37,
+        "width": 152,
+        "height": 12
+      },
+      "reason": null
+    },
+    {
+      "id": "04-grid/12-grid-percentage-and-calc-tracks",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/13-grid-overlapping-items-zindex",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-grid/14-grid-auto-fill-minmax",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/01-position-relative-offsets",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/02-position-absolute-containing-block",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/03-position-absolute-inset-stretch",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/04-position-absolute-auto-margin-center",
+      "pass": true,
+      "diffRatio": 0.00034166666666666666,
+      "maxDelta": 27,
+      "diffPixels": 41,
+      "meanChannelError": 0.0021229166666666666,
+      "diffBounds": {
+        "x": 120,
+        "y": 95,
+        "width": 120,
+        "height": 70
+      },
+      "reason": null
+    },
+    {
+      "id": "05-position/05-position-absolute-percentage-offsets",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/06-position-fixed-viewport",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/07-position-fixed-inside-transformed-cb",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/08-position-sticky-initial-flow",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/09-z-index-paint-order",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/10-stacking-context-isolation",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/11-stacking-context-opacity-and-transform",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 1,
+      "diffPixels": 0,
+      "meanChannelError": 0.065,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/12-negative-z-index-behind-parent-bg",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/13-absolute-inside-flex-and-grid",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "05-position/14-absolute-shrink-to-fit-auto-size",
+      "pass": true,
+      "diffRatio": 0.000475,
+      "maxDelta": 42,
+      "diffPixels": 57,
+      "meanChannelError": 0.011383333333333334,
+      "diffBounds": {
+        "x": 54,
+        "y": 46,
+        "width": 138,
+        "height": 29
+      },
+      "reason": null
+    },
+    {
+      "id": "05-position/15-z-index-auto-vs-zero",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/01-solid-colors-hex-rgb-hsl-alpha",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 1,
+      "diffPixels": 0,
+      "meanChannelError": 0.029166666666666667,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/02-background-clip-origin-boxes",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/03-linear-gradient-directions",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 1,
+      "diffPixels": 0,
+      "meanChannelError": 0.09205,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/04-linear-gradient-multi-stop-angles",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 1,
+      "diffPixels": 0,
+      "meanChannelError": 0.049225,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/05-radial-gradient-circle-ellipse",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 1,
+      "diffPixels": 0,
+      "meanChannelError": 0.07458333333333333,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/06-conic-gradient-basic",
+      "pass": true,
+      "diffRatio": 0.0068,
+      "maxDelta": 184,
+      "diffPixels": 816,
+      "meanChannelError": 0.10103125,
+      "diffBounds": {
+        "x": 24,
+        "y": 24,
+        "width": 320,
+        "height": 150
+      },
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/07-multiple-layered-backgrounds",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 3,
+      "diffPixels": 0,
+      "meanChannelError": 0.16521458333333333,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/08-background-repeat-and-position",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/09-background-size-cover-contain-px",
+      "pass": true,
+      "diffRatio": 0.007825,
+      "maxDelta": 18,
+      "diffPixels": 939,
+      "meanChannelError": 0.04792291666666667,
+      "diffBounds": {
+        "x": 22,
+        "y": 31,
+        "width": 309,
+        "height": 120
+      },
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/10-modern-colors-oklch-color-mix",
+      "pass": true,
+      "diffRatio": 0.0013166666666666667,
+      "maxDelta": 47,
+      "diffPixels": 158,
+      "meanChannelError": 0.010508333333333333,
+      "diffBounds": {
+        "x": 20,
+        "y": 20,
+        "width": 334,
+        "height": 194
+      },
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/11-currentcolor-and-inheritance",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "06-backgrounds/12-repeating-linear-gradient-stripes",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "07-borders/01-border-solid-per-side-colors",
+      "pass": true,
+      "diffRatio": 0.002266666666666667,
+      "maxDelta": 79,
+      "diffPixels": 272,
+      "meanChannelError": 0.040391666666666666,
+      "diffBounds": {
+        "x": 28,
+        "y": 28,
+        "width": 260,
+        "height": 120
+      },
+      "reason": null
+    },
+    {
+      "id": "07-borders/02-border-styles-dashed-dotted-double",
+      "pass": true,
+      "diffRatio": 0.00645,
+      "maxDelta": 106,
+      "diffPixels": 774,
+      "meanChannelError": 0.08577083333333334,
+      "diffBounds": {
+        "x": 24,
+        "y": 24,
+        "width": 338,
+        "height": 210
+      },
+      "reason": null
+    },
+    {
+      "id": "07-borders/03-border-radius-uniform-and-per-corner",
+      "pass": true,
+      "diffRatio": 0.001975,
+      "maxDelta": 62,
+      "diffPixels": 237,
+      "meanChannelError": 0.015647916666666668,
+      "diffBounds": {
+        "x": 28,
+        "y": 28,
+        "width": 320,
+        "height": 120
+      },
+      "reason": null
+    },
+    {
+      "id": "07-borders/04-border-radius-elliptical-and-pill",
+      "pass": true,
+      "diffRatio": 0.004775,
+      "maxDelta": 56,
+      "diffPixels": 573,
+      "meanChannelError": 0.030783333333333333,
+      "diffBounds": {
+        "x": 28,
+        "y": 28,
+        "width": 344,
+        "height": 96
+      },
+      "reason": null
+    },
+    {
+      "id": "07-borders/05-border-radius-with-thick-borders",
+      "pass": true,
+      "diffRatio": 0.004158333333333333,
+      "maxDelta": 171,
+      "diffPixels": 499,
+      "meanChannelError": 0.04214375,
+      "diffBounds": {
+        "x": 24,
+        "y": 24,
+        "width": 320,
+        "height": 120
+      },
+      "reason": null
+    },
+    {
+      "id": "07-borders/06-border-radius-clips-background",
+      "pass": true,
+      "diffRatio": 0.003175,
+      "maxDelta": 92,
+      "diffPixels": 381,
+      "meanChannelError": 0.07831666666666667,
+      "diffBounds": {
+        "x": 70,
+        "y": 32,
+        "width": 260,
+        "height": 160
+      },
+      "reason": null
+    },
+    {
+      "id": "07-borders/07-outline-solid-offset-and-radius",
+      "pass": true,
+      "diffRatio": 0.00245,
+      "maxDelta": 70,
+      "diffPixels": 294,
+      "meanChannelError": 0.022239583333333333,
+      "diffBounds": {
+        "x": 31,
+        "y": 31,
+        "width": 128,
+        "height": 108
+      },
+      "reason": null
+    },
+    {
+      "id": "07-borders/08-box-shadow-basic-offset-blur",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 3,
+      "diffPixels": 0,
+      "meanChannelError": 0.07692083333333333,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "07-borders/09-box-shadow-spread-and-hard-ring",
+      "pass": true,
+      "diffRatio": 0.002875,
+      "maxDelta": 60,
+      "diffPixels": 345,
+      "meanChannelError": 0.02785625,
+      "diffBounds": {
+        "x": 38,
+        "y": 37,
+        "width": 273,
+        "height": 94
+      },
+      "reason": null
+    },
+    {
+      "id": "07-borders/10-box-shadow-inset",
+      "pass": true,
+      "diffRatio": 0.0005083333333333333,
+      "maxDelta": 57,
+      "diffPixels": 61,
+      "meanChannelError": 0.04816875,
+      "diffBounds": {
+        "x": 37,
+        "y": 36,
+        "width": 303,
+        "height": 110
+      },
+      "reason": null
+    },
+    {
+      "id": "07-borders/11-box-shadow-multiple-layered",
+      "pass": true,
+      "diffRatio": 0.00013333333333333334,
+      "maxDelta": 15,
+      "diffPixels": 16,
+      "meanChannelError": 0.07891875,
+      "diffBounds": {
+        "x": 48,
+        "y": 48,
+        "width": 240,
+        "height": 120
+      },
+      "reason": null
+    },
+    {
+      "id": "07-borders/12-box-shadow-on-rounded-rect",
+      "pass": true,
+      "diffRatio": 0.0016,
+      "maxDelta": 34,
+      "diffPixels": 192,
+      "meanChannelError": 0.20105833333333334,
+      "diffBounds": {
+        "x": 44,
+        "y": 63,
+        "width": 286,
+        "height": 81
+      },
+      "reason": null
+    },
+    {
+      "id": "08-effects/01-opacity-single-and-group",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 1,
+      "diffPixels": 0,
+      "meanChannelError": 0.10609375,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "08-effects/02-visibility-hidden-vs-visible-child",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "08-effects/03-filter-invert-and-hue-rotate",
+      "pass": true,
+      "diffRatio": 0.0030083333333333333,
+      "maxDelta": 56,
+      "diffPixels": 361,
+      "meanChannelError": 0.050672916666666665,
+      "diffBounds": {
+        "x": 20,
+        "y": 20,
+        "width": 352,
+        "height": 94
+      },
+      "reason": null
+    },
+    {
+      "id": "08-effects/04-filter-blur-brightness-contrast",
+      "pass": true,
+      "diffRatio": 0.0016333333333333334,
+      "maxDelta": 74,
+      "diffPixels": 196,
+      "meanChannelError": 0.134175,
+      "diffBounds": {
+        "x": 144,
+        "y": 28,
+        "width": 212,
+        "height": 96
+      },
+      "reason": null
+    },
+    {
+      "id": "08-effects/05-filter-drop-shadow-grayscale-sepia",
+      "pass": true,
+      "diffRatio": 0.0033833333333333332,
+      "maxDelta": 32,
+      "diffPixels": 406,
+      "meanChannelError": 0.11408958333333333,
+      "diffBounds": {
+        "x": 28,
+        "y": 28,
+        "width": 328,
+        "height": 96
+      },
+      "reason": null
+    },
+    {
+      "id": "08-effects/06-mix-blend-mode-multiply-screen",
+      "pass": false,
+      "diffRatio": 0.006625,
+      "maxDelta": 36,
+      "diffPixels": 795,
+      "meanChannelError": 0.0580375,
+      "diffBounds": {
+        "x": 41,
+        "y": 41,
+        "width": 312,
+        "height": 124
+      },
+      "reason": "diffPixels=795 (0.662%), maxDelta=36"
+    },
+    {
+      "id": "08-effects/07-transform-translate-scale-rotate",
+      "pass": true,
+      "diffRatio": 0.003975,
+      "maxDelta": 48,
+      "diffPixels": 477,
+      "meanChannelError": 0.05559583333333333,
+      "diffBounds": {
+        "x": 137,
+        "y": 26,
+        "width": 213,
+        "height": 108
+      },
+      "reason": null
+    },
+    {
+      "id": "08-effects/08-transform-origin-corners-center",
+      "pass": true,
+      "diffRatio": 0.007383333333333334,
+      "maxDelta": 107,
+      "diffPixels": 886,
+      "meanChannelError": 0.1926375,
+      "diffBounds": {
+        "x": 22,
+        "y": 26,
+        "width": 367,
+        "height": 126
+      },
+      "reason": null
+    },
+    {
+      "id": "08-effects/09-transform-chained-and-skew",
+      "pass": true,
+      "diffRatio": 0.001725,
+      "maxDelta": 14,
+      "diffPixels": 207,
+      "meanChannelError": 0.01789375,
+      "diffBounds": {
+        "x": 56,
+        "y": 35,
+        "width": 247,
+        "height": 104
+      },
+      "reason": null
+    },
+    {
+      "id": "08-effects/10-overflow-hidden-rect-and-rounded",
+      "pass": true,
+      "diffRatio": 0.002958333333333333,
+      "maxDelta": 57,
+      "diffPixels": 355,
+      "meanChannelError": 0.035458333333333335,
+      "diffBounds": {
+        "x": 202,
+        "y": 28,
+        "width": 150,
+        "height": 140
+      },
+      "reason": null
+    },
+    {
+      "id": "08-effects/11-overflow-x-y-independent-clip",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 1,
+      "diffPixels": 0,
+      "meanChannelError": 0.0199375,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "08-effects/12-clip-path-inset-circle-polygon",
+      "pass": true,
+      "diffRatio": 0.00355,
+      "maxDelta": 59,
+      "diffPixels": 426,
+      "meanChannelError": 0.0619875,
+      "diffBounds": {
+        "x": 40,
+        "y": 36,
+        "width": 327,
+        "height": 95
+      },
+      "reason": null
+    },
+    {
+      "id": "08-effects/13-transform-3d-translate-scale-perspective",
+      "pass": true,
+      "diffRatio": 0.005716666666666667,
+      "maxDelta": 87,
+      "diffPixels": 686,
+      "meanChannelError": 0.11900416666666666,
+      "diffBounds": {
+        "x": 51,
+        "y": 43,
+        "width": 106,
+        "height": 130
+      },
+      "reason": null
+    },
+    {
+      "id": "08-effects/14-backdrop-or-layered-alpha-compositing",
+      "pass": true,
+      "diffRatio": 0.0009416666666666667,
+      "maxDelta": 15,
+      "diffPixels": 113,
+      "meanChannelError": 0.006891666666666667,
+      "diffBounds": {
+        "x": 40,
+        "y": 40,
+        "width": 260,
+        "height": 160
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/01-inline-svg-basic-shapes",
+      "pass": true,
+      "diffRatio": 0.006841666666666667,
+      "maxDelta": 80,
+      "diffPixels": 821,
+      "meanChannelError": 0.09569375,
+      "diffBounds": {
+        "x": 35,
+        "y": 35,
+        "width": 304,
+        "height": 184
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/02-inline-svg-paths-fill-stroke-dash",
+      "pass": true,
+      "diffRatio": 0.013575,
+      "maxDelta": 100,
+      "diffPixels": 1629,
+      "meanChannelError": 0.18873125,
+      "diffBounds": {
+        "x": 42,
+        "y": 36,
+        "width": 296,
+        "height": 169
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/03-inline-svg-viewbox-scaling",
+      "pass": true,
+      "diffRatio": 0.004375,
+      "maxDelta": 76,
+      "diffPixels": 525,
+      "meanChannelError": 0.05622916666666666,
+      "diffBounds": {
+        "x": 30,
+        "y": 37,
+        "width": 285,
+        "height": 77
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/04-data-url-png-img-and-bg",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "09-content/05-data-url-svg-bg-chevron",
+      "pass": true,
+      "diffRatio": 0.0005166666666666667,
+      "maxDelta": 19,
+      "diffPixels": 62,
+      "meanChannelError": 0.00580625,
+      "diffBounds": {
+        "x": 32,
+        "y": 32,
+        "width": 240,
+        "height": 52
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/06-img-intrinsic-and-explicit-size",
+      "pass": true,
+      "diffRatio": 0.0018083333333333332,
+      "maxDelta": 14,
+      "diffPixels": 217,
+      "meanChannelError": 0.013116666666666667,
+      "diffBounds": {
+        "x": 152,
+        "y": 28,
+        "width": 190,
+        "height": 84
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/07-img-object-fit-modes",
+      "pass": true,
+      "diffRatio": 0.007,
+      "maxDelta": 196,
+      "diffPixels": 840,
+      "meanChannelError": 0.34110833333333335,
+      "diffBounds": {
+        "x": 80,
+        "y": 30,
+        "width": 242,
+        "height": 76
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/08-font-face-woff2-and-ttf",
+      "pass": true,
+      "diffRatio": 0.00275,
+      "maxDelta": 52,
+      "diffPixels": 330,
+      "meanChannelError": 0.06748541666666667,
+      "diffBounds": {
+        "x": 29,
+        "y": 29,
+        "width": 307,
+        "height": 114
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/09-pseudo-before-after-content",
+      "pass": true,
+      "diffRatio": 0.0013083333333333334,
+      "maxDelta": 65,
+      "diffPixels": 157,
+      "meanChannelError": 0.0184125,
+      "diffBounds": {
+        "x": 20,
+        "y": 20,
+        "width": 177,
+        "height": 32
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/10-selectors-nth-not-has-is-where",
+      "pass": true,
+      "diffRatio": 0.0027,
+      "maxDelta": 79,
+      "diffPixels": 324,
+      "meanChannelError": 0.021214583333333332,
+      "diffBounds": {
+        "x": 82,
+        "y": 20,
+        "width": 178,
+        "height": 54
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/11-media-query-viewport-width",
+      "pass": true,
+      "diffRatio": 0.0007847222222222222,
+      "maxDelta": 36,
+      "diffPixels": 113,
+      "meanChannelError": 0.0055451388888888885,
+      "diffBounds": {
+        "x": 24,
+        "y": 24,
+        "width": 320,
+        "height": 120
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/12-external-stylesheet-link-cascade",
+      "pass": true,
+      "diffRatio": 0.0035916666666666666,
+      "maxDelta": 117,
+      "diffPixels": 431,
+      "meanChannelError": 0.07661458333333333,
+      "diffBounds": {
+        "x": 20,
+        "y": 20,
+        "width": 360,
+        "height": 128
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/13-form-controls-static-appearance-none",
+      "pass": true,
+      "diffRatio": 0.0018,
+      "maxDelta": 82,
+      "diffPixels": 216,
+      "meanChannelError": 0.03213125,
+      "diffBounds": {
+        "x": 20,
+        "y": 20,
+        "width": 240,
+        "height": 118
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/14-quirks-vs-standards-box-smoke",
+      "pass": true,
+      "diffRatio": 0.000575,
+      "maxDelta": 17,
+      "diffPixels": 69,
+      "meanChannelError": 0.0024645833333333334,
+      "diffBounds": {
+        "x": 100,
+        "y": 100,
+        "width": 200,
+        "height": 100
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/01-custom-properties-light-dark-theme",
+      "pass": true,
+      "diffRatio": 0.002191666666666667,
+      "maxDelta": 113,
+      "diffPixels": 263,
+      "meanChannelError": 0.050916666666666666,
+      "diffBounds": {
+        "x": 35,
+        "y": 20,
+        "width": 341,
+        "height": 91
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/02-dark-mode-canvas-inversion-filter",
+      "pass": true,
+      "diffRatio": 0.003958333333333334,
+      "maxDelta": 44,
+      "diffPixels": 475,
+      "meanChannelError": 0.13123958333333333,
+      "diffBounds": {
+        "x": 48,
+        "y": 52,
+        "width": 278,
+        "height": 188
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/03-visually-hidden-legacy-clip",
+      "pass": true,
+      "diffRatio": 0.001225,
+      "maxDelta": 44,
+      "diffPixels": 147,
+      "meanChannelError": 0.02425625,
+      "diffBounds": {
+        "x": 20,
+        "y": 20,
+        "width": 360,
+        "height": 46
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/04-env-safe-area-inset-zero",
+      "pass": true,
+      "diffRatio": 0.00055,
+      "maxDelta": 37,
+      "diffPixels": 66,
+      "meanChannelError": 0.005475,
+      "diffBounds": {
+        "x": 40,
+        "y": 36,
+        "width": 320,
+        "height": 208
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/05-floating-toolbar-island",
+      "pass": true,
+      "diffRatio": 0.0014333333333333333,
+      "maxDelta": 44,
+      "diffPixels": 172,
+      "meanChannelError": 0.056070833333333334,
+      "diffBounds": {
+        "x": 106,
+        "y": 40,
+        "width": 184,
+        "height": 48
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/06-properties-panel-grid-swatches",
+      "pass": true,
+      "diffRatio": 0.002125,
+      "maxDelta": 44,
+      "diffPixels": 255,
+      "meanChannelError": 0.033425,
+      "diffBounds": {
+        "x": 33,
+        "y": 43,
+        "width": 182,
+        "height": 49
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/07-checkerboard-data-png-transparency",
+      "pass": true,
+      "diffRatio": 0.0012,
+      "maxDelta": 20,
+      "diffPixels": 144,
+      "meanChannelError": 0.016722916666666667,
+      "diffBounds": {
+        "x": 28,
+        "y": 28,
+        "width": 160,
+        "height": 72
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/08-select-chevron-data-svg-bg",
+      "pass": true,
+      "diffRatio": 0.0004333333333333333,
+      "maxDelta": 30,
+      "diffPixels": 52,
+      "meanChannelError": 0.009802083333333333,
+      "diffBounds": {
+        "x": 30,
+        "y": 30,
+        "width": 216,
+        "height": 34
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/09-popover-modal-backdrop-stacking",
+      "pass": true,
+      "diffRatio": 0.006908333333333333,
+      "maxDelta": 123,
+      "diffPixels": 829,
+      "meanChannelError": 0.3576375,
+      "diffBounds": {
+        "x": 70,
+        "y": 109,
+        "width": 260,
+        "height": 83
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/10-tooltip-arrow-pseudo-before",
+      "pass": true,
+      "diffRatio": 0.0011083333333333333,
+      "maxDelta": 84,
+      "diffPixels": 133,
+      "meanChannelError": 0.05526458333333333,
+      "diffBounds": {
+        "x": 40,
+        "y": 48,
+        "width": 123,
+        "height": 37
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/11-button-states-data-attr-selectors",
+      "pass": true,
+      "diffRatio": 0.0015416666666666667,
+      "maxDelta": 40,
+      "diffPixels": 185,
+      "meanChannelError": 0.022304166666666667,
+      "diffBounds": {
+        "x": 26,
+        "y": 45,
+        "width": 216,
+        "height": 101
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/12-rtl-dir-attribute-layout",
+      "pass": true,
+      "diffRatio": 0.0018,
+      "maxDelta": 43,
+      "diffPixels": 216,
+      "meanChannelError": 0.031066666666666666,
+      "diffBounds": {
+        "x": 20,
+        "y": 20,
+        "width": 320,
+        "height": 100
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/13-toolbar-svg-icons-stroke-currentcolor",
+      "pass": true,
+      "diffRatio": 0.0020416666666666665,
+      "maxDelta": 62,
+      "diffPixels": 245,
+      "meanChannelError": 0.0349125,
+      "diffBounds": {
+        "x": 29,
+        "y": 28,
+        "width": 249,
+        "height": 52
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/14-assistant-webfont-ui-typography",
+      "pass": true,
+      "diffRatio": 0.0023166666666666665,
+      "maxDelta": 52,
+      "diffPixels": 278,
+      "meanChannelError": 0.05040833333333333,
+      "diffBounds": {
+        "x": 24,
+        "y": 28,
+        "width": 193,
+        "height": 52
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/15-scroll-panel-overflow-y-hidden-clip",
+      "pass": true,
+      "diffRatio": 0.001075,
+      "maxDelta": 31,
+      "diffPixels": 129,
+      "meanChannelError": 0.014945833333333334,
+      "diffBounds": {
+        "x": 31,
+        "y": 35,
+        "width": 198,
+        "height": 183
+      },
+      "reason": null
+    },
+    {
+      "id": "10-excalidraw/16-excalidraw-workspace-shell",
+      "pass": true,
+      "diffRatio": 0.0075625,
+      "maxDelta": 70,
+      "diffPixels": 1936,
+      "meanChannelError": 0.150001953125,
+      "diffBounds": {
+        "x": 15,
+        "y": 15,
+        "width": 611,
+        "height": 371
+      },
+      "reason": null
+    }
+  ]
+}

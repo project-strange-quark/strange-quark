@@ -1,0 +1,12 @@
+/* SPDX-License-Identifier: MIT */
+/* External stylesheet fixture for testing <link rel="stylesheet"> cascade. */
+.ext-card {
+  background: #2563eb;
+  color: #ffffff;
+  border: 4px solid #1e3a8a;
+  padding: 16px;
+}
+
+.ext-override {
+  background: #dc2626;
+}

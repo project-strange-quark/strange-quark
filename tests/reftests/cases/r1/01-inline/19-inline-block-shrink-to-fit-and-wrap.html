@@ -1,0 +1,22 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Inline-block shrink-to-fit and wrapping</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 14px; line-height: 20px; padding: 16px; }
+    .wrap { width: 220px; border: 2px solid #334155; padding: 8px; background: #f8fafc; }
+    .chip { display: inline-block; padding: 4px 10px; margin: 4px; background: #e0f2fe; border: 1px solid #0284c7; border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <span class="chip">Alpha</span><span class="chip">Beta chip</span><span class="chip">Gamma</span><span class="chip">Delta</span><span class="chip">Epsilon</span>
+  </div>
+</body>
+</html>

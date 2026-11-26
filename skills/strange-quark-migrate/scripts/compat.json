@@ -1,0 +1,375 @@
+{
+  "snapshot": "Strange Quark first release work, November 2026 (Linux desktop, Compat mode, V8). A newer Strange Quark docs/architecture.md section 11 wins over this file.",
+  "statuses": {
+    "server": "Runs on a server in the source framework; Strange Quark has no server. Move behind an HTTP API, or stub it.",
+    "shell": "Desktop shell API (Electron, Tauri, Electrobun); no Strange Quark equivalent in v1. Use a web equivalent if one exists, otherwise stub and flag it.",
+    "node": "Node.js API used from UI code; not available in Strange Quark.",
+    "tier2": "Planned for a later Strange Quark release; undefined or ignored today.",
+    "not-planned": "strange-quark does not plan to support it.",
+    "limited": "Supported with a caveat; read the note.",
+    "framework": "Framework API with a client-side equivalent; replace it mechanically (see the source's playbook)."
+  },
+  "markers": [
+    {
+      "id": "use-server",
+      "status": "server",
+      "label": "'use server' (server actions or functions)",
+      "pattern": "^\\s*['\"]use server['\"]",
+      "where": "code"
+    },
+    {
+      "id": "server-only",
+      "status": "server",
+      "label": "server-only import",
+      "pattern": "from\\s+['\"]server-only['\"]|import\\s+['\"]server-only['\"]",
+      "where": "code"
+    },
+    {
+      "id": "next-headers",
+      "status": "server",
+      "label": "next/headers, next/server (request-time server APIs)",
+      "pattern": "from\\s+['\"]next/(headers|server)['\"]",
+      "where": "code"
+    },
+    {
+      "id": "next-data-fns",
+      "status": "server",
+      "label": "getServerSideProps, getStaticProps, getStaticPaths, getInitialProps",
+      "pattern": "\\b(getServerSideProps|getStaticProps|getStaticPaths|getInitialProps)\\b",
+      "where": "code"
+    },
+    {
+      "id": "route-handler",
+      "status": "server",
+      "label": "HTTP route handler export (GET, POST, ...)",
+      "pattern": "export\\s+(async\\s+)?function\\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\\s*\\(",
+      "where": "code"
+    },
+    {
+      "id": "next-middleware",
+      "status": "server",
+      "label": "Next.js middleware",
+      "pathPattern": "(^|/)middleware\\.(ts|js|mjs)$"
+    },
+    {
+      "id": "tanstack-server-fn",
+      "status": "server",
+      "label": "TanStack Start server functions or server routes",
+      "pattern": "\\b(createServerFn|createAPIFileRoute|createServerFileRoute|createIsomorphicFn|serverOnly)\\b",
+      "where": "code"
+    },
+    {
+      "id": "remix-loader-action",
+      "status": "server",
+      "label": "Route module loader or action (server in Remix or framework mode)",
+      "pattern": "export\\s+(async\\s+)?(function|const)\\s+(loader|action)\\b",
+      "where": "code"
+    },
+    {
+      "id": "rr-sessions",
+      "status": "server",
+      "label": "Cookie or session storage (Remix, React Router)",
+      "pattern": "\\bcreate(Cookie|CookieSessionStorage|SessionStorage|MemorySessionStorage)\\b",
+      "where": "code"
+    },
+    {
+      "id": "electron-ipc",
+      "status": "shell",
+      "label": "Electron IPC and preload bridge",
+      "pattern": "\\b(ipcRenderer|ipcMain|contextBridge|exposeInMainWorld)\\b",
+      "where": "code"
+    },
+    {
+      "id": "electron-import",
+      "status": "shell",
+      "label": "import of 'electron'",
+      "pattern": "(require\\(\\s*['\"]electron['\"]\\s*\\)|from\\s+['\"]electron['\"])",
+      "where": "code"
+    },
+    {
+      "id": "tauri-api",
+      "status": "shell",
+      "label": "Tauri invoke, plugins or events",
+      "pattern": "(@tauri-apps/(api|plugin-[a-z-]+)|window\\.__TAURI(_INTERNALS)?__)",
+      "where": "code"
+    },
+    {
+      "id": "electrobun",
+      "status": "shell",
+      "label": "Electrobun RPC or APIs",
+      "pattern": "(from\\s+['\"]electrobun(/[a-z]+)?['\"]|\\bElectroview\\b|\\bdefineRPC\\b)",
+      "where": "code"
+    },
+    {
+      "id": "node-builtin-in-ui",
+      "status": "node",
+      "label": "Node built-in module imported",
+      "pattern": "(require\\(\\s*['\"](node:)?(fs|fs/promises|path|child_process|os|net|crypto|worker_threads)['\"]\\s*\\)|from\\s+['\"](node:)?(fs|fs/promises|child_process|os|net|worker_threads)['\"])",
+      "where": "code"
+    },
+    {
+      "id": "next-client-apis",
+      "status": "framework",
+      "label": "Next.js client APIs (next/link, next/navigation, next/image, next/font, next/dynamic, next/head, next/script)",
+      "pattern": "from\\s+['\"]next/(link|navigation|image|font/[a-z]+|dynamic|head|script|router)['\"]",
+      "where": "code"
+    },
+    {
+      "id": "tauri-asset-url",
+      "status": "shell",
+      "label": "Tauri convertFileSrc (local file URLs)",
+      "pattern": "\\bconvertFileSrc\\s*\\(",
+      "where": "code"
+    }
+  ],
+  "features": [
+    {
+      "id": "webgl",
+      "status": "not-planned",
+      "label": "WebGL",
+      "pattern": "getContext\\(\\s*['\"](webgl2?|experimental-webgl)['\"]",
+      "where": "code",
+      "deps": [
+        "three",
+        "@react-three/fiber",
+        "mapbox-gl",
+        "maplibre-gl",
+        "pixi.js",
+        "@pixi/react",
+        "@babylonjs/core",
+        "deck.gl",
+        "@deck.gl/core",
+        "regl",
+        "ogl",
+        "cesium"
+      ],
+      "note": "No WebGL in Strange Quark. A WebGL scene at the app's core means blocked."
+    },
+    {
+      "id": "webgpu",
+      "status": "tier2",
+      "label": "WebGPU (navigator.gpu)",
+      "pattern": "navigator\\.gpu\\b",
+      "where": "code"
+    },
+    {
+      "id": "contenteditable",
+      "status": "tier2",
+      "label": "contenteditable or a rich-text editor",
+      "pattern": "content[eE]ditable",
+      "where": "code",
+      "deps": [
+        "lexical",
+        "@lexical/react",
+        "slate",
+        "slate-react",
+        "prosemirror-view",
+        "@tiptap/react",
+        "@tiptap/core",
+        "draft-js",
+        "quill",
+        "react-quill",
+        "@blocknote/react",
+        "@milkdown/core",
+        "@codemirror/view",
+        "@uiw/react-codemirror"
+      ],
+      "note": "Rich-text editors need contenteditable, Selection and Range (tier 2). A plain textarea works."
+    },
+    {
+      "id": "iframe",
+      "status": "not-planned",
+      "label": "iframe",
+      "pattern": "(<iframe\\b|createElement\\(\\s*['\"]iframe['\"])",
+      "where": "code"
+    },
+    {
+      "id": "web-workers",
+      "status": "tier2",
+      "label": "Web Workers",
+      "pattern": "(new\\s+(Shared)?Worker\\s*\\(|\\?worker(&|['\"]))",
+      "where": "code",
+      "deps": [
+        "comlink",
+        "monaco-editor"
+      ],
+      "note": "Worker is undefined; code that checks typeof Worker and falls back still works."
+    },
+    {
+      "id": "service-worker",
+      "status": "not-planned",
+      "label": "Service worker or PWA",
+      "pattern": "serviceWorker\\.register",
+      "where": "code",
+      "deps": [
+        "vite-plugin-pwa",
+        "workbox-window",
+        "next-pwa"
+      ],
+      "note": "navigator.serviceWorker is undefined. Guarded registration is skipped harmlessly."
+    },
+    {
+      "id": "shadow-dom",
+      "status": "tier2",
+      "label": "Shadow DOM or custom elements",
+      "pattern": "(\\.attachShadow\\s*\\(|customElements\\.define\\s*\\()",
+      "where": "code"
+    },
+    {
+      "id": "waapi",
+      "status": "tier2",
+      "label": "Web Animations API (element.animate)",
+      "pattern": "\\.animate\\(\\s*[\\[{]",
+      "where": "code",
+      "note": "rAF-driven animation (most of Motion, react-spring) works; element.animate does not."
+    },
+    {
+      "id": "media",
+      "status": "tier2",
+      "label": "video or audio",
+      "pattern": "(<video\\b|<audio\\b|new\\s+Audio\\s*\\()",
+      "where": "code",
+      "deps": [
+        "react-player",
+        "video.js",
+        "hls.js",
+        "howler"
+      ]
+    },
+    {
+      "id": "html5-dnd",
+      "status": "tier2",
+      "label": "HTML5 drag and drop",
+      "pattern": "(\\bdraggable\\s*=|onDrag(Start|Over|Enter|Leave|End)\\b|onDrop\\b|addEventListener\\(\\s*['\"](dragstart|drop|dragover)['\"])",
+      "where": "code",
+      "deps": [
+        "react-dropzone",
+        "react-dnd-html5-backend"
+      ],
+      "note": "Pointer-event drag libraries (dnd-kit, Pragmatic in pointer mode) work; HTML5 DnD and OS file drops do not yet."
+    },
+    {
+      "id": "webrtc-media-devices",
+      "status": "not-planned",
+      "label": "WebRTC, camera or microphone",
+      "pattern": "(RTCPeerConnection|getUserMedia|getDisplayMedia|MediaRecorder)",
+      "where": "code"
+    },
+    {
+      "id": "notifications",
+      "status": "not-planned",
+      "label": "Notifications API",
+      "pattern": "(new\\s+Notification\\s*\\(|Notification\\.requestPermission)",
+      "where": "code"
+    },
+    {
+      "id": "geolocation",
+      "status": "not-planned",
+      "label": "Geolocation",
+      "pattern": "navigator\\.geolocation",
+      "where": "code"
+    },
+    {
+      "id": "cookie-writes",
+      "status": "not-planned",
+      "label": "document.cookie writes",
+      "pattern": "document\\.cookie\\s*=[^=]",
+      "where": "code",
+      "note": "document.cookie reads as an empty string and writes are ignored."
+    },
+    {
+      "id": "fs-access-api",
+      "status": "limited",
+      "label": "File System Access API",
+      "pattern": "\\b(showOpenFilePicker|showSaveFilePicker|showDirectoryPicker)\\b",
+      "where": "code",
+      "note": "Undefined. Open and save fall back to <input type=file> and <a download> (both supported); showDirectoryPicker has no fallback."
+    },
+    {
+      "id": "window-open-features",
+      "status": "limited",
+      "label": "window.open",
+      "pattern": "window\\.open\\s*\\(",
+      "where": "code",
+      "note": "Opens the system browser; Strange Quark has one window."
+    },
+    {
+      "id": "css-container-queries",
+      "status": "tier2",
+      "label": "CSS container queries",
+      "pattern": "(@container\\b|container-type\\s*:)",
+      "where": "style"
+    },
+    {
+      "id": "css-float",
+      "status": "tier2",
+      "label": "CSS floats",
+      "pattern": "(^|[;{\\s])float\\s*:\\s*(left|right|inline-start|inline-end)",
+      "where": "style"
+    },
+    {
+      "id": "css-subgrid",
+      "status": "tier2",
+      "label": "CSS subgrid",
+      "pattern": "grid-template-(columns|rows)\\s*:\\s*subgrid",
+      "where": "style"
+    },
+    {
+      "id": "css-mask-border-image",
+      "status": "tier2",
+      "label": "mask-image or border-image",
+      "pattern": "(^|[;{\\s])(-webkit-)?(mask-image|border-image)\\s*:",
+      "where": "style"
+    },
+    {
+      "id": "css-anchor",
+      "status": "tier2",
+      "label": "CSS anchor positioning",
+      "pattern": "(anchor-name|position-anchor)\\s*:",
+      "where": "style"
+    },
+    {
+      "id": "css-view-transitions",
+      "status": "tier2",
+      "label": "View transitions",
+      "pattern": "(startViewTransition|view-transition-name)",
+      "where": "any"
+    },
+    {
+      "id": "css-scroll-timeline",
+      "status": "tier2",
+      "label": "Scroll-driven animations",
+      "pattern": "animation-timeline\\s*:",
+      "where": "style"
+    },
+    {
+      "id": "css-multicol",
+      "status": "not-planned",
+      "label": "Multi-column layout",
+      "pattern": "(^|[;{\\s])(column-count|columns)\\s*:\\s*\\d",
+      "where": "style"
+    },
+    {
+      "id": "css-vertical-writing",
+      "status": "not-planned",
+      "label": "Vertical writing modes",
+      "pattern": "writing-mode\\s*:\\s*(vertical|sideways)",
+      "where": "style"
+    },
+    {
+      "id": "css-table-layout",
+      "status": "limited",
+      "label": "CSS tables",
+      "pattern": "(display\\s*:\\s*table\\b|<table\\b)",
+      "where": "any",
+      "note": "Tables are approximated with grid; complex tables may differ."
+    },
+    {
+      "id": "print",
+      "status": "not-planned",
+      "label": "Printing",
+      "pattern": "(window\\.print\\s*\\(|@media\\s+print)",
+      "where": "any"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Test-control fixture</title>
+<style>
+  html { background: white; }
+  body { margin: 0; }
+  #scroller { position: absolute; left: 4px; top: 4px; width: 30px; height: 20px; overflow-y: auto; }
+  #before, #after { height: 20px; }
+  #before { background: red; }
+  #after { background: blue; }
+  #clipped {
+    position: absolute; left: 48px; top: 4px; width: 16px; height: 12px;
+    transform: translateX(6px); clip-path: inset(0 8px 0 0);
+    background: green; cursor: pointer;
+  }
+  #focus { position: absolute; width: 24px; height: 12px; left: 4px; top: 32px; }
+  @media (hover: hover) and (pointer: fine) and (any-hover: hover) and (any-pointer: fine) {
+    body { color: #112233; }
+  }
+</style>
+<body>
+<div id="scroller"><div id="before"></div><div id="after"></div></div>
+<div id="clipped"></div>
+<input id="focus">
+<script>
+  window.startupPointerMedia = ["(hover: hover)", "(pointer: fine)", "(any-hover: hover)", "(any-pointer: fine)"]
+    .map(query => matchMedia(query).matches);
+  window.actions = [];
+  window.cancelWheel = true;
+  window.animations = 0;
+  window.frameClockAligned = true;
+  window.startAnimation = () => {
+    function frame(timestamp) {
+      frameClockAligned &&= performance.now() >= timestamp;
+      if (++animations < 4) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  };
+  window.paintLater = () => {
+    setTimeout(() => document.documentElement.style.setProperty("background-color", "#225577"), 50);
+  };
+  document.getElementById("clipped").addEventListener("click", () => actions.push("clipped"));
+  document.getElementById("before").addEventListener("click", () => actions.push("before"));
+  document.getElementById("after").addEventListener("click", () => actions.push("after"));
+  document.getElementById("scroller").addEventListener("wheel", event => {
+    actions.push([event.deltaY, event.cancelable]);
+    if (cancelWheel) event.preventDefault();
+  }, { passive: false });
+  document.getElementById("focus").addEventListener("keydown", event => actions.push([event.key, event.shiftKey]));
+</script>
+</body>
+</html>

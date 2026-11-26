@@ -1,0 +1,29 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":6,"maxDiffRatio":0.015} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>repeating-linear-gradient diagonal stripes</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .stripes {
+      width: 320px;
+      height: 180px;
+      margin: 24px;
+      border: 2px solid #334155;
+      background: repeating-linear-gradient(
+        45deg,
+        #3b82f6 0px,
+        #3b82f6 16px,
+        #dbeafe 16px,
+        #dbeafe 32px
+      );
+    }
+  </style>
+</head>
+<body>
+  <div class="stripes"></div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Absolute centering with inset: 0 and margin: auto</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .cb { position: relative; width: 320px; height: 220px; margin: 20px; background: #f1f5f9; border: 2px solid #475569; }
+    .centered { position: absolute; inset: 0; width: 120px; height: 70px; margin: auto; background: #6366f1; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="cb"><div class="centered"></div></div>
+</body>
+</html>

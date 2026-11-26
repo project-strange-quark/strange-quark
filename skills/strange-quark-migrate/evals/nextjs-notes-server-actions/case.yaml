@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: nextjs-notes-server-actions
+context:
+  scaffold_script: place-files.sh
+expected_outcome: |
+  The skill inventories the app and finds the server pieces: the server component reading notes through server-only fs code, the 'use server' addNote action, the /api/notes route handler, middleware.ts, next/font/google and next/image. It creates a strange-quark-migration branch, leaves main untouched and pushes nothing. It migrates the app to a Vite + React single-page app with a client router, and moves the notes storage behind a small server/ HTTP API (or stubs and flags it). Each change is recorded in MIGRATION.md with a category, and the app builds in a browser. REPORT.md has a verdict of exactly one of the three words, backed by measurements or an explicit 'not measured'. It states that the native app depends on the extracted server, and lists what was not tested.

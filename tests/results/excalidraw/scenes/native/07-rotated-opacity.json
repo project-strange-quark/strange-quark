@@ -1,0 +1,20 @@
+{
+  "id": "07-rotated-opacity",
+  "note": "rotation and opacity",
+  "pass": true,
+  "diffPixels": 3330,
+  "totalPixels": 1024000,
+  "diffRatio": 0.003251953125,
+  "maxDelta": 216,
+  "meanChannelError": 0.0729,
+  "diffBounds": {
+    "x": 28,
+    "y": 16,
+    "width": 1225,
+    "height": 758
+  },
+  "reason": null,
+  "actual": "tests/results/excalidraw/scenes/native/07-rotated-opacity.png",
+  "expected": "tests/results/excalidraw/scenes/expected/07-rotated-opacity.png",
+  "diff": null
+}

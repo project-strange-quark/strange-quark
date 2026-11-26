@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Grid with fixed pixel columns and rows</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .g { display: grid; grid-template-columns: 80px 120px 60px; grid-template-rows: 50px 70px; gap: 8px; padding: 16px; background: #f1f5f9; margin: 16px; width: fit-content; }
+    .g > div { background: #3b82f6; }
+    .g > div:nth-child(even) { background: #10b981; }
+  </style>
+</head>
+<body>
+  <div class="g"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+</body>
+</html>

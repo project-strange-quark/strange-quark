@@ -1,0 +1,51 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>rough.js rectangle, ellipse and polygon</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+  <script src="../_assets/lib/rough.js"></script>
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script>
+    const rc = rough.canvas(document.getElementById("c"), {
+      options: { seed: 1234, roughness: 1.1, strokeWidth: 2 },
+    });
+
+    // Hachure-filled rectangle with a sketchy outline.
+    rc.rectangle(20, 20, 140, 100, {
+      stroke: "#1e293b",
+      strokeWidth: 2,
+      fill: "#93c5fd",
+      fillStyle: "hachure",
+      hachureGap: 8,
+      hachureAngle: -41,
+    });
+
+    // Solid-filled ellipse.
+    rc.ellipse(260, 70, 160, 100, {
+      stroke: "#0f766e",
+      strokeWidth: 2,
+      fill: "#99f6e4",
+      fillStyle: "solid",
+    });
+
+    // Cross-hatched polygon.
+    rc.polygon(
+      [
+        [40, 200],
+        [160, 170],
+        [120, 290],
+        [30, 250],
+      ],
+      { stroke: "#7c3aed", fill: "#ddd6fe", fillStyle: "cross-hatch", hachureGap: 7 },
+    );
+
+    // A bowed line, like Excalidraw's arrow shafts.
+    rc.line(200, 180, 450, 300, { stroke: "#b91c1c", strokeWidth: 3, roughness: 1.4 });
+  </script>
+</body>
+</html>

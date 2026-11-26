@@ -1,0 +1,9 @@
+body { margin: 0; background: #f6f7fb; color: #1d2433; }
+.bar { padding: 12px 20px; background: #3b3fd8; }
+.bar a { color: white; font-weight: 700; text-decoration: none; }
+main { max-width: 720px; margin: 24px auto; padding: 0 16px; }
+.note { background: white; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); }
+.note h2 { margin: 0 0 4px; font-size: 18px; }
+form { display: grid; gap: 8px; margin-bottom: 20px; }
+input, textarea { font: inherit; padding: 8px; border: 1px solid #c8cbe0; border-radius: 6px; }
+button { justify-self: start; padding: 8px 14px; border: 0; border-radius: 6px; background: #3b3fd8; color: white; }

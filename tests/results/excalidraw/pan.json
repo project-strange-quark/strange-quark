@@ -1,0 +1,159 @@
+{
+  "status": "measured",
+  "driver": "crates/squark-host/tests/fixtures/excalidraw-pan-driver.mjs",
+  "runner": "scripts/check-excalidraw-pan.sh",
+  "reportOnly": false,
+  "adapter": "AMD Radeon RX 9060 XT (RADV GFX1200)",
+  "cpuWeight": 10000,
+  "loadStart": [
+    6.46,
+    7.75,
+    6.81
+  ],
+  "loadEnd": [
+    5.94,
+    7.62,
+    6.78
+  ],
+  "elements": 1000,
+  "scrollStart": 310,
+  "scrollEnd": -754,
+  "expectedScroll": -754,
+  "slots": 300,
+  "wheelEvents": 300,
+  "pageWheelEvents": 300,
+  "canvasWheelEvents": 300,
+  "viewport": [
+    1280,
+    800
+  ],
+  "valid": true,
+  "invalidReasons": [],
+  "submitted": 300,
+  "fresh": 300,
+  "onTimeSlots": 300,
+  "deadlineRatio": 1,
+  "commitLatenessP95Ms": -11.39,
+  "tickToCommitP95Ms": 2.322,
+  "latchAndEncodeP95Ms": 2.973,
+  "submitIntervalP95Ms": 18.436,
+  "limitRatio": 0.95,
+  "passed": true,
+  "timeline": "target/excalidraw/pan/run-2/timeline.json",
+  "runCount": 3,
+  "minDeadlineRatio": 1,
+  "medianDeadlineRatio": 1,
+  "runs": [
+    {
+      "run": 1,
+      "valid": true,
+      "invalidReasons": [],
+      "passed": true,
+      "onTimeSlots": 300,
+      "slots": 300,
+      "deadlineRatio": 1,
+      "wheelEvents": 300,
+      "pageWheelEvents": 300,
+      "canvasWheelEvents": 300,
+      "scrollStart": 310,
+      "scrollEnd": -754,
+      "expectedScroll": -754,
+      "viewport": [
+        1280,
+        800
+      ],
+      "fresh": 300,
+      "submitted": 300,
+      "commitLatenessP95Ms": -11.912,
+      "tickToCommitP95Ms": 2.078,
+      "latchAndEncodeP95Ms": 2.818,
+      "submitIntervalP95Ms": 17.176,
+      "cpuWeight": 10000,
+      "loadStart": [
+        7.54,
+        8,
+        6.88
+      ],
+      "loadEnd": [
+        6.93,
+        7.87,
+        6.85
+      ],
+      "timeline": "target/excalidraw/pan/run-1/timeline.json"
+    },
+    {
+      "run": 2,
+      "valid": true,
+      "invalidReasons": [],
+      "passed": true,
+      "onTimeSlots": 300,
+      "slots": 300,
+      "deadlineRatio": 1,
+      "wheelEvents": 300,
+      "pageWheelEvents": 300,
+      "canvasWheelEvents": 300,
+      "scrollStart": 310,
+      "scrollEnd": -754,
+      "expectedScroll": -754,
+      "viewport": [
+        1280,
+        800
+      ],
+      "fresh": 300,
+      "submitted": 300,
+      "commitLatenessP95Ms": -11.39,
+      "tickToCommitP95Ms": 2.322,
+      "latchAndEncodeP95Ms": 2.973,
+      "submitIntervalP95Ms": 18.436,
+      "cpuWeight": 10000,
+      "loadStart": [
+        6.46,
+        7.75,
+        6.81
+      ],
+      "loadEnd": [
+        5.94,
+        7.62,
+        6.78
+      ],
+      "timeline": "target/excalidraw/pan/run-2/timeline.json"
+    },
+    {
+      "run": 3,
+      "valid": true,
+      "invalidReasons": [],
+      "passed": true,
+      "onTimeSlots": 300,
+      "slots": 300,
+      "deadlineRatio": 1,
+      "wheelEvents": 300,
+      "pageWheelEvents": 300,
+      "canvasWheelEvents": 300,
+      "scrollStart": 310,
+      "scrollEnd": -754,
+      "expectedScroll": -754,
+      "viewport": [
+        1280,
+        800
+      ],
+      "fresh": 300,
+      "submitted": 300,
+      "commitLatenessP95Ms": -11.824,
+      "tickToCommitP95Ms": 2.151,
+      "latchAndEncodeP95Ms": 2.855,
+      "submitIntervalP95Ms": 17.888,
+      "cpuWeight": 10000,
+      "loadStart": [
+        5.94,
+        7.62,
+        6.78
+      ],
+      "loadEnd": [
+        5.46,
+        7.5,
+        6.74
+      ],
+      "timeline": "target/excalidraw/pan/run-3/timeline.json"
+    }
+  ]
+}

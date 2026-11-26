@@ -1,0 +1,27 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Whitespace collapsing across span boundaries</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 16px; line-height: 24px; padding: 16px; }
+    .box { width: 280px; border: 1px solid #cbd5e1; padding: 8px; margin-bottom: 12px; background: #f8fafc; }
+    .hl { background: #fde68a; }
+    .hl2 { background: #bfdbfe; }
+  </style>
+</head>
+<body>
+  <div class="box" data-geom="collapse-1">
+    <span>Alpha   </span><span>   Beta</span>   <span class="hl">  Gamma
+      </span><span class="hl2">Delta  </span>  Epsilon
+  </div>
+  <div class="box" data-geom="collapse-2">
+    <span>  Leading</span> <span></span> <span class="hl">  Middle   text  </span> <span>Trailing   </span>
+  </div>
+</body>
+</html>

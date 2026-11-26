@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>flex-shrink and flex-basis overflow resolution</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .row { display: flex; width: 300px; height: 80px; margin: 20px; border: 2px solid #334155; }
+    .s0 { flex: 0 0 120px; background: #ef4444; }
+    .s1 { flex: 0 1 180px; background: #3b82f6; }
+    .s2 { flex: 0 2 180px; background: #10b981; }
+  </style>
+</head>
+<body>
+  <div class="row"><div class="s0"></div><div class="s1"></div><div class="s2"></div></div>
+</body>
+</html>

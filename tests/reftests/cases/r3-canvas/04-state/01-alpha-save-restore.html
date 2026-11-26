@@ -1,0 +1,51 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>globalAlpha with save and restore</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script>
+    const ctx = document.getElementById("c").getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 480, 320);
+
+    // Overlapping squares at decreasing alpha, the way element clients fade.
+    ctx.fillStyle = "#1d4ed8";
+    for (let i = 0; i < 5; i += 1) {
+      ctx.globalAlpha = 1 - i * 0.18;
+      ctx.fillRect(30 + i * 40, 30, 90, 90);
+    }
+
+    // save/restore must put globalAlpha, style and transform back.
+    ctx.globalAlpha = 1;
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = "#b91c1c";
+    ctx.translate(20, 0);
+    ctx.fillRect(300, 30, 140, 90);
+    ctx.restore();
+    ctx.fillStyle = "#15803d";
+    ctx.fillRect(300, 30, 140, 90);
+
+    // Alpha on strokes and text.
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 6;
+    ctx.strokeRect(40, 180, 160, 100);
+    ctx.font = "32px TestSans";
+    ctx.fillStyle = "#0f172a";
+    ctx.fillText("faded", 240, 240);
+    ctx.restore();
+
+    // Restored state after the block.
+    ctx.fillStyle = "#111827";
+    ctx.fillText("solid", 240, 290);
+  </script>
+</body>
+</html>

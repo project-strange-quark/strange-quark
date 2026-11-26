@@ -1,0 +1,17 @@
+{
+  "name": "@strange-quark/compat",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "scripts": {
+    "test": "node --test src/*.test.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.65.1",
+    "pngjs": "7.0.0"
+  }
+}

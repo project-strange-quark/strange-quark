@@ -1,0 +1,60 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>translate, rotate, scale and setTransform</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script>
+    const ctx = document.getElementById("c").getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 480, 320);
+
+    // Excalidraw renders each element under a translate/rotate/scale matrix.
+    function element(angle, scale, color) {
+      ctx.save();
+      ctx.translate(120, 110);
+      ctx.rotate(angle);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = color;
+      ctx.fillRect(-50, -30, 100, 60);
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(-50, -30, 100, 60);
+      ctx.restore();
+    }
+
+    element(0, 1, "#bfdbfe");
+    element(Math.PI / 6, 0.8, "#fecaca");
+    element(-Math.PI / 4, 0.6, "#bbf7d0");
+
+    // setTransform replaces the matrix instead of multiplying it.
+    ctx.save();
+    ctx.translate(400, 60);
+    ctx.setTransform(1.2, 0.35, -0.35, 1.2, 330, 70);
+    ctx.fillStyle = "#fed7aa";
+    ctx.fillRect(0, 0, 90, 60);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.restore();
+
+    // Nested transform multiplication, as interactive scenes chain frames.
+    ctx.save();
+    ctx.translate(100, 250);
+    ctx.rotate(Math.PI / 12);
+    ctx.fillStyle = "#c7d2fe";
+    ctx.fillRect(0, 0, 60, 40);
+    ctx.translate(90, 0);
+    ctx.rotate(Math.PI / 6);
+    ctx.fillStyle = "#a5b4fc";
+    ctx.fillRect(0, 0, 60, 40);
+    ctx.restore();
+
+    ctx.fillStyle = "#111827";
+    ctx.fillRect(420, 250, 40, 40);
+  </script>
+</body>
+</html>

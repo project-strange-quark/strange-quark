@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>inline-grid shrink-to-fit inside text</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 16px; padding: 16px; }
+    .ig { display: inline-grid; grid-template-columns: 20px 20px; grid-template-rows: 20px 20px; gap: 3px; padding: 4px; background: #e2e8f0; vertical-align: middle; }
+    .ig > span { background: #2563eb; }
+  </style>
+</head>
+<body>
+  <div>Icon <span class="ig"><span></span><span></span><span></span><span></span></span> inline-grid.</div>
+</body>
+</html>

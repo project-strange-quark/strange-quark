@@ -1,0 +1,10 @@
+{
+  "name": "@strange-quark/react-dom-tests",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test name-pattern.test.mjs prepare.test.mjs && node prepare.mjs && node run.mjs"
+  }
+}

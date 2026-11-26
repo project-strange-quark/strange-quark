@@ -1,0 +1,24 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":6,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>mix-blend-mode multiply and screen</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 24px; padding: 24px; }
+    .stage { position: relative; width: 160px; height: 160px; isolation: isolate; background: #f8fafc; border: 1px solid #cbd5e1; }
+    .dark { background: #0f172a; }
+    .c { position: absolute; width: 92px; height: 92px; border-radius: 50%; }
+    .c1 { left: 16px; top: 16px; background: #06b6d4; }
+    .c2 { left: 52px; top: 48px; background: #ec4899; mix-blend-mode: multiply; }
+    .c3 { left: 52px; top: 48px; background: #f59e0b; mix-blend-mode: screen; }
+  </style>
+</head>
+<body>
+  <div class="stage"><div class="c c1"></div><div class="c c2"></div></div>
+  <div class="stage dark"><div class="c c1"></div><div class="c c3"></div></div>
+</body>
+</html>

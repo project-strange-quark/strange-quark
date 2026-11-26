@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>IME test</title>
+<body>
+<textarea id="editor" autofocus></textarea>
+<script>
+  const editor = document.getElementById("editor");
+  window.imeEvents = [];
+  for (const type of ["compositionstart", "compositionupdate", "compositionend", "input"]) {
+    editor.addEventListener(type, event => {
+      window.imeEvents.push([event.type, event.data ?? null, event.isComposing ?? null]);
+    });
+  }
+  editor.focus();
+</script>
+</body>
+</html>

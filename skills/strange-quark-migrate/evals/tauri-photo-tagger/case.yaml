@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: tauri-photo-tagger
+context:
+  scaffold_script: place-files.sh
+expected_outcome: |
+  The skill identifies the Tauri seam: invoke('scan_folder'), invoke('add_tag'), convertFileSrc, plugin-dialog open({ directory: true }) and plugin-store. It recognizes that the app's core, walking a folder on disk, reading image dimensions and keeping tags in SQLite, lives in the Rust backend and has no Strange Quark web equivalent: showDirectoryPicker is unsupported, and there is no file-system access. It creates a strange-quark-migration branch, replaces plugin-store with localStorage, and stubs scan_folder, add_tag and convertFileSrc in src/strange-quark-stubs/ with SQUARK-RENDER STUB comments. It marks the core flows that touch stubs as not passing. REPORT.md gives a verdict of Blocked, or at most Partially viable with an explicit reason. It does not claim the app is viable, explains that the folder scan and tag database would need Strange Quark native modules (not in v1) or a separate server, and lists what was not tested.

@@ -1,0 +1,20 @@
+{
+  "id": "01-basic-shapes",
+  "note": "rectangle, ellipse and diamond",
+  "pass": true,
+  "diffPixels": 4017,
+  "totalPixels": 1024000,
+  "diffRatio": 0.0039228515625,
+  "maxDelta": 216,
+  "meanChannelError": 0.1059,
+  "diffBounds": {
+    "x": 28,
+    "y": 16,
+    "width": 1225,
+    "height": 758
+  },
+  "reason": null,
+  "actual": "tests/results/excalidraw/scenes/native/01-basic-shapes.png",
+  "expected": "tests/results/excalidraw/scenes/expected/01-basic-shapes.png",
+  "diff": null
+}

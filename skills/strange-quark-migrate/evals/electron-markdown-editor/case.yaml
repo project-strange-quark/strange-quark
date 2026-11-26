@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: electron-markdown-editor
+context:
+  scaffold_script: place-files.sh
+expected_outcome: |
+  The skill finds the Electron seam: main.cjs, the preload contextBridge API window.markpad with its five methods, electron-store, the native Menu and shell.openExternal. It creates a strange-quark-migration branch without touching main. It builds the Vite React renderer alone and replaces the IPC methods with web equivalents where they exist: the open dialog becomes input type=file, save becomes a Blob with a[download], electron-store becomes localStorage, openExternal becomes window.open. The native Menu, with its Ctrl+O and Ctrl+S accelerators, gets an in-app keydown handler or is stubbed and flagged. The behavioural changes (no file paths, the user picks the save location every time, recent files lose their full paths) are recorded. REPORT.md compares Strange Quark against Chromium, and against the Electron app if it could be built (or says it could not). The verdict is exactly one of the three words.

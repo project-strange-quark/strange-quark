@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: MIT
+[package]
+name = "squark-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+arboard.workspace = true
+base64 = "0.22"
+clap = { version = "4", features = ["derive"] }
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp"] }
+squark-assets = { version = "=0.0.0", path = "../squark-assets" }
+squark-compositor = { version = "=0.0.0", path = "../squark-compositor" }
+squark-js = { version = "=0.0.0", path = "../squark-js" }
+squark-layout = { version = "=0.0.0", path = "../squark-layout" }
+squark-types.workspace = true
+mime_guess.workspace = true
+rfd.workspace = true
+url = "2.5"
+squark-gpu = { version = "=0.0.0", path = "../squark-gpu" }
+squark-paint = { version = "=0.0.0", path = "../squark-paint" }
+png = "0.18.1"
+pollster = "0.4.0"
+puffin = { version = "=0.20.0", features = ["serialization"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+v8.workspace = true
+winit.workspace = true
+
+# The control socket checks its peer's uid with SO_PEERCRED.
+[target.'cfg(target_os = "linux")'.dependencies]
+rustix = { version = "1.1", features = ["net", "process"] }
+
+# The test-control channel is a named pipe that only the current user may open.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+] }
+
+# The Wayland IME test drives a compositor over a Unix socket.
+[target.'cfg(unix)'.dev-dependencies]
+wayland-client = "0.31"
+wayland-protocols-misc = { version = "0.3", features = ["client"] }
+
+[lints]
+workspace = true

@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":6,"maxDiffRatio":0.015} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>2D transforms: translate, scale, rotate</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 28px; padding: 40px; }
+    .a { width: 80px; height: 80px; background: #3b82f6; transform: translate(12px, 24px); }
+    .b { width: 80px; height: 80px; background: #10b981; transform: scale(1.25, 0.75); }
+    .c { width: 80px; height: 80px; background: #f97316; transform: rotate(25deg); }
+  </style>
+</head>
+<body>
+  <div class="a"></div><div class="b"></div><div class="c"></div>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Nested flex header, sidebar, and main content panels</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .app { display: flex; flex-direction: column; width: 380px; height: 260px; margin: 10px; border: 2px solid #334155; }
+    .hdr { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: #0f172a; }
+    .hdr > div { width: 60px; height: 18px; background: #38bdf8; }
+    .body { flex: 1; display: flex; }
+    .side { width: 96px; display: flex; flex-direction: column; gap: 8px; padding: 10px; background: #e2e8f0; }
+    .side > div { height: 24px; background: #64748b; }
+    .main { flex: 1; display: flex; gap: 10px; padding: 10px; background: #f8fafc; }
+    .card { flex: 1; background: #dbeafe; border: 1px solid #3b82f6; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="hdr"><div></div><div></div></div>
+    <div class="body">
+      <div class="side"><div></div><div></div><div></div></div>
+      <div class="main"><div class="card"></div><div class="card"></div></div>
+    </div>
+  </div>
+</body>
+</html>

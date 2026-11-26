@@ -1,0 +1,22 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":4,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Modern CSS colors: oklch() and color-mix()</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: grid; grid-template-columns: repeat(2, 160px); gap: 14px; padding: 20px; }
+    div { height: 90px; border-radius: 8px; }
+    .a { background: oklch(65% 0.2 250); }
+    .b { background: oklch(72% 0.18 145); }
+    .c { background: color-mix(in srgb, #ef4444 40%, #3b82f6); }
+    .d { background: color-mix(in oklch, #f59e0b 50%, #ec4899); }
+  </style>
+</head>
+<body>
+  <div class="a"></div><div class="b"></div><div class="c"></div><div class="d"></div>
+</body>
+</html>

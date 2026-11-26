@@ -1,0 +1,4 @@
+test screenshot_rejects_invalid_gpu_adapter ... ok
+==> R1 reftest compare
+reftests/r1 compare (software): 149/150 passed (99.3%), 1 failed, 0 render errors
+==> lavapipe check passed; log: target/lavapipe-check.log

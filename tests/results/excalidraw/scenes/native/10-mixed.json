@@ -1,0 +1,20 @@
+{
+  "id": "10-mixed",
+  "note": "a mixed composition",
+  "pass": true,
+  "diffPixels": 4672,
+  "totalPixels": 1024000,
+  "diffRatio": 0.0045625,
+  "maxDelta": 216,
+  "meanChannelError": 0.1127,
+  "diffBounds": {
+    "x": 28,
+    "y": 16,
+    "width": 1225,
+    "height": 758
+  },
+  "reason": null,
+  "actual": "tests/results/excalidraw/scenes/native/10-mixed.png",
+  "expected": "tests/results/excalidraw/scenes/expected/10-mixed.png",
+  "diff": null
+}

@@ -1,0 +1,22 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Excalidraw [dir=rtl] layout and logical spacing</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestAssistant", sans-serif; font-size: 14px; padding: 20px; }
+    .bar { display: flex; align-items: center; width: 320px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 12px; background: #f8fafc; }
+    .dot { width: 20px; height: 20px; border-radius: 50%; background: #6965db; margin-inline-end: 10px; }
+    .badge { margin-inline-start: auto; padding: 2px 8px; border-radius: 4px; background: #e0dfff; color: #4f46e5; }
+  </style>
+</head>
+<body>
+  <div class="bar" dir="ltr"><div class="dot"></div><span>LTR Layout</span><span class="badge">100%</span></div>
+  <div class="bar" dir="rtl"><div class="dot"></div><span>RTL Layout</span><span class="badge">100%</span></div>
+</body>
+</html>

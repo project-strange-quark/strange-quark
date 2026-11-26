@@ -1,0 +1,51 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.03} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>dark mode: ctx.filter invert(93%) hue-rotate(180deg)</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script type="module">
+    import { offscreen, checker } from "../_assets/r3.js";
+
+    const ctx = document.getElementById("c").getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 480, 320);
+
+    // A light-theme scene, the way Excalidraw renders elements into a cache.
+    const scene = offscreen(200, 140);
+    const sctx = scene.getContext("2d");
+    sctx.fillStyle = "#ffffff";
+    sctx.fillRect(0, 0, 200, 140);
+    checker(sctx, 200, 140, 20, "#f8fafc", "#e2e8f0");
+    sctx.fillStyle = "#1d4ed8";
+    sctx.fillRect(16, 16, 70, 46);
+    sctx.fillStyle = "#f59e0b";
+    sctx.beginPath();
+    sctx.arc(140, 50, 32, 0, Math.PI * 2);
+    sctx.fill();
+    sctx.strokeStyle = "#111827";
+    sctx.lineWidth = 5;
+    sctx.strokeRect(20, 90, 160, 34);
+    sctx.fillStyle = "#15803d";
+    sctx.fillRect(110, 96, 60, 22);
+
+    // helpers.ts: invert(93%) hue-rotate(180deg) for the dark-theme canvas.
+    ctx.filter = "invert(93%) hue-rotate(180deg)";
+    ctx.drawImage(scene, 20, 20);
+    ctx.filter = "none";
+
+    // renderElement.ts also uses invert(100%) for image elements.
+    ctx.filter = "invert(100%) hue-rotate(180deg)";
+    ctx.drawImage(scene, 260, 20, 200, 140);
+    ctx.filter = "none";
+
+    // The unfiltered scene stays untouched.
+    ctx.drawImage(scene, 30, 170);
+  </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "@strange-quark/reftests",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test src/*.test.mjs",
+    "reftest": "node src/cli.mjs",
+    "r3": "node src/cli.mjs --suite r3-canvas --mode compare --report-only"
+  },
+  "dependencies": {
+    "playwright-core": "1.65.1",
+    "pngjs": "7.0.0"
+  },
+  "devDependencies": {
+    "perfect-freehand": "1.2.0",
+    "roughjs": "4.6.4"
+  }
+}

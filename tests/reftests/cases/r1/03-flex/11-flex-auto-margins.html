@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Auto margins inside flex container (navbar split)</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .nav { display: flex; align-items: center; gap: 8px; width: 360px; height: 56px; padding: 0 12px; margin: 20px; background: #1e293b; border-radius: 8px; }
+    .logo { width: 32px; height: 32px; background: #38bdf8; border-radius: 6px; }
+    .push { margin-left: auto; width: 56px; height: 28px; background: #a855f7; border-radius: 4px; }
+    .btn { width: 44px; height: 28px; background: #22c55e; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="nav"><div class="logo"></div><div class="push"></div><div class="btn"></div></div>
+</body>
+</html>

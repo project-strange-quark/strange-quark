@@ -1,0 +1,23 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Inline overflow clipping and text-overflow ellipsis</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 16px; line-height: 24px; padding: 16px; }
+    .clip { width: 180px; white-space: nowrap; overflow: hidden; border: 2px solid #475569; padding: 6px; margin-bottom: 12px; background: #f8fafc; }
+    .ell { text-overflow: ellipsis; }
+    .tall { width: 180px; height: 42px; overflow: hidden; border: 2px solid #0284c7; padding: 6px; background: #f0f9ff; }
+  </style>
+</head>
+<body>
+  <div class="clip" data-geom="clip-plain">This single line is clipped hard at 180 pixels wide</div>
+  <div class="clip ell" data-geom="clip-ellipsis">This single line truncates cleanly with an ellipsis</div>
+  <div class="tall" data-geom="clip-multiline">Line one of text. Line two of text. Line three is clipped vertically.</div>
+</body>
+</html>

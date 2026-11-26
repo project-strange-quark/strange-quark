@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":4,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>border-radius uniform and per-corner values</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 20px; padding: 28px; }
+    .a { width: 150px; height: 120px; background: #3b82f6; border-radius: 20px; }
+    .b { width: 150px; height: 120px; background: #10b981; border-radius: 4px 28px 48px 12px; }
+  </style>
+</head>
+<body>
+  <div class="a"></div><div class="b"></div>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>currentColor in borders, backgrounds, and box-shadow</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .parent { color: #7c3aed; padding: 20px; }
+    .box { width: 220px; height: 90px; border: 6px solid currentColor; padding: 12px; background: #f5f3ff; }
+    .inner { width: 100%; height: 100%; background: currentColor; }
+  </style>
+</head>
+<body>
+  <div class="parent"><div class="box"><div class="inner"></div></div></div>
+</body>
+</html>

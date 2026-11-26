@@ -1,0 +1,52 @@
+/* SPDX-License-Identifier: MIT */
+/* Shared bundled font definitions for R1 reftest cases so Chromium and
+   Strange Quark load identical font bytes regardless of host OS font config. */
+
+@font-face {
+  font-family: "TestSans";
+  src: url("./fonts/LiberationSans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "TestSans";
+  src: url("./fonts/LiberationSans-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "TestSans";
+  src: url("./fonts/LiberationSans-Italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "TestMono";
+  src: url("./fonts/LiberationMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "TestMonoTTF";
+  src: url("./fonts/LiberationMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "TestArabic";
+  src: url("./fonts/NotoNaskhArabic-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "TestAssistant";
+  src: url("./fonts/Assistant-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+}

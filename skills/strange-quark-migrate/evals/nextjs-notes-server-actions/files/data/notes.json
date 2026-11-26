@@ -1,0 +1,14 @@
+[
+  {
+    "id": "1",
+    "title": "Groceries",
+    "body": "Oat milk, rye bread",
+    "author": "dana"
+  },
+  {
+    "id": "2",
+    "title": "Ideas",
+    "body": "A native React renderer",
+    "author": "lee"
+  }
+]

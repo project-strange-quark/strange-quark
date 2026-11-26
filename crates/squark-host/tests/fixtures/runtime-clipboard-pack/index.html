@@ -1,0 +1,33 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Clipboard test</title>
+<body>
+<input>
+<script>
+  window.readClipboardText = () => {
+    window.clipboardReadResult = { settled: false };
+    navigator.clipboard.readText().then(
+      value => Object.assign(window.clipboardReadResult, { settled: true, value }),
+      error => Object.assign(window.clipboardReadResult, { settled: true, error: error.name }),
+    );
+  };
+  window.writeClipboardText = () => {
+    window.clipboardWriteResult = { settled: false };
+    navigator.clipboard.writeText("from page").then(
+      () => Object.assign(window.clipboardWriteResult, { settled: true }),
+      error => Object.assign(window.clipboardWriteResult, { settled: true, error: error.name }),
+    );
+  };
+  window.pasteFiles = null;
+  document.addEventListener("paste", event => {
+    window.pasteFiles = Array.from(event.clipboardData.files, file => ({
+      type: file.type,
+      size: file.size,
+    }));
+    event.preventDefault();
+  });
+</script>
+</body>
+</html>

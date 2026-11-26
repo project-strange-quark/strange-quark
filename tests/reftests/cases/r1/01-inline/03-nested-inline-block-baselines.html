@@ -1,0 +1,27 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Nested inline-block baselines</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 16px; line-height: 24px; padding: 16px; }
+    .row { border: 1px solid #cbd5e1; padding: 8px; margin-bottom: 12px; background: #f8fafc; }
+    .ib { display: inline-block; width: 72px; padding: 4px; border: 2px solid #2563eb; background: #dbeafe; }
+    .ib-empty { display: inline-block; width: 40px; height: 32px; border: 2px solid #16a34a; background: #dcfce7; }
+    .ib-clip { display: inline-block; width: 72px; padding: 4px; border: 2px solid #dc2626; background: #fee2e2; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div class="row" data-geom="ib-row-1">
+    Text <span class="ib" data-geom="ib-multi">line 1<br>line 2</span> <span class="ib-empty" data-geom="ib-empty"></span> end
+  </div>
+  <div class="row" data-geom="ib-row-2">
+    Before <span class="ib-clip" data-geom="ib-clip">clip 1<br>clip 2</span> after
+  </div>
+</body>
+</html>

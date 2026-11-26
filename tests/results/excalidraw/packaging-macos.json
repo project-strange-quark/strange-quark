@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-11-26T08:30:05.561Z",
+  "expectedTag": "v0.18.1",
+  "submodule": {
+    "commit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+    "tagCommit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+    "statusBefore": "",
+    "statusAfter": "",
+    "clean": true,
+    "matchesTag": true
+  },
+  "build": {
+    "command": "squark build vendor/excalidraw/excalidraw-app --skip-app-build --dist vendor/excalidraw/excalidraw-app/build --runtime target/dist/squark-runtime --config apps/excalidraw/squark.config.ts --out dist/excalidraw",
+    "appBuildCommand": "npx --yes yarn@1.22.22 --ignore-engines --cwd vendor/excalidraw/excalidraw-app vite build",
+    "runtimeBuildCommand": "cargo build --profile dist -p squark-host --bin squark-runtime",
+    "runtimeBuildDurationMs": 40719.17,
+    "appAndPackDurationMs": 13725.03,
+    "totalDurationMs": 54444.39,
+    "environment": {
+      "VITE_APP_DISABLE_SENTRY": "true",
+      "VITE_APP_ENABLE_PWA": "false",
+      "VITE_APP_ENABLE_TRACKING": "false",
+      "VITE_APP_ENABLE_ESLINT": "false",
+      "VITE_APP_WS_SERVER_URL": "",
+      "VITE_APP_FIREBASE_CONFIG": "{}"
+    },
+    "collaboration": {
+      "enabled": false,
+      "websocketUrl": ""
+    },
+    "config": "apps/excalidraw/squark.config.ts",
+    "runtime": {
+      "path": "target/dist/squark-runtime",
+      "profile": "dist",
+      "bytes": 67758080
+    }
+  },
+  "binary": {
+    "path": "dist/excalidraw.app",
+    "regularFile": true,
+    "executable": true,
+    "fileType": "Mach-O 64-bit executable arm64",
+    "elfHeader": null,
+    "class": "Mach-O 64-bit",
+    "type": "executable",
+    "machine": "arm64",
+    "sizeBytes": 89237826,
+    "sizeMiB": 85.1,
+    "sizeLimitBytes": 157286400,
+    "xz9Bytes": null,
+    "zstd19Bytes": null,
+    "debugSections": [],
+    "stripped": null,
+    "isolatedDirectoryContents": [
+      "excalidraw.app"
+    ],
+    "executablePath": "dist/excalidraw.app/Contents/MacOS/excalidraw",
+    "executableBytes": 67382256,
+    "infoPlist": {
+      "path": "dist/excalidraw.app/Contents/Info.plist",
+      "lint": "OK"
+    },
+    "codesign": {
+      "strict": true
+    }
+  },
+  "libraries": {
+    "lddOutput": null,
+    "resolved": [
+      {
+        "name": "AppKit",
+        "path": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit"
+      },
+      {
+        "name": "libSystem.B.dylib",
+        "path": "/usr/lib/libSystem.B.dylib"
+      },
+      {
+        "name": "UniformTypeIdentifiers",
+        "path": "/System/Library/Frameworks/UniformTypeIdentifiers.framework/Versions/A/UniformTypeIdentifiers"
+      },
+      {
+        "name": "CoreText",
+        "path": "/System/Library/Frameworks/CoreText.framework/Versions/A/CoreText"
+      },
+      {
+        "name": "ApplicationServices",
+        "path": "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices"
+      },
+      {
+        "name": "CoreGraphics",
+        "path": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics"
+      },
+      {
+        "name": "CoreVideo",
+        "path": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo"
+      },
+      {
+        "name": "Carbon",
+        "path": "/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon"
+      },
+      {
+        "name": "Foundation",
+        "path": "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+      },
+      {
+        "name": "libobjc.A.dylib",
+        "path": "/usr/lib/libobjc.A.dylib"
+      },
+      {
+        "name": "Security",
+        "path": "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+      },
+      {
+        "name": "CoreFoundation",
+        "path": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+      },
+      {
+        "name": "QuartzCore",
+        "path": "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore"
+      },
+      {
+        "name": "libiconv.2.dylib",
+        "path": "/usr/lib/libiconv.2.dylib"
+      },
+      {
+        "name": "Metal",
+        "path": "/System/Library/Frameworks/Metal.framework/Versions/A/Metal"
+      },
+      {
+        "name": "ColorSync",
+        "path": "/System/Library/Frameworks/ColorSync.framework/Versions/A/ColorSync"
+      },
+      {
+        "name": "CoreServices",
+        "path": "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices"
+      }
+    ],
+    "systemOnly": true,
+    "commonPackagesOnly": true,
+    "dynamicLoadInfo": {
+      "note": "otool -L lists Mach-O load commands; dyld resolves them from /usr/lib and /System/Library.",
+      "candidates": []
+    },
+    "otoolOutput": "dist/excalidraw.app/Contents/MacOS/excalidraw:\n\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2775.20.133)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.40.3)\n\t/System/Library/Frameworks/UniformTypeIdentifiers.framework/Versions/A/UniformTypeIdentifiers (compatibility version 1.0.0, current version 709.0.0)\n\t/System/Library/Frameworks/CoreText.framework/Versions/A/CoreText (compatibility version 1.0.0, current version 910.0.0)\n\t/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices (compatibility version 1.0.0, current version 66.0.0)\n\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 2050.1.6)\n\t/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo (compatibility version 1.2.0, current version 776.2.0)\n\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)\n\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 5027.1.8)\n\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)\n\t/System/Library/Frameworks/Security.framework/Versions/A/Security (compatibility version 1.0.0, current version 62460.40.78)\n\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 5027.1.8)\n\t/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore (compatibility version 1.2.0, current version 1223.10.17)\n\t/usr/lib/libiconv.2.dylib (compatibility version 7.0.0, current version 7.0.0)\n\t/System/Library/Frameworks/Metal.framework/Versions/A/Metal (compatibility version 1.0.0, current version 383.1.0)\n\t/System/Library/Frameworks/ColorSync.framework/Versions/A/ColorSync (compatibility version 1.0.0, current version 3929.1.5)\n\t/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices (compatibility version 1.0.0, current version 1226.0.0)"
+  },
+  "smoke": {
+    "ran": true,
+    "copiedBinaryOnly": true,
+    "appMounted": true,
+    "domEvalProbe": {
+      "dom": {
+        "canvas": {
+          "height": 800,
+          "width": 1280,
+          "x": 0,
+          "y": 0
+        },
+        "canvases": 2,
+        "dark": false,
+        "excalidraw": true,
+        "libraryOpen": false,
+        "theme": "light",
+        "toolbarButtons": 12,
+        "wysiwyg": null,
+        "zoomText": ""
+      },
+      "scene": {
+        "appState": null,
+        "elementCount": 0,
+        "elements": [],
+        "fileCount": null
+      },
+      "sceneError": null,
+      "sceneRawBytes": 0
+    }
+  },
+  "checks": {
+    "Excalidraw tag and cleanliness": {
+      "pass": true,
+      "detail": {
+        "commit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+        "tagCommit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+        "status": ""
+      }
+    },
+    "required build flags and collaboration disabled": {
+      "pass": true,
+      "detail": {
+        "disableSentry": "true",
+        "enablePwa": "false",
+        "enableTracking": "false",
+        "collaboration": {
+          "enabled": false,
+          "websocketUrl": ""
+        }
+      }
+    },
+    "stripped runtime build and Excalidraw pack": {
+      "pass": true,
+      "detail": {
+        "runtime": {
+          "path": "target/dist/squark-runtime",
+          "profile": "dist",
+          "bytes": 67758080
+        },
+        "runtimeBuildDurationMs": 40719.17,
+        "appAndPackDurationMs": 13725.03
+      }
+    },
+    "Mach-O app bundle, code signature and size limits": {
+      "pass": true,
+      "detail": {
+        "fileType": "Mach-O 64-bit executable arm64",
+        "class": "Mach-O 64-bit",
+        "type": "executable",
+        "machine": "arm64",
+        "sizeBytes": 89237826,
+        "executableBytes": 67382256,
+        "infoPlist": "OK",
+        "codesign": "valid"
+      }
+    },
+    "system libraries and package ownership": {
+      "pass": true,
+      "detail": {
+        "resolved": [
+          {
+            "name": "AppKit",
+            "path": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit"
+          },
+          {
+            "name": "libSystem.B.dylib",
+            "path": "/usr/lib/libSystem.B.dylib"
+          },
+          {
+            "name": "UniformTypeIdentifiers",
+            "path": "/System/Library/Frameworks/UniformTypeIdentifiers.framework/Versions/A/UniformTypeIdentifiers"
+          },
+          {
+            "name": "CoreText",
+            "path": "/System/Library/Frameworks/CoreText.framework/Versions/A/CoreText"
+          },
+          {
+            "name": "ApplicationServices",
+            "path": "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices"
+          },
+          {
+            "name": "CoreGraphics",
+            "path": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics"
+          },
+          {
+            "name": "CoreVideo",
+            "path": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo"
+          },
+          {
+            "name": "Carbon",
+            "path": "/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon"
+          },
+          {
+            "name": "Foundation",
+            "path": "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+          },
+          {
+            "name": "libobjc.A.dylib",
+            "path": "/usr/lib/libobjc.A.dylib"
+          },
+          {
+            "name": "Security",
+            "path": "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+          },
+          {
+            "name": "CoreFoundation",
+            "path": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+          },
+          {
+            "name": "QuartzCore",
+            "path": "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore"
+          },
+          {
+            "name": "libiconv.2.dylib",
+            "path": "/usr/lib/libiconv.2.dylib"
+          },
+          {
+            "name": "Metal",
+            "path": "/System/Library/Frameworks/Metal.framework/Versions/A/Metal"
+          },
+          {
+            "name": "ColorSync",
+            "path": "/System/Library/Frameworks/ColorSync.framework/Versions/A/ColorSync"
+          },
+          {
+            "name": "CoreServices",
+            "path": "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices"
+          }
+        ],
+        "systemOnly": true,
+        "commonPackagesOnly": true,
+        "dynamicLoadInfo": {
+          "note": "otool -L lists Mach-O load commands; dyld resolves them from /usr/lib and /System/Library.",
+          "candidates": []
+        }
+      }
+    },
+    "isolated headless test-control smoke": {
+      "pass": true,
+      "detail": {
+        "appMounted": true,
+        "canvases": 2,
+        "isolatedDirectoryContents": [
+          "excalidraw.app"
+        ]
+      }
+    },
+    "submodule remains clean after build": {
+      "pass": true,
+      "detail": {
+        "status": ""
+      }
+    }
+  },
+  "pass": true
+}

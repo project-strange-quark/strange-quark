@@ -1,0 +1,69 @@
+{
+  "requirement": "live reload: save to presented frame under 1000 ms",
+  "app": "shadcn",
+  "engine": "native",
+  "headless": true,
+  "squarkBin": "target/debug/squark",
+  "gpuAdapter": "software",
+  "vkIcd": "/usr/share/vulkan/icd.d/lvp_icd.json",
+  "iterations": 3,
+  "mountMs": 475.61,
+  "warmupMs": 187.11,
+  "fastRefreshKeptState": true,
+  "visibleChange": {
+    "diffPixels": 33521,
+    "diffRatio": 0.0327353515625,
+    "maxDelta": 240,
+    "before": "tests/results/interactive-apps/actual/hmr-before.png",
+    "after": "tests/results/interactive-apps/actual/hmr-after.png"
+  },
+  "saveToPresentedMs": {
+    "samples": [
+      66.47,
+      69.9,
+      99.12
+    ],
+    "min": 66.47,
+    "p50": 69.9,
+    "p95": 99.12,
+    "max": 99.12
+  },
+  "observedSaveToPresentedMs": {
+    "samples": [
+      62.73,
+      66.29,
+      70.03
+    ],
+    "min": 62.73,
+    "p50": 66.29,
+    "p95": 70.03,
+    "max": 70.03
+  },
+  "passed": true,
+  "cases": [
+    {
+      "marker": "SQUARK_HMR_2723196_0",
+      "frameId": 7,
+      "saveToPresentedMs": 99.12,
+      "saveToCommitMs": 31.27,
+      "commitToPresentedMs": 31.46,
+      "observedSaveToPresentedMs": 62.73
+    },
+    {
+      "marker": "SQUARK_HMR_2723196_1",
+      "frameId": 10,
+      "saveToPresentedMs": 69.9,
+      "saveToCommitMs": 34.1,
+      "commitToPresentedMs": 35.93,
+      "observedSaveToPresentedMs": 70.03
+    },
+    {
+      "marker": "SQUARK_HMR_2723196_2",
+      "frameId": 12,
+      "saveToPresentedMs": 66.47,
+      "saveToCommitMs": 39.36,
+      "commitToPresentedMs": 26.93,
+      "observedSaveToPresentedMs": 66.29
+    }
+  ]
+}

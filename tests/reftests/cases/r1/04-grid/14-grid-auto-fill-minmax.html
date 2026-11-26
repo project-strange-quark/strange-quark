@@ -1,0 +1,18 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Grid repeat(auto-fill, minmax(70px, 1fr))</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .g { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; width: 320px; padding: 12px; margin: 16px; background: #e2e8f0; }
+    .g > div { height: 48px; background: #0ea5e9; }
+  </style>
+</head>
+<body>
+  <div class="g"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+</body>
+</html>

@@ -1,0 +1,510 @@
+{
+  "goal": "Upstream Excalidraw v0.18.1 ships as one native Linux binary with zero source patches",
+  "referenceChromium": {
+    "path": "~/.cache/ms-playwright/chromium-1255/chrome-linux64/chrome",
+    "version": "Google Chrome for Testing 159.0.8154.6",
+    "playwright": {
+      "revision": "1255",
+      "browserVersion": "159.0.8154.6"
+    }
+  },
+  "packaging": {
+    "status": "passing",
+    "passed": true,
+    "source": "tests/results/excalidraw/packaging.json",
+    "expectedTag": "v0.18.1",
+    "submoduleCommit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+    "noPatches": true,
+    "oneBinary": true,
+    "stripped": true,
+    "sizeBytes": 100425074,
+    "sizeMiB": 95.77,
+    "sizeLimitBytes": 157286400,
+    "xz9Bytes": 35624672,
+    "zstd19Bytes": 37922209,
+    "systemLibsOnly": true,
+    "libraryCount": 12,
+    "isolatedSmoke": true
+  },
+  "startup": {
+    "status": "passing",
+    "passed": true,
+    "source": "tests/results/excalidraw/startup.json",
+    "adapter": "hardware",
+    "runs": 5,
+    "medianMs": 87.5,
+    "samplesMs": [
+      96.5,
+      169,
+      86.8,
+      87.1,
+      87.5
+    ],
+    "limitMs": 1500,
+    "cpuWeight": 10000,
+    "loadStart": [
+      7.14,
+      8.77,
+      6.9
+    ],
+    "loadEnd": [
+      7.14,
+      8.77,
+      6.9
+    ],
+    "runtime": {
+      "path": "target/dist/squark-runtime",
+      "profile": "dist",
+      "bytes": 78568856
+    },
+    "binary": {
+      "path": "target/excalidraw-native/excalidraw-native",
+      "bytes": 100425074
+    },
+    "v8CodeCache": {
+      "dir": "target/excalidraw/startup-cache",
+      "entriesAfterRuns": 0
+    },
+    "phaseMediansMs": {
+      "pack-v8-and-event-loop": 6.232,
+      "create-window": 0.71,
+      "initial-frame-tick": 0.002,
+      "instance-and-surface": 7.194,
+      "adapter": 4.574,
+      "device": 1.399,
+      "static-pipelines": 2.977,
+      "atlas-init": 0.002,
+      "surface-pipeline": 0.886,
+      "document-bootstrap-and-first-commit": 76.693,
+      "first-resource-drain-and-latch": 0.744,
+      "first-render-encode": 0.717,
+      "first-surface-present": 0.853,
+      "show-window": 0.003
+    }
+  },
+  "e2e": {
+    "headless": {
+      "source": "tests/results/excalidraw/e2e.json",
+      "windowed": false,
+      "gpuAdapter": "software",
+      "vkIcd": "/usr/share/vulkan/icd.d/lvp_icd.json",
+      "nativeMode": "gating",
+      "nativeStatus": "passing",
+      "sameFlow": true,
+      "domComparison": {
+        "status": "passing",
+        "matched": 20,
+        "total": 20,
+        "mismatched": 0
+      },
+      "chromium": {
+        "status": "passing",
+        "total": 20,
+        "passed": 20,
+        "failed": 0,
+        "blocked": 0
+      },
+      "native": {
+        "status": "passing",
+        "total": 20,
+        "passed": 20,
+        "failed": 0,
+        "blocked": 0
+      },
+      "status": "passing"
+    },
+    "windowed": {
+      "source": "tests/results/excalidraw/e2e-windowed.json",
+      "windowed": true,
+      "gpuAdapter": "auto",
+      "vkIcd": null,
+      "nativeMode": "gating",
+      "nativeStatus": "passing",
+      "sameFlow": true,
+      "domComparison": {
+        "status": "passing",
+        "matched": 20,
+        "total": 20,
+        "mismatched": 0
+      },
+      "chromium": {
+        "status": "passing",
+        "total": 20,
+        "passed": 20,
+        "failed": 0,
+        "blocked": 0
+      },
+      "native": {
+        "status": "passing",
+        "total": 20,
+        "passed": 20,
+        "failed": 0,
+        "blocked": 0
+      },
+      "status": "passing"
+    }
+  },
+  "scenes": {
+    "source": "tests/results/excalidraw/scenes/summary.json",
+    "chromium": {
+      "status": "passing",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "tolerance": {
+        "maxChannelDelta": 8,
+        "maxDiffRatio": 0.005
+      }
+    },
+    "native": {
+      "status": "passing",
+      "adapters": {
+        "software": "passing",
+        "auto": "passing"
+      }
+    },
+    "nativeByAdapter": {
+      "software": {
+        "status": "passing",
+        "source": "tests/results/excalidraw/scenes/summary.json",
+        "gpuAdapter": "software",
+        "vkIcd": "/usr/share/vulkan/icd.d/lvp_icd.json",
+        "total": 10,
+        "passed": 10,
+        "failed": 0,
+        "tolerance": {
+          "maxChannelDelta": 8,
+          "maxDiffRatio": 0.005
+        },
+        "minDiffRatio": 0.0017412109375,
+        "maxDiffRatio": 0.0045625,
+        "scenes": [
+          {
+            "id": "01-basic-shapes",
+            "pass": true,
+            "diffPixels": 4017,
+            "diffRatio": 0.0039228515625,
+            "maxDelta": 216
+          },
+          {
+            "id": "02-arrows-labels",
+            "pass": true,
+            "diffPixels": 3995,
+            "diffRatio": 0.0039013671875,
+            "maxDelta": 216
+          },
+          {
+            "id": "03-text-styles",
+            "pass": true,
+            "diffPixels": 3744,
+            "diffRatio": 0.00365625,
+            "maxDelta": 216
+          },
+          {
+            "id": "04-freedraw",
+            "pass": true,
+            "diffPixels": 1783,
+            "diffRatio": 0.0017412109375,
+            "maxDelta": 216
+          },
+          {
+            "id": "05-dark-mode",
+            "pass": true,
+            "diffPixels": 4323,
+            "diffRatio": 0.0042216796875,
+            "maxDelta": 216
+          },
+          {
+            "id": "06-groups",
+            "pass": true,
+            "diffPixels": 3371,
+            "diffRatio": 0.0032919921875,
+            "maxDelta": 216
+          },
+          {
+            "id": "07-rotated-opacity",
+            "pass": true,
+            "diffPixels": 3330,
+            "diffRatio": 0.003251953125,
+            "maxDelta": 216
+          },
+          {
+            "id": "08-image",
+            "pass": true,
+            "diffPixels": 2780,
+            "diffRatio": 0.00271484375,
+            "maxDelta": 216
+          },
+          {
+            "id": "09-frames",
+            "pass": true,
+            "diffPixels": 2141,
+            "diffRatio": 0.0020908203125,
+            "maxDelta": 216
+          },
+          {
+            "id": "10-mixed",
+            "pass": true,
+            "diffPixels": 4672,
+            "diffRatio": 0.0045625,
+            "maxDelta": 216
+          }
+        ]
+      },
+      "auto": {
+        "status": "passing",
+        "source": "tests/results/excalidraw/scenes/summary-auto.json",
+        "gpuAdapter": "auto",
+        "vkIcd": null,
+        "total": 10,
+        "passed": 10,
+        "failed": 0,
+        "tolerance": {
+          "maxChannelDelta": 8,
+          "maxDiffRatio": 0.005
+        },
+        "minDiffRatio": 0.0017626953125,
+        "maxDiffRatio": 0.0045849609375,
+        "scenes": [
+          {
+            "id": "01-basic-shapes",
+            "pass": true,
+            "diffPixels": 4039,
+            "diffRatio": 0.0039443359375,
+            "maxDelta": 216
+          },
+          {
+            "id": "02-arrows-labels",
+            "pass": true,
+            "diffPixels": 4017,
+            "diffRatio": 0.0039228515625,
+            "maxDelta": 216
+          },
+          {
+            "id": "03-text-styles",
+            "pass": true,
+            "diffPixels": 3766,
+            "diffRatio": 0.003677734375,
+            "maxDelta": 216
+          },
+          {
+            "id": "04-freedraw",
+            "pass": true,
+            "diffPixels": 1805,
+            "diffRatio": 0.0017626953125,
+            "maxDelta": 216
+          },
+          {
+            "id": "05-dark-mode",
+            "pass": true,
+            "diffPixels": 4343,
+            "diffRatio": 0.0042412109375,
+            "maxDelta": 216
+          },
+          {
+            "id": "06-groups",
+            "pass": true,
+            "diffPixels": 3394,
+            "diffRatio": 0.003314453125,
+            "maxDelta": 216
+          },
+          {
+            "id": "07-rotated-opacity",
+            "pass": true,
+            "diffPixels": 3352,
+            "diffRatio": 0.0032734375,
+            "maxDelta": 216
+          },
+          {
+            "id": "08-image",
+            "pass": true,
+            "diffPixels": 2803,
+            "diffRatio": 0.0027373046875,
+            "maxDelta": 216
+          },
+          {
+            "id": "09-frames",
+            "pass": true,
+            "diffPixels": 2161,
+            "diffRatio": 0.0021103515625,
+            "maxDelta": 216
+          },
+          {
+            "id": "10-mixed",
+            "pass": true,
+            "diffPixels": 4695,
+            "diffRatio": 0.0045849609375,
+            "maxDelta": 216
+          }
+        ]
+      }
+    },
+    "status": "passing"
+  },
+  "pan": {
+    "status": "passing",
+    "passed": true,
+    "valid": true,
+    "invalidReasons": [],
+    "reportOnly": false,
+    "source": "tests/results/excalidraw/pan.json",
+    "driver": "crates/squark-host/tests/fixtures/excalidraw-pan-driver.mjs",
+    "runner": "scripts/check-excalidraw-pan.sh",
+    "adapter": "AMD Radeon RX 9060 XT (RADV GFX1200)",
+    "cpuWeight": 10000,
+    "loadStart": [
+      6.46,
+      7.75,
+      6.81
+    ],
+    "loadEnd": [
+      5.94,
+      7.62,
+      6.78
+    ],
+    "elements": 1000,
+    "scrollStart": 310,
+    "scrollEnd": -754,
+    "expectedScroll": -754,
+    "slots": 300,
+    "wheelEvents": 300,
+    "pageWheelEvents": 300,
+    "canvasWheelEvents": 300,
+    "viewport": [
+      1280,
+      800
+    ],
+    "submitted": 300,
+    "fresh": 300,
+    "onTimeSlots": 300,
+    "deadlineRatio": 1,
+    "minDeadlineRatio": 1,
+    "medianDeadlineRatio": 1,
+    "limitRatio": 0.95,
+    "commitLatenessP95Ms": -11.39,
+    "tickToCommitP95Ms": 2.322,
+    "latchAndEncodeP95Ms": 2.973,
+    "submitIntervalP95Ms": 18.436,
+    "runCount": 3,
+    "runs": [
+      {
+        "run": 1,
+        "valid": true,
+        "invalidReasons": [],
+        "passed": true,
+        "onTimeSlots": 300,
+        "slots": 300,
+        "deadlineRatio": 1,
+        "wheelEvents": 300,
+        "pageWheelEvents": 300,
+        "canvasWheelEvents": 300,
+        "scrollStart": 310,
+        "scrollEnd": -754,
+        "expectedScroll": -754,
+        "viewport": [
+          1280,
+          800
+        ],
+        "fresh": 300,
+        "submitted": 300,
+        "commitLatenessP95Ms": -11.912,
+        "tickToCommitP95Ms": 2.078,
+        "latchAndEncodeP95Ms": 2.818,
+        "submitIntervalP95Ms": 17.176,
+        "cpuWeight": 10000,
+        "loadStart": [
+          7.54,
+          8,
+          6.88
+        ],
+        "loadEnd": [
+          6.93,
+          7.87,
+          6.85
+        ],
+        "timeline": "target/excalidraw/pan/run-1/timeline.json"
+      },
+      {
+        "run": 2,
+        "valid": true,
+        "invalidReasons": [],
+        "passed": true,
+        "onTimeSlots": 300,
+        "slots": 300,
+        "deadlineRatio": 1,
+        "wheelEvents": 300,
+        "pageWheelEvents": 300,
+        "canvasWheelEvents": 300,
+        "scrollStart": 310,
+        "scrollEnd": -754,
+        "expectedScroll": -754,
+        "viewport": [
+          1280,
+          800
+        ],
+        "fresh": 300,
+        "submitted": 300,
+        "commitLatenessP95Ms": -11.39,
+        "tickToCommitP95Ms": 2.322,
+        "latchAndEncodeP95Ms": 2.973,
+        "submitIntervalP95Ms": 18.436,
+        "cpuWeight": 10000,
+        "loadStart": [
+          6.46,
+          7.75,
+          6.81
+        ],
+        "loadEnd": [
+          5.94,
+          7.62,
+          6.78
+        ],
+        "timeline": "target/excalidraw/pan/run-2/timeline.json"
+      },
+      {
+        "run": 3,
+        "valid": true,
+        "invalidReasons": [],
+        "passed": true,
+        "onTimeSlots": 300,
+        "slots": 300,
+        "deadlineRatio": 1,
+        "wheelEvents": 300,
+        "pageWheelEvents": 300,
+        "canvasWheelEvents": 300,
+        "scrollStart": 310,
+        "scrollEnd": -754,
+        "expectedScroll": -754,
+        "viewport": [
+          1280,
+          800
+        ],
+        "fresh": 300,
+        "submitted": 300,
+        "commitLatenessP95Ms": -11.824,
+        "tickToCommitP95Ms": 2.151,
+        "latchAndEncodeP95Ms": 2.855,
+        "submitIntervalP95Ms": 17.888,
+        "cpuWeight": 10000,
+        "loadStart": [
+          5.94,
+          7.62,
+          6.78
+        ],
+        "loadEnd": [
+          5.46,
+          7.5,
+          6.74
+        ],
+        "timeline": "target/excalidraw/pan/run-3/timeline.json"
+      }
+    ]
+  },
+  "checks": {
+    "checkSh": "passed",
+    "lavapipe": "passed"
+  },
+  "generatedBy": "tests/excalidraw/src/summary.mjs",
+  "verdict": "passing",
+  "blockers": []
+}

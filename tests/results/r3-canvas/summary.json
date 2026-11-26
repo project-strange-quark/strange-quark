@@ -1,0 +1,237 @@
+{
+  "suite": "r3-canvas",
+  "mode": "compare",
+  "gpuAdapter": "software",
+  "total": 15,
+  "passed": 15,
+  "failed": 0,
+  "renderErrors": 0,
+  "passRate": 1,
+  "cases": [
+    {
+      "id": "01-rough/01-rough-shapes",
+      "pass": true,
+      "diffRatio": 0.016100260416666668,
+      "maxDelta": 137,
+      "diffPixels": 2473,
+      "meanChannelError": 0.31580729166666666,
+      "diffBounds": {
+        "x": 18,
+        "y": 15,
+        "width": 434,
+        "height": 287
+      },
+      "reason": null
+    },
+    {
+      "id": "01-rough/02-rough-dashes",
+      "pass": true,
+      "diffRatio": 0.011295572916666666,
+      "maxDelta": 112,
+      "diffPixels": 1735,
+      "meanChannelError": 0.21417154947916667,
+      "diffBounds": {
+        "x": 22,
+        "y": 22,
+        "width": 430,
+        "height": 280
+      },
+      "reason": null
+    },
+    {
+      "id": "02-freedraw/01-freehand-strokes",
+      "pass": true,
+      "diffRatio": 0.00591796875,
+      "maxDelta": 110,
+      "diffPixels": 909,
+      "meanChannelError": 0.08916178385416666,
+      "diffBounds": {
+        "x": 23,
+        "y": 58,
+        "width": 438,
+        "height": 235
+      },
+      "reason": null
+    },
+    {
+      "id": "02-freedraw/02-freehand-pressure",
+      "pass": true,
+      "diffRatio": 0.010149739583333333,
+      "maxDelta": 113,
+      "diffPixels": 1559,
+      "meanChannelError": 0.12375162760416666,
+      "diffBounds": {
+        "x": 22,
+        "y": 41,
+        "width": 437,
+        "height": 236
+      },
+      "reason": null
+    },
+    {
+      "id": "03-text/01-text-align-baseline",
+      "pass": true,
+      "diffRatio": 0.016458333333333332,
+      "maxDelta": 134,
+      "diffPixels": 2528,
+      "meanChannelError": 0.32722819010416665,
+      "diffBounds": {
+        "x": 6,
+        "y": 22,
+        "width": 434,
+        "height": 228
+      },
+      "reason": null
+    },
+    {
+      "id": "03-text/02-text-measure-layout",
+      "pass": true,
+      "diffRatio": 0.016139322916666667,
+      "maxDelta": 233,
+      "diffPixels": 2479,
+      "meanChannelError": 0.53412109375,
+      "diffBounds": {
+        "x": 19,
+        "y": 30,
+        "width": 389,
+        "height": 287
+      },
+      "reason": null
+    },
+    {
+      "id": "04-state/01-alpha-save-restore",
+      "pass": true,
+      "diffRatio": 0.00703125,
+      "maxDelta": 220,
+      "diffPixels": 1080,
+      "meanChannelError": 0.40978352864583334,
+      "diffBounds": {
+        "x": 240,
+        "y": 217,
+        "width": 78,
+        "height": 73
+      },
+      "reason": null
+    },
+    {
+      "id": "04-state/02-transforms",
+      "pass": true,
+      "diffRatio": 0.0016666666666666668,
+      "maxDelta": 53,
+      "diffPixels": 256,
+      "meanChannelError": 0.027980143229166667,
+      "diffBounds": {
+        "x": 71,
+        "y": 67,
+        "width": 98,
+        "height": 86
+      },
+      "reason": null
+    },
+    {
+      "id": "04-state/03-clip-roundrect",
+      "pass": true,
+      "diffRatio": 0.0012825520833333332,
+      "maxDelta": 49,
+      "diffPixels": 197,
+      "meanChannelError": 0.0163134765625,
+      "diffBounds": {
+        "x": 30,
+        "y": 30,
+        "width": 400,
+        "height": 211
+      },
+      "reason": null
+    },
+    {
+      "id": "05-images/01-drawimage-canvas",
+      "pass": true,
+      "diffRatio": 0.007239583333333333,
+      "maxDelta": 74,
+      "diffPixels": 1112,
+      "meanChannelError": 0.12225260416666667,
+      "diffBounds": {
+        "x": 56,
+        "y": 26,
+        "width": 355,
+        "height": 259
+      },
+      "reason": null
+    },
+    {
+      "id": "05-images/02-drawimage-smoothing",
+      "pass": true,
+      "diffRatio": 0.01232421875,
+      "maxDelta": 238,
+      "diffPixels": 1893,
+      "meanChannelError": 0.5679850260416667,
+      "diffBounds": {
+        "x": 20,
+        "y": 20,
+        "width": 430,
+        "height": 225
+      },
+      "reason": null
+    },
+    {
+      "id": "06-paths/01-path2d-svg-data",
+      "pass": true,
+      "diffRatio": 0.00779296875,
+      "maxDelta": 79,
+      "diffPixels": 1197,
+      "meanChannelError": 0.121044921875,
+      "diffBounds": {
+        "x": 41,
+        "y": 8,
+        "width": 361,
+        "height": 283
+      },
+      "reason": null
+    },
+    {
+      "id": "06-paths/02-roundrect-arc-ellipse",
+      "pass": true,
+      "diffRatio": 0.013854166666666667,
+      "maxDelta": 128,
+      "diffPixels": 2128,
+      "meanChannelError": 0.27420735677083335,
+      "diffBounds": {
+        "x": 18,
+        "y": 18,
+        "width": 429,
+        "height": 269
+      },
+      "reason": null
+    },
+    {
+      "id": "07-dark-mode/01-canvas-filter-invert-hue",
+      "pass": true,
+      "diffRatio": 0.0023893229166666668,
+      "maxDelta": 88,
+      "diffPixels": 367,
+      "meanChannelError": 0.14942220052083333,
+      "diffBounds": {
+        "x": 42,
+        "y": 38,
+        "width": 396,
+        "height": 254
+      },
+      "reason": null
+    },
+    {
+      "id": "07-dark-mode/02-css-filter-canvas",
+      "pass": true,
+      "diffRatio": 0.002421875,
+      "maxDelta": 88,
+      "diffPixels": 372,
+      "meanChannelError": 0.05757161458333333,
+      "diffBounds": {
+        "x": 42,
+        "y": 38,
+        "width": 396,
+        "height": 254
+      },
+      "reason": null
+    }
+  ]
+}

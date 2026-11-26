@@ -1,0 +1,37 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>File dialog test</title>
+<body>
+<input id="picker" type="file" accept=".txt,text/plain">
+<script>
+  const picker = document.getElementById("picker");
+  window.openResult = null;
+  window.cancelCount = 0;
+  window.dialogErrors = [];
+  window.addEventListener("error", event => window.dialogErrors.push(event.message));
+  window.addEventListener("unhandledrejection", event => window.dialogErrors.push(String(event.reason)));
+  picker.addEventListener("change", async () => {
+    const file = picker.files[0];
+    window.openResult = {
+      settled: false,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      text: await file.text(),
+    };
+    window.openResult.settled = true;
+  });
+  picker.addEventListener("cancel", () => window.cancelCount++);
+  window.openPicker = () => picker.click();
+  window.saveFile = () => {
+    const blob = new Blob(["saved from a queued dialog\n"], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.download = "suggested.txt";
+    link.href = URL.createObjectURL(blob);
+    link.click();
+  };
+</script>
+</body>
+</html>

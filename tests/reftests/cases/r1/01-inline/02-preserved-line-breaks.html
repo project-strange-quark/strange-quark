@@ -1,0 +1,28 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Preserved line breaks and white-space modes</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestMono", monospace; font-size: 13px; line-height: 20px; padding: 12px; }
+    .blk { width: 200px; border: 1px solid #94a3b8; padding: 6px; margin-bottom: 8px; background: #f1f5f9; }
+    .pre { white-space: pre; }
+    .pre-wrap { white-space: pre-wrap; }
+    .pre-line { white-space: pre-line; }
+    .br-box { white-space: normal; }
+  </style>
+</head>
+<body>
+  <div class="blk pre" data-geom="ws-pre">A   B
+    C  D</div>
+  <div class="blk pre-wrap" data-geom="ws-pre-wrap">Long   preserved   line   that wraps inside 200px</div>
+  <div class="blk pre-line" data-geom="ws-pre-line">Collapsed   spaces
+  kept newline</div>
+  <div class="blk br-box" data-geom="ws-br">Line one<br>Line two<br>Line three</div>
+</body>
+</html>

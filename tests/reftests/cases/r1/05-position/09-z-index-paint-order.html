@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>z-index paint order among positioned siblings</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .stage { position: relative; width: 320px; height: 220px; margin: 20px; }
+    .b { position: absolute; width: 120px; height: 120px; }
+    .z1 { left: 20px; top: 20px; background: #ef4444; z-index: 3; }
+    .z2 { left: 70px; top: 50px; background: #3b82f6; z-index: 1; }
+    .z3 { left: 120px; top: 80px; background: #10b981; z-index: 2; }
+  </style>
+</head>
+<body>
+  <div class="stage"><div class="b z1"></div><div class="b z2"></div><div class="b z3"></div></div>
+</body>
+</html>

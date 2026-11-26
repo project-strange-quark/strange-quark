@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-11-26T13:48:04.579Z",
+  "expectedTag": "v0.18.1",
+  "submodule": {
+    "commit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+    "tagCommit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+    "statusBefore": "",
+    "statusAfter": "",
+    "clean": true,
+    "matchesTag": true
+  },
+  "build": {
+    "command": "squark build vendor/excalidraw/excalidraw-app --skip-app-build --dist vendor/excalidraw/excalidraw-app/build --runtime target/dist/squark-runtime --config apps/excalidraw/squark.config.ts --out dist/excalidraw",
+    "appBuildCommand": "npx --yes yarn@1.22.22 --ignore-engines --cwd vendor/excalidraw/excalidraw-app vite build",
+    "runtimeBuildCommand": "cargo build --profile dist -p squark-host --bin squark-runtime",
+    "runtimeBuildDurationMs": 602.43,
+    "appAndPackDurationMs": 15943.79,
+    "totalDurationMs": 16546.59,
+    "environment": {
+      "VITE_APP_DISABLE_SENTRY": "true",
+      "VITE_APP_ENABLE_PWA": "false",
+      "VITE_APP_ENABLE_TRACKING": "false",
+      "VITE_APP_ENABLE_ESLINT": "false",
+      "VITE_APP_WS_SERVER_URL": "",
+      "VITE_APP_FIREBASE_CONFIG": "{}"
+    },
+    "collaboration": {
+      "enabled": false,
+      "websocketUrl": ""
+    },
+    "config": "apps/excalidraw/squark.config.ts",
+    "runtime": {
+      "path": "target/dist/squark-runtime.exe",
+      "profile": "dist",
+      "bytes": 73314304
+    }
+  },
+  "binary": {
+    "path": "dist/excalidraw.exe",
+    "regularFile": true,
+    "executable": true,
+    "fileType": "PE32+ x86-64 GUI",
+    "elfHeader": null,
+    "class": "PE32+",
+    "type": "executable",
+    "machine": "x86-64",
+    "sizeBytes": 95169906,
+    "sizeMiB": 90.76,
+    "sizeLimitBytes": 157286400,
+    "xz9Bytes": null,
+    "zstd19Bytes": null,
+    "debugSections": [],
+    "stripped": null,
+    "isolatedDirectoryContents": [
+      "excalidraw.exe"
+    ],
+    "subsystem": "GUI"
+  },
+  "libraries": {
+    "lddOutput": null,
+    "resolved": [],
+    "systemOnly": null,
+    "commonPackagesOnly": null,
+    "dynamicLoadInfo": {
+      "note": "Not checked on Windows: the PE import table is not read yet."
+    }
+  },
+  "smoke": {
+    "ran": true,
+    "copiedBinaryOnly": true,
+    "appMounted": true,
+    "domEvalProbe": {
+      "dom": {
+        "canvas": {
+          "height": 800,
+          "width": 1280,
+          "x": 0,
+          "y": 0
+        },
+        "canvases": 2,
+        "dark": false,
+        "excalidraw": true,
+        "libraryOpen": false,
+        "theme": "light",
+        "toolbarButtons": 12,
+        "wysiwyg": null,
+        "zoomText": ""
+      },
+      "scene": {
+        "appState": {
+          "activeTool": "selection",
+          "scrollX": 0,
+          "scrollY": 0,
+          "selectedElementIds": [],
+          "theme": "light",
+          "viewBackgroundColor": "#ffffff",
+          "zoom": {
+            "value": 1
+          }
+        },
+        "elementCount": 0,
+        "elements": [],
+        "fileCount": null
+      },
+      "sceneError": null,
+      "sceneRawBytes": 1270
+    }
+  },
+  "checks": {
+    "Excalidraw tag and cleanliness": {
+      "pass": true,
+      "detail": {
+        "commit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+        "tagCommit": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+        "status": ""
+      }
+    },
+    "required build flags and collaboration disabled": {
+      "pass": true,
+      "detail": {
+        "disableSentry": "true",
+        "enablePwa": "false",
+        "enableTracking": "false",
+        "collaboration": {
+          "enabled": false,
+          "websocketUrl": ""
+        }
+      }
+    },
+    "stripped runtime build and Excalidraw pack": {
+      "pass": true,
+      "detail": {
+        "runtime": {
+          "path": "target/dist/squark-runtime.exe",
+          "profile": "dist",
+          "bytes": 73314304
+        },
+        "runtimeBuildDurationMs": 602.43,
+        "appAndPackDurationMs": 15943.79
+      }
+    },
+    "PE executable, GUI subsystem and size limits": {
+      "pass": true,
+      "detail": {
+        "fileType": "PE32+ x86-64 GUI",
+        "machine": "x86-64",
+        "subsystem": "GUI",
+        "sizeBytes": 95169906
+      }
+    },
+    "system libraries and package ownership": {
+      "pass": true,
+      "detail": {
+        "checked": false
+      }
+    },
+    "isolated headless test-control smoke": {
+      "pass": true,
+      "detail": {
+        "appMounted": true,
+        "canvases": 2,
+        "isolatedDirectoryContents": [
+          "excalidraw.exe"
+        ]
+      }
+    },
+    "submodule remains clean after build": {
+      "pass": true,
+      "detail": {
+        "status": ""
+      }
+    }
+  },
+  "pass": true
+}

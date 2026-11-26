@@ -1,0 +1,30 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Fullscreen test</title>
+<style>
+  body { margin: 0; }
+  #toggle { position: absolute; left: 0; top: 0; width: 60px; height: 40px; }
+</style>
+<body>
+<button id="toggle">Toggle</button>
+<script>
+  window.log = [];
+  window.errors = [];
+  addEventListener("error", event => errors.push(String(event.message)));
+  addEventListener("unhandledrejection", event => errors.push(String(event.reason)));
+  document.addEventListener("fullscreenchange", event => {
+    log.push(`change:${event.target.nodeName}:${document.fullscreenElement?.nodeName ?? null}`);
+  });
+  document.addEventListener("fullscreenerror", event => log.push(`error:${event.target.nodeName}`));
+  // A click toggles fullscreen, the way an app's button does.
+  document.getElementById("toggle").addEventListener("click", () => {
+    const work = document.fullscreenElement === null
+      ? document.documentElement.requestFullscreen()
+      : document.exitFullscreen();
+    work.then(() => log.push("resolved"), error => log.push(`rejected:${error.name}`));
+  });
+</script>
+</body>
+</html>

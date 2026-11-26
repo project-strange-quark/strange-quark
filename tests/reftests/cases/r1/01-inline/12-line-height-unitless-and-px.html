@@ -1,0 +1,24 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Line-height unitless, px, and percentage</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 16px; padding: 12px; }
+    .b { width: 160px; border: 1px solid #94a3b8; margin-bottom: 10px; padding: 4px; background: #f8fafc; }
+    .lh1 { line-height: 1.2; }
+    .lh2 { line-height: 2; }
+    .lh3 { line-height: 28px; }
+  </style>
+</head>
+<body>
+  <div class="b lh1">Unitless 1.2 wraps across two lines here.</div>
+  <div class="b lh2">Unitless 2.0 wraps across two lines here.</div>
+  <div class="b lh3">Fixed 28px wraps across two lines here.</div>
+</body>
+</html>

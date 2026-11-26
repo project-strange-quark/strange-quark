@@ -1,0 +1,39 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":375,"height":140,"dpr":1,"maxChannelDelta":14,"maxDiffRatio":0.025} -->
+<!doctype html>
+<meta charset="utf-8">
+<title>Select current labels, intrinsic widths and list rows</title>
+<style>
+  body { margin: 12px; }
+  .row { display: flex; align-items: start; gap: 12px; margin-bottom: 10px; }
+  .plain { appearance: none; border: 1px solid #64748b; background: white; color: #334155; }
+</style>
+<div class="row">
+  <select id="menu" data-geom="menu" aria-label="Active menu">
+    <option value="first">First</option>
+    <option value="second" label="Longer Option">Different option text</option>
+  </select>
+  <select class="plain" data-geom="plain" aria-label="Styled menu">
+    <option disabled>Disabled option</option>
+    <option selected>Selected</option>
+  </select>
+  <select data-geom="disabled" disabled aria-label="Disabled menu">
+    <option>Not available</option>
+  </select>
+</div>
+<div class="row">
+  <select data-geom="list" size="3" aria-label="List">
+    <option>First</option>
+    <option selected>Longer Option</option>
+    <option>Last</option>
+  </select>
+  <select data-geom="multiple" multiple aria-label="Multiple options">
+    <optgroup label="Group">
+      <option>First</option>
+      <option selected>Longer Option</option>
+    </optgroup>
+  </select>
+</div>
+<script>
+  document.getElementById("menu").value = "second";
+</script>

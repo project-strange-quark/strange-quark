@@ -1,0 +1,72 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>perfect-freehand freedraw strokes</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script type="module">
+    import { getStroke } from "../_assets/lib/perfect-freehand.mjs";
+    import { outlineToPath } from "../_assets/r3.js";
+
+    const ctx = document.getElementById("c").getContext("2d");
+
+    // A wavy stroke, the shape Excalidraw records for a freedraw element.
+    const wave = [];
+    for (let x = 30; x <= 450; x += 6) {
+      wave.push([x, 110 + Math.sin(x / 26) * 42]);
+    }
+    const waveStroke = getStroke(wave, {
+      size: 20,
+      thinning: 0.5,
+      smoothing: 0.6,
+      streamline: 0.4,
+      last: true,
+    });
+    ctx.fillStyle = "#1e293b";
+    ctx.fill(outlineToPath(waveStroke));
+
+    // A closed-ish loop with simulated pressure.
+    const loop = [
+      [110, 260],
+      [170, 210],
+      [250, 230],
+      [300, 290],
+      [220, 305],
+      [150, 280],
+      [110, 260],
+    ].map(([x, y], index, all) => [x, y, 0.3 + (0.7 * index) / (all.length - 1)]);
+    const loopStroke = getStroke(loop, {
+      size: 26,
+      thinning: 0.7,
+      smoothing: 0.4,
+      streamline: 0.3,
+      last: true,
+    });
+    ctx.fillStyle = "rgba(190, 18, 60, 0.85)";
+    ctx.fill(outlineToPath(loopStroke));
+
+    // The same points with no pressure simulation: a thinner, tapered stroke.
+    const plain = [
+      [330, 250],
+      [370, 200],
+      [410, 240],
+      [450, 190],
+    ];
+    const plainStroke = getStroke(plain, {
+      size: 18,
+      thinning: 0.9,
+      simulatePressure: false,
+      smoothing: 0.7,
+      streamline: 0.5,
+      last: true,
+    });
+    ctx.fillStyle = "#0369a1";
+    ctx.fill(outlineToPath(plainStroke));
+  </script>
+</body>
+</html>

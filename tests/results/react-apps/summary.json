@@ -1,0 +1,217 @@
+{
+  "gpuAdapter": "auto",
+  "tolerance": {
+    "maxChannelDelta": 8,
+    "maxDiffRatio": 0.005,
+    "domState": "exact"
+  },
+  "reactDom": {
+    "reactVersion": "19.0.0",
+    "upstreamCommit": "7aa5dda3b3e4c2baa905a59b922ae7ec14734b24",
+    "suitesTotal": 10,
+    "allowlistPassing": 520,
+    "excluded": 41,
+    "total": 561,
+    "verifiedPassed": 520,
+    "suites": {
+      "ReactDOMRoot-test.js": {
+        "passing": 23,
+        "excluded": 4,
+        "total": 27
+      },
+      "ReactDOMAttribute-test.js": {
+        "passing": 13,
+        "excluded": 0,
+        "total": 13
+      },
+      "ReactDOMComponent-test.js": {
+        "passing": 149,
+        "excluded": 14,
+        "total": 163
+      },
+      "ReactDOMTextComponent-test.js": {
+        "passing": 8,
+        "excluded": 1,
+        "total": 9
+      },
+      "ReactDOMEventListener-test.js": {
+        "passing": 20,
+        "excluded": 3,
+        "total": 23
+      },
+      "ReactDOMEventPropagation-test.js": {
+        "passing": 87,
+        "excluded": 0,
+        "total": 87
+      },
+      "ReactDOMNestedEvents-test.js": {
+        "passing": 1,
+        "excluded": 0,
+        "total": 1
+      },
+      "ReactDOMInput-test.js": {
+        "passing": 111,
+        "excluded": 13,
+        "total": 124
+      },
+      "ReactDOMSelect-test.js": {
+        "passing": 57,
+        "excluded": 4,
+        "total": 61
+      },
+      "ReactDOMTextarea-test.js": {
+        "passing": 51,
+        "excluded": 2,
+        "total": 53
+      }
+    }
+  },
+  "wpt": {
+    "revision": "f4d3f2eba09697ebcb2f338b8f2d709a3ce85217",
+    "totalFiles": 20,
+    "totalSubtests": 203,
+    "passed": 203,
+    "failed": 0,
+    "passRate": 1,
+    "requiredPassRate": 0.95,
+    "meetsRequiredPassRate": true
+  },
+  "apps": {
+    "counter": {
+      "app": "counter",
+      "pass": true,
+      "error": null,
+      "checkpointsTotal": 5,
+      "checkpointsPassed": 5,
+      "checkpointsExactMatch": true,
+      "checkpoints": [
+        {
+          "name": "initial",
+          "pass": true
+        },
+        {
+          "name": "after-inc-3",
+          "pass": true
+        },
+        {
+          "name": "after-dec-1",
+          "pass": true
+        },
+        {
+          "name": "after-step-5-inc-2",
+          "pass": true
+        },
+        {
+          "name": "after-reset",
+          "pass": true
+        }
+      ],
+      "screenshotsTotal": 2,
+      "screenshotsPassed": 2,
+      "screenshots": [
+        {
+          "name": "counter-initial",
+          "pass": true,
+          "diffRatio": 0.004489583333333333,
+          "maxDelta": 80,
+          "diffPixels": 2155,
+          "meanChannelError": 0.09803489583333333,
+          "reason": null
+        },
+        {
+          "name": "counter-after-ops",
+          "pass": true,
+          "diffRatio": 0.004929166666666667,
+          "maxDelta": 142,
+          "diffPixels": 2366,
+          "meanChannelError": 0.106778125,
+          "reason": null
+        }
+      ]
+    },
+    "todomvc": {
+      "app": "todomvc",
+      "pass": true,
+      "error": null,
+      "checkpointsTotal": 9,
+      "checkpointsPassed": 9,
+      "checkpointsExactMatch": true,
+      "checkpoints": [
+        {
+          "name": "initial",
+          "pass": true
+        },
+        {
+          "name": "added-3",
+          "pass": true
+        },
+        {
+          "name": "toggled-2nd",
+          "pass": true
+        },
+        {
+          "name": "filter-active",
+          "pass": true
+        },
+        {
+          "name": "filter-completed",
+          "pass": true
+        },
+        {
+          "name": "cleared-completed",
+          "pass": true
+        },
+        {
+          "name": "edited-1st",
+          "pass": true
+        },
+        {
+          "name": "deleted-2nd",
+          "pass": true
+        },
+        {
+          "name": "toggle-all",
+          "pass": true
+        }
+      ],
+      "screenshotsTotal": 3,
+      "screenshotsPassed": 3,
+      "screenshots": [
+        {
+          "name": "todomvc-added",
+          "pass": true,
+          "diffRatio": 0.0028333333333333335,
+          "maxDelta": 70,
+          "diffPixels": 1360,
+          "meanChannelError": 0.16214739583333335,
+          "reason": null
+        },
+        {
+          "name": "todomvc-completed",
+          "pass": true,
+          "diffRatio": 0.00205,
+          "maxDelta": 174,
+          "diffPixels": 984,
+          "meanChannelError": 0.139040625,
+          "reason": null
+        },
+        {
+          "name": "todomvc-final",
+          "pass": true,
+          "diffRatio": 0.0018354166666666666,
+          "maxDelta": 70,
+          "diffPixels": 881,
+          "meanChannelError": 0.13106979166666666,
+          "reason": null
+        }
+      ]
+    }
+  },
+  "r1": {
+    "passed": 149,
+    "failed": 1,
+    "total": 150,
+    "passRate": 0.9933333333333333
+  },
+  "pass": true
+}

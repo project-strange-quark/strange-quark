@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+[package]
+name = "squark-paint"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+color = "=0.3.3"
+glam = { version = "=0.34.3", default-features = false, features = ["std"] }
+squark-types = { version = "=0.0.0", path = "../squark-types" }
+kurbo = "=0.13.1"
+
+[lints]
+workspace = true

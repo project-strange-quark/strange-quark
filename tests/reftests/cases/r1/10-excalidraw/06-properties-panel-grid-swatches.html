@@ -1,0 +1,32 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Excalidraw properties panel 5-column swatch grid with active outline</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestAssistant", sans-serif; background: #f8f9fa; padding: 24px; }
+    .panel { width: 204px; padding: 12px; background: #ffffff; border-radius: 10px; border: 1px solid #e5e5ea; }
+    .lbl { font-size: 12px; color: #495057; margin-bottom: 8px; }
+    .swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    .s { height: 28px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.12); }
+    .s.sel { outline: 2px solid #6965db; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="lbl">Stroke</div>
+    <div class="swatches">
+      <div class="s sel" style="background:#1e1e1e"></div>
+      <div class="s" style="background:#e03131"></div>
+      <div class="s" style="background:#2f9e44"></div>
+      <div class="s" style="background:#1971c2"></div>
+      <div class="s" style="background:#f08c00"></div>
+    </div>
+  </div>
+</body>
+</html>

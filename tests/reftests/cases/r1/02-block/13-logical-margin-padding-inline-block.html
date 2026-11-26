@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Logical margin-inline/block and padding-inline/block properties</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .wrap { width: 300px; border: 2px solid #475569; margin-block: 20px; margin-inline: 32px; background: #f8fafc; }
+    .box { padding-inline-start: 28px; padding-inline-end: 10px; padding-block: 14px; background: #dbeafe; }
+    .inner { height: 44px; margin-inline-start: 16px; background: #2563eb; }
+    .rtl { direction: rtl; margin-block-start: 16px; }
+  </style>
+</head>
+<body>
+  <div class="wrap"><div class="box"><div class="inner"></div></div></div>
+  <div class="wrap rtl"><div class="box"><div class="inner"></div></div></div>
+</body>
+</html>

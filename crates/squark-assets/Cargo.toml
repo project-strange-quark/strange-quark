@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: MIT
+[package]
+name = "squark-assets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64 = "0.22"
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+percent-encoding = "2.3"
+roxmltree = "0.21"
+resvg = { version = "=0.46.0", default-features = false }
+url = "2.5"
+crc32fast = "1.5"
+squark-types.workspace = true
+squark-journal.workspace = true
+squark-net = { version = "=0.0.0", path = "../squark-net" }
+serde_json = "1"
+memmap2 = "0.9.12"
+
+# Sealed memfds keep the pack copy immutable; other platforms copy it to the heap.
+[target.'cfg(target_os = "linux")'.dependencies]
+rustix = { version = "1.1", features = ["fs"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

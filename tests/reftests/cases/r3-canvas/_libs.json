@@ -1,0 +1,15 @@
+{
+  "libs": [
+    {
+      "package": "roughjs",
+      "resolve": "package-dir",
+      "file": "bundled/rough.js",
+      "target": "_assets/lib/rough.js"
+    },
+    {
+      "package": "perfect-freehand",
+      "resolve": "import",
+      "target": "_assets/lib/perfect-freehand.mjs"
+    }
+  ]
+}

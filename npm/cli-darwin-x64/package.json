@@ -1,0 +1,46 @@
+{
+  "name": "@strange-quark/cli-darwin-x64",
+  "version": "0.1.0",
+  "description": "Native squark CLI and squark-runtime binaries for macOS x64 (Intel).",
+  "keywords": [
+    "strange-quark",
+    "react",
+    "native",
+    "desktop",
+    "darwin",
+    "x64"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/project-strange-quark/strange-quark#readme",
+  "bugs": {
+    "url": "https://github.com/project-strange-quark/strange-quark/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/project-strange-quark/strange-quark.git",
+    "directory": "npm/cli-darwin-x64"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./bin/squark": "./bin/squark",
+    "./bin/squark-runtime": "./bin/squark-runtime"
+  }
+}

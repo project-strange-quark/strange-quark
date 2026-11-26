@@ -1,0 +1,20 @@
+{
+  "id": "04-freedraw",
+  "note": "two freedraw strokes",
+  "pass": true,
+  "diffPixels": 1803,
+  "totalPixels": 1024000,
+  "diffRatio": 0.0017607421875,
+  "maxDelta": 216,
+  "meanChannelError": 0.0432,
+  "diffBounds": {
+    "x": 28,
+    "y": 16,
+    "width": 1225,
+    "height": 758
+  },
+  "reason": null,
+  "actual": "tests/results/excalidraw/scenes-macos/native/04-freedraw.png",
+  "expected": "tests/results/excalidraw/scenes/expected/04-freedraw.png",
+  "diff": null
+}

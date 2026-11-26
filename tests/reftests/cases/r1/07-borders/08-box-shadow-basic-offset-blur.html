@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Outset box-shadow with offset and blur</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 36px; padding: 44px; background: #f8fafc; }
+    .a { width: 120px; height: 90px; background: #ffffff; box-shadow: 8px 10px 16px rgba(15, 23, 42, 0.28); }
+    .b { width: 120px; height: 90px; background: #ffffff; box-shadow: 0 4px 20px rgba(37, 99, 235, 0.35); }
+  </style>
+</head>
+<body>
+  <div class="a"></div><div class="b"></div>
+</body>
+</html>

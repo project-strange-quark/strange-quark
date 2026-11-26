@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Flex order property</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .row { display: flex; gap: 10px; padding: 16px; margin: 20px; background: #f1f5f9; }
+    .a { order: 3; width: 70px; height: 70px; background: #ef4444; }
+    .b { order: -1; width: 70px; height: 70px; background: #10b981; }
+    .c { order: 1; width: 70px; height: 70px; background: #3b82f6; }
+    .d { order: 0; width: 70px; height: 70px; background: #f59e0b; }
+  </style>
+</head>
+<body>
+  <div class="row"><div class="a"></div><div class="b"></div><div class="c"></div><div class="d"></div></div>
+</body>
+</html>

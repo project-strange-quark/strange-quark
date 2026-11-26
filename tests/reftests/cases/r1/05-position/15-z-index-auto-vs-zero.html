@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>z-index: auto does not create stacking context whereas z-index: 0 does</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .wrap { position: relative; margin: 20px; }
+    .auto-box { position: relative; z-index: auto; width: 140px; height: 90px; background: #e2e8f0; }
+    .auto-hi { position: absolute; left: 40px; top: 40px; width: 120px; height: 80px; background: #10b981; z-index: 5; }
+    .mid { position: relative; z-index: 2; margin-top: -50px; margin-left: 70px; width: 130px; height: 90px; background: #ef4444; }
+  </style>
+</head>
+<body>
+  <div class="wrap"><div class="auto-box"><div class="auto-hi"></div></div><div class="mid"></div></div>
+</body>
+</html>

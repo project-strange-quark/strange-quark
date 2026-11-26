@@ -1,0 +1,32 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>All justify-content distribution modes</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 12px; }
+    .r { display: flex; width: 360px; height: 32px; margin-bottom: 10px; background: #e2e8f0; align-items: center; }
+    .r > div { width: 44px; height: 20px; background: #2563eb; }
+    .r > div:nth-child(2) { background: #16a34a; }
+    .r > div:nth-child(3) { background: #ea580c; }
+    .fs { justify-content: flex-start; }
+    .ce { justify-content: center; }
+    .fe { justify-content: flex-end; }
+    .sb { justify-content: space-between; }
+    .sa { justify-content: space-around; }
+    .se { justify-content: space-evenly; }
+  </style>
+</head>
+<body>
+  <div class="r fs"><div></div><div></div><div></div></div>
+  <div class="r ce"><div></div><div></div><div></div></div>
+  <div class="r fe"><div></div><div></div><div></div></div>
+  <div class="r sb"><div></div><div></div><div></div></div>
+  <div class="r sa"><div></div><div></div><div></div></div>
+  <div class="r se"><div></div><div></div><div></div></div>
+</body>
+</html>

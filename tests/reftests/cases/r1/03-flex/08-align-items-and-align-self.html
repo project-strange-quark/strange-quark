@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>align-items and align-self overrides</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .row { display: flex; align-items: center; gap: 12px; width: 340px; height: 180px; padding: 12px; margin: 20px; background: #f1f5f9; border: 2px solid #475569; }
+    .a { width: 52px; height: 40px; background: #3b82f6; }
+    .b { width: 52px; height: 40px; align-self: flex-start; background: #ef4444; }
+    .c { width: 52px; height: 40px; align-self: flex-end; background: #10b981; }
+    .d { width: 52px; align-self: stretch; background: #f59e0b; }
+  </style>
+</head>
+<body>
+  <div class="row"><div class="a"></div><div class="b"></div><div class="c"></div><div class="d"></div></div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Selectors :nth-child, :not, :is, :where, :has, attribute selectors</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .list { display: flex; gap: 8px; padding: 20px; }
+    .item { width: 54px; height: 54px; background: #cbd5e1; border: 2px solid #64748b; }
+    .item:first-child { background: #ef4444; }
+    .item:nth-child(2n) { border-radius: 14px; }
+    .item:not(:first-child):not(:last-child) { border-color: #2563eb; }
+    :is(.item)[data-active="true"] { background: #10b981; }
+    :where(.item):last-child { background: #f59e0b; }
+    .parent { margin: 0 20px; padding: 12px; border: 2px solid #94a3b8; }
+    .parent:has(.flag) { border-color: #7c3aed; background: #f5f3ff; }
+    .flag { width: 40px; height: 24px; background: #7c3aed; }
+  </style>
+</head>
+<body>
+  <div class="list">
+    <div class="item"></div>
+    <div class="item" data-active="true"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+  </div>
+  <div class="parent"><div class="flag"></div></div>
+</body>
+</html>

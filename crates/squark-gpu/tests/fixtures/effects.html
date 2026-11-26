@@ -1,0 +1,38 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; background: white; }
+  div { position: absolute; }
+  .group { opacity: .5; width: 25px; height: 22px; }
+  .red { background: red; width: 14px; height: 12px; top: 2px; }
+  .filter {
+    background: red; left: 28px; top: 2px; width: 20px; height: 12px;
+    filter: invert(1) hue-rotate(90deg);
+  }
+  .mix {
+    background: cyan; left: 58px; top: 3px; width: 16px; height: 11px;
+    mix-blend-mode: multiply;
+  }
+  .blur {
+    background: black; left: 5px; top: 29px; width: 15px; height: 13px;
+    filter: blur(2px);
+  }
+  .backdrop {
+    left: 46px; top: 30px; width: 12px; height: 8px;
+    backdrop-filter: invert(1);
+  }
+  .projection {
+    background: red; left: 73px; top: 24px; width: 20px; height: 20px;
+    transform-origin: 0 0;
+    transform: matrix3d(1,0,0,.02, 0,1,0,0, 0,0,1,0, 0,0,0,1);
+  }
+</style>
+<div class="group"><div class="red" style="left:1px"></div><div class="red" style="left:9px"></div></div>
+<div class="filter"></div>
+<div style="background:rgb(255 50% 0);left:55px;top:2px;width:18px;height:16px"></div>
+<div class="mix"></div>
+<div class="blur"></div>
+<div style="background:blue;left:40px;top:28px;width:20px;height:14px"></div>
+<div class="backdrop"></div>
+<div class="projection"></div>

@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Absolute children inside flex and grid containers</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 16px; display: flex; gap: 16px; }
+    .f { position: relative; display: flex; justify-content: center; align-items: center; width: 160px; height: 140px; background: #dbeafe; }
+    .f .abs { position: absolute; width: 56px; height: 40px; background: #1d4ed8; }
+    .g { position: relative; display: grid; grid-template-columns: 1fr 1fr; width: 160px; height: 140px; background: #dcfce7; }
+    .g .abs { position: absolute; grid-column: 2; inset: 12px; background: #15803d; }
+  </style>
+</head>
+<body>
+  <div class="f"><div class="abs"></div></div><div class="g"><div class="abs"></div></div>
+</body>
+</html>

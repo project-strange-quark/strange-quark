@@ -1,0 +1,25 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>display: none and display: contents</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .flex { display: flex; gap: 10px; padding: 16px; background: #f1f5f9; margin: 16px; }
+    .gone { display: none; width: 100px; height: 100px; background: #ef4444; }
+    .wrapper { display: contents; border: 8px solid #dc2626; padding: 40px; background: #000000; }
+    .item { width: 70px; height: 70px; background: #3b82f6; }
+    .item2 { width: 70px; height: 70px; background: #10b981; }
+  </style>
+</head>
+<body>
+  <div class="flex">
+    <div class="item"></div>
+    <div class="gone"></div>
+    <div class="wrapper"><div class="item2"></div><div class="item"></div></div>
+  </div>
+</body>
+</html>

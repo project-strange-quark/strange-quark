@@ -1,0 +1,20 @@
+{
+  "id": "09-frames",
+  "note": "frame with children",
+  "pass": true,
+  "diffPixels": 2141,
+  "totalPixels": 1024000,
+  "diffRatio": 0.0020908203125,
+  "maxDelta": 216,
+  "meanChannelError": 0.0565,
+  "diffBounds": {
+    "x": 28,
+    "y": 16,
+    "width": 1225,
+    "height": 758
+  },
+  "reason": null,
+  "actual": "tests/results/excalidraw/scenes/native/09-frames.png",
+  "expected": "tests/results/excalidraw/scenes/expected/09-frames.png",
+  "diff": null
+}

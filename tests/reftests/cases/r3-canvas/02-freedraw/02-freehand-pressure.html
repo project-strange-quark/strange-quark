@@ -1,0 +1,54 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>perfect-freehand pressure taper and caps</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script type="module">
+    import { getStroke } from "../_assets/lib/perfect-freehand.mjs";
+    import { outlineToPath } from "../_assets/r3.js";
+
+    const ctx = document.getElementById("c").getContext("2d");
+
+    function stroke(points, options, color) {
+      ctx.fillStyle = color;
+      ctx.fill(outlineToPath(getStroke(points, { last: true, ...options })));
+    }
+
+    // Increasing pressure along a straight run.
+    const pressing = [];
+    for (let i = 0; i <= 40; i += 1) {
+      pressing.push([30 + i * 10, 60, 0.1 + (0.9 * i) / 40]);
+    }
+    stroke(pressing, { size: 30, thinning: 0.8, smoothing: 0.5, streamline: 0.2 }, "#0f172a");
+
+    // Caps: round (default) versus a flat, tapered end.
+    const short = [
+      [40, 160],
+      [200, 150],
+      [330, 175],
+    ];
+    stroke(short, { size: 34, thinning: 0.4, smoothing: 0.3, streamline: 0.2 }, "#15803d");
+    stroke(
+      short.map(([x, y]) => [x, y + 90]),
+      { size: 34, thinning: 0.4, smoothing: 0.3, streamline: 0.2, end: { cap: false } },
+      "#7c3aed",
+    );
+
+    // A two-point flick: taper at both ends.
+    stroke(
+      [
+        [360, 120, 0.5],
+        [455, 260, 0.9],
+      ],
+      { size: 28, thinning: 0.9, smoothing: 0.1, streamline: 0.1 },
+      "#b45309",
+    );
+  </script>
+</body>
+</html>

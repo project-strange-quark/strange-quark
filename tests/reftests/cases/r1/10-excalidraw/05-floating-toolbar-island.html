@@ -1,0 +1,43 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Excalidraw floating .Island toolbar with active button and SVG icons</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { background: #f8f9fa; padding: 40px 20px; display: flex; justify-content: center; align-items: flex-start; }
+    .island {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    .tool {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #1b1b1f;
+    }
+    .tool.active { background: #e0dfff; color: #5b57d1; }
+    .sep { width: 1px; height: 22px; background: #e5e5ea; margin: 0 2px; }
+  </style>
+</head>
+<body>
+  <div class="island">
+    <div class="tool"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l7 17 2.5-6.5L20 12z"/></svg></div>
+    <div class="tool active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div>
+    <div class="tool"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg></div>
+    <div class="sep"></div>
+    <div class="tool"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19L19 5M12 5h7v7"/></svg></div>
+  </div>
+</body>
+</html>

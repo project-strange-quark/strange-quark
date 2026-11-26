@@ -1,0 +1,27 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Excalidraw transparency checkerboard using data:image/png;base64</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 16px; padding: 28px; background: #ffffff; }
+    .swatch {
+      width: 72px;
+      height: 72px;
+      border-radius: 8px;
+      border: 1px solid #ced4da;
+      background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAIUlEQVR42mN48ODBf3yYEGAYNWBYGEBIASELRg0YFgYAAMynza4jnjS7AAAAAElFTkSuQmCC");
+      overflow: hidden;
+    }
+    .tint { width: 100%; height: 100%; background: rgba(105, 101, 219, 0.45); }
+    .clear { width: 100%; height: 100%; background: transparent; }
+  </style>
+</head>
+<body>
+  <div class="swatch"><div class="clear"></div></div><div class="swatch"><div class="tint"></div></div>
+</body>
+</html>

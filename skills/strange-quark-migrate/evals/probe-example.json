@@ -1,0 +1,255 @@
+{
+  "squarkVersion": "unknown",
+  "binary": "target/dist/squark-runtime",
+  "probedAt": "2026-11-25T19:18:17.861Z",
+  "apis": {
+    "Audio": {
+      "present": "undefined",
+      "works": false
+    },
+    "Blob": {
+      "present": "function",
+      "works": true
+    },
+    "CSS.supports": {
+      "present": "function",
+      "works": true
+    },
+    "CanvasRenderingContext2D": {
+      "error": "canvas readback is unavailable",
+      "present": "function",
+      "works": false
+    },
+    "DataTransfer": {
+      "present": "function",
+      "works": true
+    },
+    "DragEvent": {
+      "present": "undefined",
+      "works": false
+    },
+    "Element.animate": {
+      "present": "undefined",
+      "works": false
+    },
+    "Element.attachShadow": {
+      "present": "undefined",
+      "works": false
+    },
+    "File": {
+      "present": "function",
+      "works": true
+    },
+    "FileReader": {
+      "present": "function",
+      "works": true
+    },
+    "FontFace": {
+      "present": "function",
+      "works": true
+    },
+    "HTMLAudioElement": {
+      "present": "undefined",
+      "works": false
+    },
+    "HTMLElement.draggable": {
+      "present": "boolean",
+      "works": true
+    },
+    "HTMLIFrameElement": {
+      "present": "function",
+      "works": true
+    },
+    "HTMLMediaElement": {
+      "present": "undefined",
+      "works": false
+    },
+    "HTMLVideoElement": {
+      "present": "undefined",
+      "works": false
+    },
+    "IntersectionObserver": {
+      "present": "function",
+      "works": true
+    },
+    "MediaRecorder": {
+      "present": "undefined",
+      "works": false
+    },
+    "MutationObserver": {
+      "present": "function",
+      "works": true
+    },
+    "Notification": {
+      "present": "undefined",
+      "works": false
+    },
+    "OffscreenCanvas": {
+      "present": "undefined",
+      "works": false
+    },
+    "Path2D": {
+      "present": "function",
+      "works": true
+    },
+    "RTCPeerConnection": {
+      "present": "undefined",
+      "works": false
+    },
+    "Range": {
+      "present": "undefined",
+      "works": false
+    },
+    "ResizeObserver": {
+      "present": "function",
+      "works": true
+    },
+    "Selection": {
+      "present": "function",
+      "works": true
+    },
+    "SharedWorker": {
+      "present": "undefined",
+      "works": false
+    },
+    "URL.createObjectURL": {
+      "present": "function",
+      "works": true
+    },
+    "WebAssembly": {
+      "present": "object",
+      "works": true
+    },
+    "WebGL": {
+      "present": "undefined",
+      "works": false
+    },
+    "WebGL2": {
+      "present": "undefined",
+      "works": false
+    },
+    "WebGPU": {
+      "present": "undefined",
+      "works": false
+    },
+    "WebSocket": {
+      "present": "function",
+      "works": null
+    },
+    "Worker": {
+      "present": "undefined",
+      "works": false
+    },
+    "contentEditable": {
+      "present": "undefined",
+      "works": false
+    },
+    "createImageBitmap": {
+      "error": "canvas readback is unavailable",
+      "present": "function",
+      "works": false
+    },
+    "crypto.subtle": {
+      "present": "object",
+      "works": true
+    },
+    "customElements": {
+      "present": "undefined",
+      "works": false
+    },
+    "document.cookie": {
+      "present": "string",
+      "works": true
+    },
+    "document.fonts": {
+      "present": "object",
+      "works": true
+    },
+    "document.startViewTransition": {
+      "present": "undefined",
+      "works": false
+    },
+    "fetch": {
+      "error": "Failed to fetch",
+      "present": "function",
+      "works": false
+    },
+    "fileInput": {
+      "present": "object",
+      "works": true
+    },
+    "indexedDB": {
+      "present": "object",
+      "works": true
+    },
+    "localStorage": {
+      "present": "object",
+      "works": true
+    },
+    "matchMedia": {
+      "present": "function",
+      "works": true
+    },
+    "navigator.clipboard": {
+      "present": "object",
+      "works": null
+    },
+    "navigator.geolocation": {
+      "present": "undefined",
+      "works": false
+    },
+    "navigator.mediaDevices.getDisplayMedia": {
+      "present": "undefined",
+      "works": false
+    },
+    "navigator.mediaDevices.getUserMedia": {
+      "present": "undefined",
+      "works": false
+    },
+    "navigator.serviceWorker": {
+      "present": "undefined",
+      "works": false
+    },
+    "sessionStorage": {
+      "present": "object",
+      "works": true
+    },
+    "showDirectoryPicker": {
+      "present": "undefined",
+      "works": false
+    },
+    "showOpenFilePicker": {
+      "present": "undefined",
+      "works": false
+    },
+    "showSaveFilePicker": {
+      "present": "undefined",
+      "works": false
+    },
+    "structuredClone": {
+      "present": "function",
+      "works": true
+    },
+    "window.open": {
+      "present": "function",
+      "works": null
+    },
+    "window.print": {
+      "present": "undefined",
+      "works": false
+    }
+  },
+  "css": {
+    "css-anchor": false,
+    "css-container-queries": false,
+    "css-float": true,
+    "css-mask-border-image": true,
+    "css-multicol": false,
+    "css-print": true,
+    "css-scroll-timeline": false,
+    "css-subgrid": false,
+    "css-table-layout": true,
+    "css-vertical-writing": false,
+    "css-view-transitions": false
+  }
+}

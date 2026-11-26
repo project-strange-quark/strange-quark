@@ -1,0 +1,4 @@
+4/4 checks passed (9535.22 ms, adapter software, ICD /usr/share/vulkan/icd.d/lvp_icd.json, runtime 74.9 MiB dist, binary 95.8 MiB, first frame 1930.6346429999999 ms, peak RSS 846 MiB); module errors reported: true; missing APIs: none
+==> R1 reftest compare
+reftests/r1 compare (software): 149/150 passed (99.3%), 1 failed, 0 render errors
+==> lavapipe check passed; log: target/lavapipe-check.log

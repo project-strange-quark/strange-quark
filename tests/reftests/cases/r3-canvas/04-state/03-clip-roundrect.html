@@ -1,0 +1,57 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>clip with roundRect and Path2D</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script>
+    const ctx = document.getElementById("c").getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 480, 320);
+
+    // Excalidraw clips rounded images and frame contents this way.
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(30, 30, 180, 120, 24);
+    ctx.clip();
+    ctx.fillStyle = "#1d4ed8";
+    ctx.fillRect(0, 0, 240, 180);
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillRect(120, 90, 140, 90);
+    ctx.restore();
+
+    // Array radii: top-left/top-right/bottom-right/bottom-left.
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(250, 30, 180, 120, [8, 40, 8, 40]);
+    ctx.clip();
+    ctx.fillStyle = "#0f766e";
+    ctx.fillRect(230, 10, 220, 160);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 10;
+    ctx.strokeRect(230, 10, 220, 160);
+    ctx.restore();
+
+    // A Path2D clip from SVG path data, then a big fill and a stroke.
+    ctx.save();
+    const star = new Path2D("M 110 190 L 150 260 L 60 215 L 160 215 L 70 260 Z");
+    ctx.clip(star);
+    ctx.fillStyle = "#be123c";
+    ctx.fillRect(0, 160, 250, 150);
+    ctx.fillStyle = "#fecdd3";
+    ctx.fillRect(80, 200, 60, 60);
+    ctx.restore();
+
+    // The clip is gone after restore: this rect must paint in full.
+    ctx.fillStyle = "rgba(17, 24, 39, 0.85)";
+    ctx.fillRect(300, 200, 150, 90);
+    ctx.fillStyle = "#f9fafb";
+    ctx.fillRect(340, 230, 70, 30);
+  </script>
+</body>
+</html>

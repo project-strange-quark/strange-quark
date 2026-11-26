@@ -1,0 +1,6 @@
+body { margin: 0; font-family: system-ui, sans-serif; }
+.layout { display: grid; grid-template-columns: 200px 1fr 1fr; height: 100vh; }
+aside { background: #20232b; color: #e8e9ee; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+aside button { padding: 6px 10px; border-radius: 6px; border: 1px solid #4a4f5c; background: #2e323d; color: inherit; }
+textarea { border: 0; border-right: 1px solid #ddd; padding: 16px; font: 14px/1.5 ui-monospace, monospace; resize: none; }
+.preview { padding: 16px; overflow: auto; }

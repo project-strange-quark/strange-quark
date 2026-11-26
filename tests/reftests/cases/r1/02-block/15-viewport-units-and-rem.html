@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>vw, vh, rem, and em sizing</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    html { font-size: 20px; }
+    .a { width: 50vw; height: 20vh; background: #0284c7; margin-bottom: 1rem; }
+    .b { width: 12rem; height: 3rem; background: #16a34a; font-size: 12px; padding: 1em; }
+    .c { width: 8em; height: 100%; background: #fef08a; }
+  </style>
+</head>
+<body>
+  <div class="a"></div>
+  <div class="b"><div class="c"></div></div>
+</body>
+</html>

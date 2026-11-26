@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>position: relative top/left offsets keep flow slot</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .wrap { padding: 16px; }
+    .a { width: 120px; height: 50px; background: #94a3b8; }
+    .b { position: relative; top: 18px; left: 48px; width: 120px; height: 50px; background: #2563eb; }
+    .c { width: 120px; height: 50px; background: #10b981; }
+  </style>
+</head>
+<body>
+  <div class="wrap"><div class="a"></div><div class="b"></div><div class="c"></div></div>
+</body>
+</html>

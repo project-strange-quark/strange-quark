@@ -1,0 +1,24 @@
+{
+ "adapter": "AMD Radeon RX 9060 XT (RADV GFX1200)",
+ "seconds": 5,
+ "expectedFrames": 300,
+ "frameCount": 299,
+ "submitted": 299,
+ "fps": 59.8,
+ "onTime": 299,
+ "onTimeRatio": 0.9966666666666667,
+ "commitP95Ms": 3.97883,
+ "paintP95Ms": 0.395065,
+ "before": {
+  "firstRow": 0,
+  "mountedRows": 18,
+  "scrollTop": 0
+ },
+ "after": {
+  "firstRow": 2694,
+  "mountedRows": 24,
+  "scrollTop": 108000
+ },
+ "pass": true,
+ "timeline": "target/measure-fling-timeline.json"
+}

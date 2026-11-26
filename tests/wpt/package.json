@@ -1,0 +1,19 @@
+{
+  "name": "@strange-quark/wpt",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./run.mjs"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules --test wpt.test.mjs canvas/canvas.test.mjs"
+  },
+  "dependencies": {
+    "parse5": "8.1.1"
+  },
+  "devDependencies": {
+    "playwright-core": "1.65.1"
+  }
+}

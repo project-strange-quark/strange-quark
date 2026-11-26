@@ -1,0 +1,23 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fractional container widths and line wrapping</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestMono", monospace; font-size: 14px; line-height: 20px; padding: 12px; }
+    .w1 { width: 137.5px; border: 1px solid #2563eb; padding: 4px; margin-bottom: 10px; background: #eff6ff; }
+    .w2 { width: 144.25px; border: 1px solid #16a34a; padding: 4px; margin-bottom: 10px; background: #f0fdf4; }
+    .w3 { width: 112.75px; border: 1px solid #d97706; padding: 4px; background: #fffbeb; }
+  </style>
+</head>
+<body>
+  <div class="w1" data-geom="frac-1">MMMM MMMM MMMM MMMM</div>
+  <div class="w2" data-geom="frac-2">alpha beta gamma delta epsilon</div>
+  <div class="w3" data-geom="frac-3">one two three four five six</div>
+</body>
+</html>

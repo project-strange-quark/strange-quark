@@ -1,0 +1,22 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CSS aspect-ratio on block elements</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 16px; display: flex; gap: 16px; align-items: flex-start; }
+    .r1 { width: 120px; aspect-ratio: 16 / 9; background: #3b82f6; }
+    .r2 { width: 90px; aspect-ratio: 1 / 1; background: #10b981; }
+    .r3 { height: 100px; aspect-ratio: 3 / 4; background: #f97316; }
+  </style>
+</head>
+<body>
+  <div class="r1"></div>
+  <div class="r2"></div>
+  <div class="r3"></div>
+</body>
+</html>

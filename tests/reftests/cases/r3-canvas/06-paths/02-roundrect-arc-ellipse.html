@@ -1,0 +1,68 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>roundRect radii, arc and ellipse</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script>
+    const ctx = document.getElementById("c").getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 480, 320);
+
+    // Scalar radius.
+    ctx.beginPath();
+    ctx.roundRect(20, 20, 150, 110, 22);
+    ctx.fillStyle = "#dbeafe";
+    ctx.fill();
+    ctx.strokeStyle = "#1e40af";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Four-element radii.
+    ctx.beginPath();
+    ctx.roundRect(200, 20, 150, 110, [4, 30, 4, 30]);
+    ctx.fillStyle = "#fef3c7";
+    ctx.fill();
+    ctx.strokeStyle = "#92400e";
+    ctx.stroke();
+
+    // Arc: full circle, a half circle, and a counter-clockwise wedge.
+    ctx.beginPath();
+    ctx.arc(400, 80, 45, 0, Math.PI * 2);
+    ctx.fillStyle = "#dcfce7";
+    ctx.fill();
+    ctx.strokeStyle = "#166534";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(90, 230, 55, 0, Math.PI, false);
+    ctx.fillStyle = "#fecaca";
+    ctx.fill();
+    ctx.strokeStyle = "#991b1b";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(220, 230);
+    ctx.arc(220, 230, 60, 0, Math.PI * 1.5, true);
+    ctx.closePath();
+    ctx.fillStyle = "#c7d2fe";
+    ctx.fill();
+    ctx.strokeStyle = "#3730a3";
+    ctx.stroke();
+
+    // Ellipse with rotation.
+    ctx.beginPath();
+    ctx.ellipse(370, 230, 70, 36, Math.PI / 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#fde68a";
+    ctx.fill();
+    ctx.strokeStyle = "#b45309";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  </script>
+</body>
+</html>

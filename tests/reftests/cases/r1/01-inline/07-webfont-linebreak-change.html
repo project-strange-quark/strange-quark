@@ -1,0 +1,24 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Loaded WOFF2 font changing line wrap count</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 16px; }
+    .box { width: 180px; border: 2px solid #334155; padding: 8px; margin-bottom: 12px; font-size: 16px; line-height: 22px; background: #f8fafc; }
+    .sans { font-family: "TestSans", sans-serif; }
+    .mono { font-family: "TestMono", monospace; }
+    .asst { font-family: "TestAssistant", sans-serif; }
+  </style>
+</head>
+<body>
+  <div class="box sans" data-geom="wf-sans">iiiiiiiiiiiiiiiiiiiii wrap test</div>
+  <div class="box mono" data-geom="wf-mono">iiiiiiiiiiiiiiiiiiiii wrap test</div>
+  <div class="box asst" data-geom="wf-asst">Excalidraw Assistant UI metrics wrap</div>
+</body>
+</html>

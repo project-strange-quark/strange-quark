@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT
+# Fixtures are compared byte for byte (golden packs hash their inputs), so
+# git never converts their line endings, whatever core.autocrlf says.
+* -text

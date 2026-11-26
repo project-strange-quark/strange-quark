@@ -1,0 +1,308 @@
+{
+  "check": true,
+  "status": "informational",
+  "informational": true,
+  "total": 10,
+  "passed": 9,
+  "failed": 1,
+  "tolerance": {
+    "maxChannelDelta": 8,
+    "maxDiffRatio": 0.005
+  },
+  "scenes": [
+    {
+      "id": "01-basic-shapes",
+      "note": "rectangle, ellipse and diamond",
+      "pass": true,
+      "diffRatio": 0.001685546875,
+      "maxDelta": 104,
+      "reason": null
+    },
+    {
+      "id": "02-arrows-labels",
+      "note": "arrows with text labels",
+      "pass": true,
+      "diffRatio": 0.002302734375,
+      "maxDelta": 212,
+      "reason": null
+    },
+    {
+      "id": "03-text-styles",
+      "note": "text sizes and colours",
+      "pass": false,
+      "diffRatio": 0.0072802734375,
+      "maxDelta": 221,
+      "reason": "diffPixels=7455 (0.728%), maxDelta=221"
+    },
+    {
+      "id": "04-freedraw",
+      "note": "two freedraw strokes",
+      "pass": true,
+      "diffRatio": 0.001685546875,
+      "maxDelta": 104,
+      "reason": null
+    },
+    {
+      "id": "05-dark-mode",
+      "note": "dark theme scene",
+      "pass": true,
+      "diffRatio": 0.003232421875,
+      "maxDelta": 232,
+      "reason": null
+    },
+    {
+      "id": "06-groups",
+      "note": "grouped elements",
+      "pass": true,
+      "diffRatio": 0.0024892578125,
+      "maxDelta": 166,
+      "reason": null
+    },
+    {
+      "id": "07-rotated-opacity",
+      "note": "rotation and opacity",
+      "pass": true,
+      "diffRatio": 0.00293359375,
+      "maxDelta": 112,
+      "reason": null
+    },
+    {
+      "id": "08-image",
+      "note": "embedded image element",
+      "pass": true,
+      "diffRatio": 0.0027666015625,
+      "maxDelta": 156,
+      "reason": null
+    },
+    {
+      "id": "09-frames",
+      "note": "frame with children",
+      "pass": true,
+      "diffRatio": 0.0026533203125,
+      "maxDelta": 158,
+      "reason": null
+    },
+    {
+      "id": "10-mixed",
+      "note": "a mixed composition",
+      "pass": true,
+      "diffRatio": 0.0029296875,
+      "maxDelta": 178,
+      "reason": null
+    }
+  ],
+  "native": {
+    "status": "passing",
+    "gpuAdapter": "auto",
+    "vkIcd": null,
+    "total": 10,
+    "passed": 10,
+    "failed": 0,
+    "tolerance": {
+      "maxChannelDelta": 8,
+      "maxDiffRatio": 0.005
+    },
+    "scenes": [
+      {
+        "id": "01-basic-shapes",
+        "note": "rectangle, ellipse and diamond",
+        "pass": true,
+        "diffPixels": 4037,
+        "totalPixels": 1024000,
+        "diffRatio": 0.0039423828125,
+        "maxDelta": 216,
+        "meanChannelError": 0.1054,
+        "diffBounds": {
+          "x": 28,
+          "y": 16,
+          "width": 1225,
+          "height": 758
+        },
+        "reason": null,
+        "actual": "tests/results/excalidraw/scenes-macos/native/01-basic-shapes.png",
+        "expected": "tests/results/excalidraw/scenes/expected/01-basic-shapes.png",
+        "diff": null
+      },
+      {
+        "id": "02-arrows-labels",
+        "note": "arrows with text labels",
+        "pass": true,
+        "diffPixels": 4015,
+        "totalPixels": 1024000,
+        "diffRatio": 0.0039208984375,
+        "maxDelta": 216,
+        "meanChannelError": 0.0907,
+        "diffBounds": {
+          "x": 28,
+          "y": 16,
+          "width": 1225,
+          "height": 758
+        },
+        "reason": null,
+        "actual": "tests/results/excalidraw/scenes-macos/native/02-arrows-labels.png",
+        "expected": "tests/results/excalidraw/scenes/expected/02-arrows-labels.png",
+        "diff": null
+      },
+      {
+        "id": "03-text-styles",
+        "note": "text sizes and colours",
+        "pass": true,
+        "diffPixels": 3768,
+        "totalPixels": 1024000,
+        "diffRatio": 0.0036796875,
+        "maxDelta": 216,
+        "meanChannelError": 0.0756,
+        "diffBounds": {
+          "x": 28,
+          "y": 16,
+          "width": 1225,
+          "height": 758
+        },
+        "reason": null,
+        "actual": "tests/results/excalidraw/scenes-macos/native/03-text-styles.png",
+        "expected": "tests/results/excalidraw/scenes/expected/03-text-styles.png",
+        "diff": null
+      },
+      {
+        "id": "04-freedraw",
+        "note": "two freedraw strokes",
+        "pass": true,
+        "diffPixels": 1803,
+        "totalPixels": 1024000,
+        "diffRatio": 0.0017607421875,
+        "maxDelta": 216,
+        "meanChannelError": 0.0432,
+        "diffBounds": {
+          "x": 28,
+          "y": 16,
+          "width": 1225,
+          "height": 758
+        },
+        "reason": null,
+        "actual": "tests/results/excalidraw/scenes-macos/native/04-freedraw.png",
+        "expected": "tests/results/excalidraw/scenes/expected/04-freedraw.png",
+        "diff": null
+      },
+      {
+        "id": "05-dark-mode",
+        "note": "dark theme scene",
+        "pass": true,
+        "diffPixels": 4340,
+        "totalPixels": 1024000,
+        "diffRatio": 0.00423828125,
+        "maxDelta": 216,
+        "meanChannelError": 0.0945,
+        "diffBounds": {
+          "x": 15,
+          "y": 15,
+          "width": 1250,
+          "height": 770
+        },
+        "reason": null,
+        "actual": "tests/results/excalidraw/scenes-macos/native/05-dark-mode.png",
+        "expected": "tests/results/excalidraw/scenes/expected/05-dark-mode.png",
+        "diff": null
+      },
+      {
+        "id": "06-groups",
+        "note": "grouped elements",
+        "pass": true,
+        "diffPixels": 3390,
+        "totalPixels": 1024000,
+        "diffRatio": 0.003310546875,
+        "maxDelta": 216,
+        "meanChannelError": 0.0884,
+        "diffBounds": {
+          "x": 28,
+          "y": 16,
+          "width": 1225,
+          "height": 758
+        },
+        "reason": null,
+        "actual": "tests/results/excalidraw/scenes-macos/native/06-groups.png",
+        "expected": "tests/results/excalidraw/scenes/expected/06-groups.png",
+        "diff": null
+      },
+      {
+        "id": "07-rotated-opacity",
+        "note": "rotation and opacity",
+        "pass": true,
+        "diffPixels": 3350,
+        "totalPixels": 1024000,
+        "diffRatio": 0.003271484375,
+        "maxDelta": 216,
+        "meanChannelError": 0.0724,
+        "diffBounds": {
+          "x": 28,
+          "y": 16,
+          "width": 1225,
+          "height": 758
+        },
+        "reason": null,
+        "actual": "tests/results/excalidraw/scenes-macos/native/07-rotated-opacity.png",
+        "expected": "tests/results/excalidraw/scenes/expected/07-rotated-opacity.png",
+        "diff": null
+      },
+      {
+        "id": "08-image",
+        "note": "embedded image element",
+        "pass": true,
+        "diffPixels": 2803,
+        "totalPixels": 1024000,
+        "diffRatio": 0.0027373046875,
+        "maxDelta": 216,
+        "meanChannelError": 0.0889,
+        "diffBounds": {
+          "x": 28,
+          "y": 16,
+          "width": 1225,
+          "height": 758
+        },
+        "reason": null,
+        "actual": "tests/results/excalidraw/scenes-macos/native/08-image.png",
+        "expected": "tests/results/excalidraw/scenes/expected/08-image.png",
+        "diff": null
+      },
+      {
+        "id": "09-frames",
+        "note": "frame with children",
+        "pass": true,
+        "diffPixels": 2161,
+        "totalPixels": 1024000,
+        "diffRatio": 0.0021103515625,
+        "maxDelta": 216,
+        "meanChannelError": 0.056,
+        "diffBounds": {
+          "x": 28,
+          "y": 16,
+          "width": 1225,
+          "height": 758
+        },
+        "reason": null,
+        "actual": "tests/results/excalidraw/scenes-macos/native/09-frames.png",
+        "expected": "tests/results/excalidraw/scenes/expected/09-frames.png",
+        "diff": null
+      },
+      {
+        "id": "10-mixed",
+        "note": "a mixed composition",
+        "pass": true,
+        "diffPixels": 4690,
+        "totalPixels": 1024000,
+        "diffRatio": 0.004580078125,
+        "maxDelta": 216,
+        "meanChannelError": 0.1121,
+        "diffBounds": {
+          "x": 28,
+          "y": 16,
+          "width": 1225,
+          "height": 758
+        },
+        "reason": null,
+        "actual": "tests/results/excalidraw/scenes-macos/native/10-mixed.png",
+        "expected": "tests/results/excalidraw/scenes/expected/10-mixed.png",
+        "diff": null
+      }
+    ]
+  }
+}

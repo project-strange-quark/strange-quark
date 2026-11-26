@@ -1,0 +1,25 @@
+{
+  "productName": "PhotoTag",
+  "identifier": "dev.example.phototag",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "PhotoTag",
+        "width": 1200,
+        "height": 800
+      }
+    ],
+    "security": {
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**"
+        ]
+      }
+    }
+  }
+}

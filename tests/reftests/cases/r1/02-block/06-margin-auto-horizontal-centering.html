@@ -1,0 +1,22 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Horizontal centering with margin: auto</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .stage { width: 360px; padding: 16px 0; margin: 20px; background: #f1f5f9; border: 1px solid #94a3b8; }
+    .center { width: 160px; height: 50px; margin: 0 auto 16px auto; background: #6366f1; }
+    .right { width: 120px; height: 50px; margin-left: auto; margin-right: 12px; background: #ec4899; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="center"></div>
+    <div class="right"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.03} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Mixed bidi LTR/RTL with inline image</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", "TestArabic", sans-serif; font-size: 18px; line-height: 30px; padding: 16px; }
+    .box { width: 340px; border: 1px solid #94a3b8; padding: 8px; margin-bottom: 12px; background: #f8fafc; }
+    .rtl { direction: rtl; }
+    img { width: 24px; height: 24px; vertical-align: middle; }
+  </style>
+</head>
+<body>
+  <div class="box" data-geom="bidi-ltr">
+    Hello <span lang="ar">مرحبا</span> <img src="../_assets/images/badge-24.png" alt="badge" data-geom="bidi-img-1"> world 123
+  </div>
+  <div class="box rtl" dir="rtl" data-geom="bidi-rtl">
+    مرحبا <span dir="ltr">English</span> <img src="../_assets/images/badge-24.png" alt="badge" data-geom="bidi-img-2"> عالم 456
+  </div>
+</body>
+</html>

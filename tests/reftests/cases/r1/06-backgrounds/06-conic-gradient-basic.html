@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":6,"maxDiffRatio":0.015} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Conic gradient color wheel and pie chart</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 20px; padding: 24px; }
+    .wheel { width: 150px; height: 150px; border-radius: 50%; background: conic-gradient(#ef4444, #f59e0b, #10b981, #3b82f6, #8b5cf6, #ef4444); }
+    .pie { width: 150px; height: 150px; border-radius: 50%; background: conic-gradient(#2563eb 0deg 120deg, #16a34a 120deg 260deg, #f97316 260deg 360deg); }
+  </style>
+</head>
+<body>
+  <div class="wheel"></div><div class="pie"></div>
+</body>
+</html>

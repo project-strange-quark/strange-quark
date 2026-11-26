@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":4,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Linear gradients horizontal, vertical, diagonal</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 12px; padding: 20px; }
+    .g { width: 112px; height: 180px; border: 1px solid #cbd5e1; }
+    .g1 { background: linear-gradient(to right, #ef4444, #3b82f6); }
+    .g2 { background: linear-gradient(to bottom, #10b981, #fef08a); }
+    .g3 { background: linear-gradient(to bottom right, #6366f1, #ec4899); }
+  </style>
+</head>
+<body>
+  <div class="g g1"></div><div class="g g2"></div><div class="g g3"></div>
+</body>
+</html>

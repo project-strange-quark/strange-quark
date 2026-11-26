@@ -1,0 +1,27 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>env(safe-area-inset-*) resolves to 0px on desktop</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .shell {
+      width: 360px;
+      height: 240px;
+      margin: 20px;
+      background: #e2e8f0;
+      padding-top: calc(16px + env(safe-area-inset-top));
+      padding-right: calc(20px + env(safe-area-inset-right));
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      padding-left: calc(20px + env(safe-area-inset-left));
+    }
+    .content { width: 100%; height: 100%; background: #6965db; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <div class="shell"><div class="content"></div></div>
+</body>
+</html>

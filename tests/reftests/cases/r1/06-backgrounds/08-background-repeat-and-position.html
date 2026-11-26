@@ -1,0 +1,22 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>background-repeat repeat, repeat-x, no-repeat and background-position</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: grid; grid-template-columns: 160px 160px; gap: 16px; padding: 20px; }
+    .b { height: 104px; border: 2px solid #475569; background-color: #f8fafc; background-image: url("../_assets/images/badge-24.png"); }
+    .r1 { background-repeat: repeat; }
+    .r2 { background-repeat: repeat-x; background-position: 0 center; }
+    .r3 { background-repeat: repeat-y; background-position: right 0; }
+    .r4 { background-repeat: no-repeat; background-position: center center; }
+  </style>
+</head>
+<body>
+  <div class="b r1"></div><div class="b r2"></div><div class="b r3"></div><div class="b r4"></div>
+</body>
+</html>

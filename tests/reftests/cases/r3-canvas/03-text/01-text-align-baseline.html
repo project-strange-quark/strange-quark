@@ -1,0 +1,58 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>canvas textAlign x textBaseline grid</title>
+  <link rel="stylesheet" href="../_assets/r3.css">
+</head>
+<body>
+  <canvas id="c" width="480" height="320"></canvas>
+  <script>
+    async function draw() {
+      // A face that has not been requested is not loading, so document.fonts.ready
+      // can resolve before TestSans is usable. Request the exact size first.
+      await document.fonts.load("20px TestSans");
+      await document.fonts.ready;
+      const ctx = document.getElementById("c").getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, 480, 320);
+
+      const aligns = ["left", "center", "right"];
+      const baselines = ["top", "middle", "alphabetic", "bottom"];
+      ctx.font = "20px TestSans";
+      ctx.fillStyle = "#94a3b8";
+
+      for (let row = 0; row < baselines.length; row += 1) {
+        const y = 40 + row * 70;
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(479, y);
+        ctx.stroke();
+        ctx.fillText(baselines[row], 6, y - 4);
+      }
+
+      ctx.fillStyle = "#0f172a";
+      for (let col = 0; col < aligns.length; col += 1) {
+        const columnX = [120, 270, 440][col];
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.beginPath();
+        ctx.moveTo(columnX, 0);
+        ctx.lineTo(columnX, 319);
+        ctx.stroke();
+        ctx.textAlign = aligns[col];
+        for (let row = 0; row < baselines.length; row += 1) {
+          ctx.textBaseline = baselines[row];
+          ctx.fillText("Wg1", columnX, 40 + row * 70);
+        }
+      }
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+    }
+
+    draw();
+  </script>
+</body>
+</html>

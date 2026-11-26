@@ -1,0 +1,37 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Inline vertical-align modes</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 16px; line-height: 44px; padding: 16px; }
+    .line { border: 1px solid #cbd5e1; padding: 6px; margin-bottom: 14px; background: #f8fafc; }
+    .tag { display: inline-block; font-size: 11px; line-height: 16px; padding: 2px 4px; background: #e0e7ff; border: 1px solid #6366f1; }
+    .base { vertical-align: baseline; }
+    .top { vertical-align: top; }
+    .mid { vertical-align: middle; }
+    .bot { vertical-align: bottom; }
+    .sub { vertical-align: sub; }
+    .sup { vertical-align: super; }
+    .px { vertical-align: 8px; }
+  </style>
+</head>
+<body>
+  <div class="line" data-geom="va-line-1">
+    Xg <span class="tag base" data-geom="va-base">base</span>
+    <span class="tag top" data-geom="va-top">top</span>
+    <span class="tag mid" data-geom="va-mid">mid</span>
+    <span class="tag bot" data-geom="va-bot">bot</span>
+  </div>
+  <div class="line" data-geom="va-line-2">
+    H<span class="tag sub" data-geom="va-sub">2</span>O
+    x<span class="tag sup" data-geom="va-sup">2</span>
+    <span class="tag px" data-geom="va-px">+8px</span>
+  </div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>box-sizing content-box vs border-box</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 20px; }
+    .cb { box-sizing: content-box; width: 160px; height: 60px; padding: 16px; border: 8px solid #1d4ed8; background: #93c5fd; margin-bottom: 20px; }
+    .bb { box-sizing: border-box; width: 160px; height: 60px; padding: 16px; border: 8px solid #15803d; background: #86efac; }
+  </style>
+</head>
+<body>
+  <div class="cb"></div>
+  <div class="bb"></div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "@strange-quark/excalidraw-native",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build-app": "node src/native-smoke.mjs --build",
+    "test:native": "node src/native-smoke.mjs",
+    "packaging:check": "node src/packaging.mjs",
+    "e2e": "node src/e2e.mjs",
+    "scenes": "node src/scenes.mjs",
+    "scenes:check": "node src/scenes.mjs --check",
+    "measure": "bash ../../scripts/measure-excalidraw.sh",
+    "measure:startup": "bash ../../scripts/measure-excalidraw.sh --startup",
+    "measure:pan": "bash ../../scripts/measure-excalidraw.sh --pan",
+    "summary": "node src/summary.mjs",
+    "test": "node --test src/*.test.mjs"
+  },
+  "dependencies": {
+    "pngjs": "7.0.0"
+  }
+}

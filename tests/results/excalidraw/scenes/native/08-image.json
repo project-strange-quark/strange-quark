@@ -1,0 +1,20 @@
+{
+  "id": "08-image",
+  "note": "embedded image element",
+  "pass": true,
+  "diffPixels": 2780,
+  "totalPixels": 1024000,
+  "diffRatio": 0.00271484375,
+  "maxDelta": 216,
+  "meanChannelError": 0.0894,
+  "diffBounds": {
+    "x": 28,
+    "y": 16,
+    "width": 1225,
+    "height": 758
+  },
+  "reason": null,
+  "actual": "tests/results/excalidraw/scenes/native/08-image.png",
+  "expected": "tests/results/excalidraw/scenes/expected/08-image.png",
+  "diff": null
+}

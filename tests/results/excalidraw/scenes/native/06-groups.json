@@ -1,0 +1,20 @@
+{
+  "id": "06-groups",
+  "note": "grouped elements",
+  "pass": true,
+  "diffPixels": 3371,
+  "totalPixels": 1024000,
+  "diffRatio": 0.0032919921875,
+  "maxDelta": 216,
+  "meanChannelError": 0.0889,
+  "diffBounds": {
+    "x": 28,
+    "y": 16,
+    "width": 1225,
+    "height": 758
+  },
+  "reason": null,
+  "actual": "tests/results/excalidraw/scenes/native/06-groups.png",
+  "expected": "tests/results/excalidraw/scenes/expected/06-groups.png",
+  "diff": null
+}

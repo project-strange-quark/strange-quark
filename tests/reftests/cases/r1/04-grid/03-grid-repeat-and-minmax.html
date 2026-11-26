@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Grid repeat() and minmax() tracks</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .g { display: grid; grid-template-columns: repeat(4, minmax(50px, 1fr)); grid-auto-rows: minmax(48px, auto); gap: 8px; width: 340px; padding: 12px; margin: 16px; background: #f8fafc; border: 2px solid #475569; }
+    .g > div { background: #0ea5e9; }
+    .tall { height: 76px; background: #f59e0b !important; }
+  </style>
+</head>
+<body>
+  <div class="g"><div></div><div></div><div></div><div></div><div class="tall"></div><div></div><div></div><div></div></div>
+</body>
+</html>

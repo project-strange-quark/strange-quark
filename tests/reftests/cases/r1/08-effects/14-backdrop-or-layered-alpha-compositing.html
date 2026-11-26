@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":4,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Layered translucent surfaces with sRGB alpha compositing</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .stage { position: relative; width: 320px; height: 220px; margin: 20px; background: #ffffff; }
+    .a { position: absolute; left: 20px; top: 20px; width: 160px; height: 120px; background: rgba(239, 68, 68, 0.6); border-radius: 12px; }
+    .b { position: absolute; left: 90px; top: 60px; width: 160px; height: 120px; background: rgba(59, 130, 246, 0.6); border-radius: 12px; }
+    .c { position: absolute; left: 140px; top: 30px; width: 140px; height: 110px; background: rgba(16, 185, 129, 0.55); border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <div class="stage"><div class="a"></div><div class="b"></div><div class="c"></div></div>
+</body>
+</html>

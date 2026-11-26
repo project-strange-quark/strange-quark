@@ -1,0 +1,28 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Text alignment left, center, right, start, end</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 15px; line-height: 24px; padding: 14px; }
+    div { width: 320px; border: 1px solid #cbd5e1; padding: 4px 8px; margin-bottom: 8px; background: #f8fafc; }
+    .l { text-align: left; }
+    .c { text-align: center; }
+    .r { text-align: right; }
+    .e { text-align: end; }
+    .rtl { direction: rtl; text-align: start; }
+  </style>
+</head>
+<body>
+  <div class="l">Aligned left</div>
+  <div class="c">Aligned center</div>
+  <div class="r">Aligned right</div>
+  <div class="e">Aligned end (LTR)</div>
+  <div class="rtl">Aligned start (RTL)</div>
+</body>
+</html>

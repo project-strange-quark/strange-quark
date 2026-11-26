@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Margin collapsing between parent and first/last child</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .wrap { background: #e2e8f0; width: 240px; margin-left: 20px; margin-top: 10px; }
+    .child { height: 60px; margin-top: 36px; margin-bottom: 28px; background: #2563eb; }
+    .after { width: 240px; height: 40px; margin-left: 20px; margin-top: 16px; background: #10b981; }
+  </style>
+</head>
+<body>
+  <div class="wrap"><div class="child"></div></div>
+  <div class="after"></div>
+</body>
+</html>

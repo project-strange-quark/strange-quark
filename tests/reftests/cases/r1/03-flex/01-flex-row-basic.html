@@ -1,0 +1,20 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Basic flex row layout</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .row { display: flex; padding: 16px; background: #f1f5f9; margin: 16px; }
+    .a { width: 70px; height: 80px; background: #ef4444; }
+    .b { width: 100px; height: 60px; background: #3b82f6; }
+    .c { width: 80px; height: 100px; background: #10b981; }
+  </style>
+</head>
+<body>
+  <div class="row"><div class="a"></div><div class="b"></div><div class="c"></div></div>
+</body>
+</html>

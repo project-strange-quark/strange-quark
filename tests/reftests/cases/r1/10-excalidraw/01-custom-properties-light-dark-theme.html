@@ -1,0 +1,33 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Excalidraw :root and .theme--dark CSS custom properties</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    :root {
+      --island-bg-color: #ffffff;
+      --color-primary: #6965db;
+      --color-on-surface: #1b1b1f;
+      --default-border-color: #e5e5ea;
+    }
+    .theme--dark {
+      --island-bg-color: #232329;
+      --color-primary: #a8a5ff;
+      --color-on-surface: #e3e3e8;
+      --default-border-color: #3d3d47;
+    }
+    body { font-family: "TestAssistant", sans-serif; display: flex; gap: 16px; padding: 20px; background: #f1f5f9; }
+    .island { width: 170px; padding: 14px; border-radius: 10px; background: var(--island-bg-color); color: var(--color-on-surface); border: 1px solid var(--default-border-color); }
+    .pill { margin-top: 10px; padding: 6px 10px; border-radius: 6px; background: var(--color-primary); color: #ffffff; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="island"><div>Light Theme</div><div class="pill">Active tool</div></div>
+  <div class="island theme--dark"><div>Dark Theme</div><div class="pill">Active tool</div></div>
+</body>
+</html>

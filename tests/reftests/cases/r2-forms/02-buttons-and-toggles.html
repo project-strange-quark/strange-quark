@@ -1,0 +1,35 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":350,"height":133,"dpr":1,"maxChannelDelta":14,"maxDiffRatio":0.025} -->
+<!doctype html>
+<meta charset="utf-8">
+<title>Native buttons, checkboxes and radios</title>
+<style>
+  body { margin: 12px; }
+  .row { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+  .large { width: 24px; height: 21px; }
+  .custom { appearance: none; width: 16px; height: 16px; border: 1px solid #204566; }
+  .custom:checked { background: #204566; }
+</style>
+<div class="row">
+  <button data-geom="button">Action</button>
+  <input data-geom="submit" type="submit">
+  <input data-geom="reset" type="reset">
+  <button data-geom="disabled-button" disabled>Disabled</button>
+</div>
+<div class="row">
+  <input data-geom="unchecked" type="checkbox" aria-label="Unchecked">
+  <input data-geom="checked" type="checkbox" checked aria-label="Checked">
+  <input id="mixed" type="checkbox" aria-label="Indeterminate">
+  <input data-geom="disabled-check" type="checkbox" checked disabled aria-label="Disabled checkbox">
+  <input data-geom="large" type="checkbox" checked class="large" aria-label="Large checkbox">
+  <input data-geom="custom" type="checkbox" checked class="custom" aria-label="Custom checkbox">
+</div>
+<div class="row">
+  <input data-geom="radio" type="radio" aria-label="Unselected radio">
+  <input data-geom="checked-radio" type="radio" checked aria-label="Selected radio">
+  <input data-geom="disabled-radio" type="radio" checked disabled aria-label="Disabled radio">
+  <input data-geom="no-native-size" type="radio" style="appearance:none" aria-label="Unstyled radio">
+</div>
+<script>
+  document.getElementById("mixed").indeterminate = true;
+</script>

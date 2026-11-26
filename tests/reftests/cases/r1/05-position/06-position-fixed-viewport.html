@@ -1,0 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>position: fixed pinned to viewport corners</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .pad { margin: 40px; padding: 30px; background: #e2e8f0; height: 140px; }
+    .tl { position: fixed; top: 8px; left: 8px; width: 64px; height: 32px; background: #2563eb; }
+    .br { position: fixed; right: 12px; bottom: 12px; width: 88px; height: 36px; background: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="pad"><div class="tl"></div><div class="br"></div></div>
+</body>
+</html>

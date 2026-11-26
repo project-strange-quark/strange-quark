@@ -1,0 +1,36 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":80,"height":80,"maxChannelDelta":0,"maxDiffRatio":0,"waitMs":75} -->
+<!doctype html>
+<meta charset="utf-8">
+<title>Zero-duration keyframes keep the underlying style in Stylo</title>
+<style>
+  body { margin: 0; background: red }
+  #subject {
+    position: absolute;
+    left: -100px;
+    width: 20px;
+    height: 20px;
+    animation: square 0s both;
+  }
+  @keyframes square { from { width: 30px } to { width: 40px } }
+</style>
+<div id="subject"></div>
+<script>
+  const subject = document.getElementById("subject");
+  const events = [];
+  subject.addEventListener("animationstart", () => events.push("start"));
+  subject.addEventListener("animationend", () => events.push("end"));
+  const native = typeof globalThis.__squark !== "undefined";
+  function check() {
+    const width = subject.getBoundingClientRect().width;
+    // Chromium applies the end keyframe and fires both events. Stylo's Servo
+    // animation path skips the zero-duration track, leaving the underlying width.
+    const expected = native ? width === 20 : width === 40 && events.join() === "start,end";
+    document.body.style.background = expected ? "#008000" : "#ff0000";
+  }
+  if (native) {
+    check(); // squark screenshot captures the initial frame.
+  } else {
+    requestAnimationFrame(() => requestAnimationFrame(check));
+  }
+</script>

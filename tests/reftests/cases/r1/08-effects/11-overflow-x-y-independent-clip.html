@@ -1,0 +1,18 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>overflow-x: hidden with tall child and nested clip</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .outer { width: 160px; height: 120px; overflow: hidden; margin: 24px; border: 2px solid #334155; background: #f8fafc; }
+    .inner { width: 240px; height: 80px; margin-top: 20px; background: linear-gradient(to right, #10b981, #ef4444); }
+  </style>
+</head>
+<body>
+  <div class="outer"><div class="inner"></div></div>
+</body>
+</html>

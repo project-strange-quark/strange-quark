@@ -1,0 +1,11 @@
+{
+  "name": "@strange-quark/platform-report",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "summary": "node src/summary.mjs",
+    "test": "node --test src/summary.test.mjs"
+  }
+}

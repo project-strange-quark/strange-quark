@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT
+[package]
+name = "squark-text"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+squark-assets = { path = "../squark-assets", version = "=0.0.0" }
+squark-types.workspace = true
+parley.workspace = true
+stylo.workspace = true
+skrifa = "=0.44.0"
+swash = "=0.2.10"
+url = "2.5"
+wuff = { version = "=0.2.9", default-features = false, features = ["brotli"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+base64 = "0.22"

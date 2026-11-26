@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":6,"maxDiffRatio":0.015} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>clip-path inset(), circle(), and polygon()</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { display: flex; gap: 16px; padding: 28px; }
+    .b { width: 108px; height: 108px; background: linear-gradient(135deg, #2563eb, #ec4899); }
+    .c1 { clip-path: inset(12px round 16px); }
+    .c2 { clip-path: circle(44px at 50% 50%); }
+    .c3 { clip-path: polygon(50% 5%, 95% 95%, 5% 95%); }
+  </style>
+</head>
+<body>
+  <div class="b c1"></div><div class="b c2"></div><div class="b c3"></div>
+</body>
+</html>

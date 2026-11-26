@@ -1,0 +1,20 @@
+{
+  "id": "05-dark-mode",
+  "note": "dark theme scene",
+  "pass": true,
+  "diffPixels": 4323,
+  "totalPixels": 1024000,
+  "diffRatio": 0.0042216796875,
+  "maxDelta": 216,
+  "meanChannelError": 0.0951,
+  "diffBounds": {
+    "x": 15,
+    "y": 15,
+    "width": 1250,
+    "height": 770
+  },
+  "reason": null,
+  "actual": "tests/results/excalidraw/scenes/native/05-dark-mode.png",
+  "expected": "tests/results/excalidraw/scenes/expected/05-dark-mode.png",
+  "diff": null
+}

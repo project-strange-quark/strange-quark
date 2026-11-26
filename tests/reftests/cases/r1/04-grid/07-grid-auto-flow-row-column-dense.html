@@ -1,0 +1,23 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>grid-auto-flow: column and dense packing</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 12px; }
+    .col { display: grid; grid-auto-flow: column; grid-template-rows: 36px 36px; grid-auto-columns: 60px; gap: 6px; padding: 8px; background: #f1f5f9; margin-bottom: 14px; width: fit-content; }
+    .col > div { background: #3b82f6; }
+    .dense { display: grid; grid-auto-flow: row dense; grid-template-columns: repeat(4, 60px); grid-auto-rows: 36px; gap: 6px; padding: 8px; background: #f1f5f9; width: fit-content; }
+    .dense > div { background: #10b981; }
+    .wide { grid-column: span 2; background: #f97316 !important; }
+  </style>
+</head>
+<body>
+  <div class="col"><div></div><div></div><div></div><div></div><div></div></div>
+  <div class="dense"><div></div><div class="wide"></div><div class="wide"></div><div></div></div>
+</body>
+</html>

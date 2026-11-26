@@ -1,0 +1,46 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<meta charset="utf-8">
+<title>squark-hello Chromium reference</title>
+<style>
+  * { box-sizing: border-box; }
+  html { background: #edf2fa; }
+  body { margin: 0; }
+  .rect { position: absolute; border: 2px solid; }
+  .card {
+    left: 24px; top: 22px; width: 353px; height: 196px; border-radius: 22px;
+    background: #fbfdff; border-color: #bdcbe3; box-shadow: 0 6px 12px #243c674d;
+  }
+  .banner {
+    left: 48px; top: 47px; width: 305px; height: 66px; border-radius: 14px;
+    background: linear-gradient(90deg in srgb, #57b5f6, #5e57e2) padding-box;
+    border-color: #285c95;
+  }
+  .pill { top: 169px; height: 27px; border-radius: 12px; }
+  .green { left: 48px; width: 144px; background: #e0f2e9; border-color: #9cccb9; }
+  .orange { left: 203px; width: 150px; background: #fcebdc; border-color: #edb58a; }
+  canvas { position: absolute; left: 49px; top: 130px; }
+</style>
+<div class="rect card"></div>
+<div class="rect banner"></div>
+<div class="rect pill green"></div>
+<div class="rect pill orange"></div>
+<canvas id="label" width="123" height="21" aria-label="SQK GPU"></canvas>
+<script>
+  const bitmap = [
+    [".###.", "#...#", "#....", ".###.", "....#", "#...#", ".###."],
+    [".###.", "#...#", "#...#", "#...#", "#.#.#", "#..#.", ".##.#"],
+    ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
+    [],
+    [".###.", "#...#", "#....", "#.###", "#...#", "#...#", ".###."],
+    ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
+    ["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+  ];
+  const ctx = document.getElementById("label").getContext("2d");
+  ctx.fillStyle = "#22314c";
+  bitmap.forEach((glyph, col) => glyph.forEach((row, y) => {
+    Array.from(row).forEach((cell, x) => {
+      if (cell === "#") ctx.fillRect(col * 18 + x * 3, y * 3, 3, 3);
+    });
+  }));
+</script>

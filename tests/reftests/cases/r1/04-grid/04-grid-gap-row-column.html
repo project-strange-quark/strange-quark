@@ -1,0 +1,18 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Grid row-gap and column-gap distinct values</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .g { display: grid; grid-template-columns: repeat(3, 80px); grid-template-rows: repeat(2, 56px); row-gap: 28px; column-gap: 10px; padding: 16px; margin: 16px; background: #f1f5f9; width: fit-content; }
+    .g > div { background: #14b8a6; }
+  </style>
+</head>
+<body>
+  <div class="g"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+</body>
+</html>

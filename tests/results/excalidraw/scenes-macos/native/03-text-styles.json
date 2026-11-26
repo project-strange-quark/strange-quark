@@ -1,0 +1,20 @@
+{
+  "id": "03-text-styles",
+  "note": "text sizes and colours",
+  "pass": true,
+  "diffPixels": 3768,
+  "totalPixels": 1024000,
+  "diffRatio": 0.0036796875,
+  "maxDelta": 216,
+  "meanChannelError": 0.0756,
+  "diffBounds": {
+    "x": 28,
+    "y": 16,
+    "width": 1225,
+    "height": 758
+  },
+  "reason": null,
+  "actual": "tests/results/excalidraw/scenes-macos/native/03-text-styles.png",
+  "expected": "tests/results/excalidraw/scenes/expected/03-text-styles.png",
+  "diff": null
+}

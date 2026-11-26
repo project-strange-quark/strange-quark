@@ -1,0 +1,22 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Flex align-items: baseline across different font sizes</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; padding: 16px; }
+    .row { display: flex; align-items: baseline; gap: 12px; border: 1px solid #94a3b8; padding: 12px; background: #f8fafc; }
+    .s1 { font-size: 14px; background: #dbeafe; padding: 4px; }
+    .s2 { font-size: 30px; background: #fef08a; padding: 4px; }
+    .s3 { font-size: 20px; background: #dcfce7; padding: 12px 4px 4px 4px; }
+  </style>
+</head>
+<body>
+  <div class="row"><div class="s1">Small</div><div class="s2">Large</div><div class="s3">Padded</div></div>
+</body>
+</html>

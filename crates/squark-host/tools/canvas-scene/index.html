@@ -1,0 +1,110 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<meta charset="utf-8">
+<title>Cached canvas pan and zoom</title>
+<style>
+  html, body { margin: 0; overflow: hidden; background: white; }
+  #scene { display: block; width: 100vw; height: 100vh; }
+</style>
+<canvas id="scene"></canvas>
+<script>
+  const scene = document.getElementById("scene");
+  const context = scene.getContext("2d");
+  const elements = [];
+  const columns = 40, rows = 25, stepX = 105, stepY = 81;
+  const width = 92, height = 68;
+  const colors = ["#a5d8ff", "#b2f2bb", "#ffec99", "#ffc9c9", "#d0bfff"];
+  const stats = window.benchmark = {
+    ready: false, cached: 0, draws: 0, maxVisible: 0, panEvents: 0, zoomEvents: 0,
+    x: 0, y: 0, zoom: 0, minZoom: 1, maxZoom: 0,
+  };
+  let scheduled = false;
+
+  function draw() {
+    scheduled = false;
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, scene.width, scene.height);
+    context.setTransform(stats.zoom, 0, 0, stats.zoom, stats.x, stats.y);
+    let visible = 0;
+    for (const { bitmap, x, y } of elements) {
+      if ((x + width) * stats.zoom + stats.x <= 0 ||
+          (y + height) * stats.zoom + stats.y <= 0 ||
+          x * stats.zoom + stats.x >= scene.width ||
+          y * stats.zoom + stats.y >= scene.height) continue;
+      context.drawImage(bitmap, x, y);
+      visible++;
+    }
+    stats.draws++;
+    stats.maxVisible = Math.max(stats.maxVisible, visible);
+  }
+
+  function buildCache() {
+    const end = Math.min(elements.length + 32, columns * rows);
+    while (elements.length < end) {
+      const index = elements.length;
+      const bitmap = document.createElement("canvas");
+      bitmap.width = width;
+      bitmap.height = height;
+      const brush = bitmap.getContext("2d");
+      brush.beginPath();
+      if (index % 4 === 3) {
+        brush.ellipse(46, 34, 39, 26, (index % 5 - 2) * .02, 0, Math.PI * 2);
+      } else {
+        brush.moveTo(6, 7);
+        brush.bezierCurveTo(30, 3 + index % 5, 62, 9, 84, 6);
+        brush.lineTo(87, 59);
+        brush.bezierCurveTo(54, 66, 29, 59, 5, 62);
+        brush.closePath();
+      }
+      brush.fillStyle = colors[index % colors.length];
+      brush.fill();
+      brush.strokeStyle = "#1e1e1e";
+      brush.lineWidth = 2;
+      brush.stroke();
+      elements.push({ bitmap, x: index % columns * stepX, y: Math.floor(index / columns) * stepY });
+    }
+    if (end < columns * rows) {
+      requestAnimationFrame(buildCache);
+    } else {
+      stats.cached = elements.length;
+      draw();
+      const x = Math.round(stats.x + 46 * stats.zoom);
+      const y = Math.round(stats.y + 34 * stats.zoom);
+      stats.sample = Array.from(context.getImageData(x, y, 1, 1).data);
+      stats.ready = true;
+    }
+  }
+
+  scene.width = 1280;
+  scene.height = 800;
+  stats.viewport = [innerWidth, innerHeight];
+  stats.zoom = Math.min((scene.width - 24) / (columns * stepX), (scene.height - 24) / (rows * stepY));
+  stats.x = (scene.width - columns * stepX * stats.zoom) / 2;
+  stats.y = (scene.height - rows * stepY * stats.zoom) / 2;
+  stats.minZoom = stats.maxZoom = stats.zoom;
+  scene.addEventListener("wheel", event => {
+    event.preventDefault();
+    if (!stats.ready) return;
+    if (event.ctrlKey) {
+      const next = Math.max(.16, Math.min(.9, stats.zoom * Math.exp(-event.deltaY * .002)));
+      const ratio = next / stats.zoom;
+      const x = event.clientX * scene.width / innerWidth;
+      const y = event.clientY * scene.height / innerHeight;
+      stats.x = x + (stats.x - x) * ratio;
+      stats.y = y + (stats.y - y) * ratio;
+      stats.zoom = next;
+      stats.zoomEvents++;
+      stats.minZoom = Math.min(stats.minZoom, next);
+      stats.maxZoom = Math.max(stats.maxZoom, next);
+    } else {
+      stats.x -= event.deltaX;
+      stats.y -= event.deltaY;
+      stats.panEvents++;
+    }
+    if (!scheduled) {
+      scheduled = true;
+      requestAnimationFrame(draw);
+    }
+  }, { passive: false });
+  requestAnimationFrame(buildCache);
+</script>
