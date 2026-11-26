@@ -17,7 +17,10 @@ const ALLOWED_LICENSES = new Set([
   "Unicode-3.0",
   "CC0-1.0",
   "0BSD",
+  "BSL-1.0",
   "MPL-2.0",
+  // Data packages such as caniuse-lite, which Babel's browserslist reads.
+  "CC-BY-4.0",
 ]);
 
 // Parse simple SPDX expressions supporting OR, AND, WITH, parentheses.

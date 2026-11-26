@@ -80,8 +80,8 @@ The project is MIT. Every new source file starts with
 `SPDX-License-Identifier: MIT`.
 
 Dependencies may come in only under MIT, Apache-2.0, BSD-2/3-Clause, ISC,
-Zlib, Unicode-3.0, CC0 or 0BSD, or MPL-2.0 as a dependency (Stylo and its
-crates). A patched MPL-2.0 file stays under MPL-2.0 and in its original
+Zlib, Unicode-3.0, CC0, 0BSD or BSL-1.0, CC-BY-4.0 for data (such as
+caniuse-lite), or MPL-2.0 as a dependency (Stylo and its crates). A patched MPL-2.0 file stays under MPL-2.0 and in its original
 place, and the patch is recorded, as `vendor/stylo/PATCHES.md` and `NOTICE`
 do for Stylo. Nothing under the GPL, LGPL or AGPL goes into a crate, a
 package or a build output; a GPL tool that is only run is fine.

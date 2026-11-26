@@ -104,6 +104,9 @@ test("isSpdxAllowed enforces AGENTS.md licence policy", () => {
   assert.equal(isSpdxAllowed("BSD-3-Clause"), true);
   assert.equal(isSpdxAllowed("ISC"), true);
   assert.equal(isSpdxAllowed("MPL-2.0"), true);
+  assert.equal(isSpdxAllowed("BSL-1.0"), true);
+  assert.equal(isSpdxAllowed("CC-BY-4.0"), true);
+  assert.equal(isSpdxAllowed("CC-BY-SA-4.0"), false);
   assert.equal(isSpdxAllowed("(MIT OR Apache-2.0)"), true);
   assert.equal(isSpdxAllowed("(MIT OR GPL-3.0-only)"), true);
   assert.equal(isSpdxAllowed("GPL-3.0-only"), false);
