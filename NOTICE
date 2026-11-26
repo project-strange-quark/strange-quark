@@ -15,7 +15,10 @@ stylo_to_parley.rs and packages/stylo_taffy/src/convert.rs (also MIT).
 Production mappings from the same files live in crates/squark-text/src/css.rs
 and crates/squark-layout/src/css.rs.
 
-Servo Stylo 0.24.0, used under MPL-2.0, in vendor/stylo. Commit 32359dc3f17780ee269980cb7a3a7f8597a1dc0e.
+Servo Stylo 0.24.0, used under MPL-2.0, in vendor/stylo. Commit
+32359dc3f17780ee269980cb7a3a7f8597a1dc0e. One file is patched,
+values/specified/ui.rs; vendor/stylo/PATCHES.md describes the change, and
+the patched file stays under MPL-2.0.
 
 Bundled reftest fonts under tests/reftests/cases/r1/_assets/fonts/, with
 copies of LiberationSans-Regular and Assistant-Regular under
