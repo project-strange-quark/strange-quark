@@ -513,7 +513,7 @@ export default defineConfig({
     modules: ['acme'],                  // the modules JavaScript may call
     squarkSource: '../strange-quark',   // the checkout the app runtime builds from
   },
-  compat: { tauri: { module: 'acme' } }, // run a Tauri 2 frontend unchanged (@strange-quark/tauri)
+  preludes: [{ file: './boot.js', globals: { BOOT: { theme: 'dark' } } }],  // classic scripts run before the app's
 });
 ```
 
@@ -525,7 +525,7 @@ Native modules are built (`squark-native`, below). `<GpuView>` and `@strange-qua
 
 **Native modules** are Rust functions marked `#[squark_native::export]`, grouped in `squark_native::Module`s, and linked into the app's own runtime, so they cost no extra process or IPC. JavaScript calls them by name through the private `Symbol.for("strange-quark.native")` API (`invoke(module, command, args)`, `listen(event, callback)`), and module code pushes events with `app.emit(event, payload)`. Values cross as JSON. A module runs only if `squark.config.ts` lists it under `native.modules`. Sync commands run on a blocking thread and async ones on the runtime squark-net already owns. Generated TypeScript types are planned.
 
-The command and event model follows Tauri's (arguments as one camelCase JSON object, `App`/`AppHandle`, `State<T>`, `Emitter::emit`, close-request interception, an exit hook), so a Tauri backend ports by swapping imports. `@strange-quark/tauri` supplies `window.__TAURI_INTERNALS__` over native modules, so a Tauri frontend runs without source changes.
+Strange Quark's own API knows no other shell. Compatibility with one is an optional module an app opts into. For Tauri 2 there are two halves: the `squark-tauri` crate gives a Tauri backend's commands the API they were written against (an app builds its backend with `squark_tauri` named `tauri`), and the `@strange-quark/tauri` package supplies `window.__TAURI_INTERNALS__` over native modules through squark.config's generic `preludes`, so the frontend runs without source changes. Apps that do not use them never install or link them.
 
 Linking the app's Rust into its runtime was chosen over a sidecar process, a JavaScript backend on host APIs, and Wasm modules because it adds the least to the binary and to memory: the runtime's std, tokio, TLS and serde are shared, and there is no second process, isolate or serialization hop.
 
