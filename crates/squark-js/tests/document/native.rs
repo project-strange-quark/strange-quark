@@ -117,13 +117,13 @@ fn invoke_round_trips_json_and_events_reach_listeners() {
     std::thread::spawn(move || first(Ok(r#""module Demo""#.into()))).join().unwrap();
     replies.next().unwrap()(Err(r#""No such file""#.into()));
     let events = h.native.events.lock().unwrap().clone().unwrap();
-    events.emit("pty-output", r#"{"session_id":"s","data":"julia> "}"#.into());
+    events.emit("pty-output", r#"{"session_id":"s","data":"$ "}"#.into());
     events.emit("unheard", "1".into());
     assert!(matches!(h.wake.try_recv(), Ok(DocumentTask::NativeReady)));
     h.settle();
     assert_eq!(
         h.eval("JSON.stringify(log)"),
-        r#""[[\"missing\",\"native module \\\"other\\\" is not available\"],[\"ok\",\"module Demo\"],[\"err\",\"No such file\"],[\"event\",{\"session_id\":\"s\",\"data\":\"julia> \"}]]""#
+        r#""[[\"missing\",\"native module \\\"other\\\" is not available\"],[\"ok\",\"module Demo\"],[\"err\",\"No such file\"],[\"event\",{\"session_id\":\"s\",\"data\":\"$ \"}]]""#
     );
     h.eval("off()");
     events.emit("pty-output", "2".into());
@@ -140,7 +140,7 @@ fn window_operations_go_to_the_host_and_the_api_exists_without_modules() {
         globalThis.rejected = null;
         {API}.invoke("demo", "x", {{}}).catch(error => rejected = error);
         {API}.window.setZoom(1.25);
-        {API}.window.setTitle("julIDE — demo");
+        {API}.window.setTitle("Demo — notes.md");
         "#
     ));
     assert_eq!(
@@ -154,7 +154,7 @@ fn window_operations_go_to_the_host_and_the_api_exists_without_modules() {
         h.host.try_recv().unwrap(),
         HostRequest::Window {
             id: 2,
-            op: WindowOp::SetTitle("julIDE — demo".into())
+            op: WindowOp::SetTitle("Demo — notes.md".into())
         }
     );
     h.runner.host_reply(1, Ok(HostValue::Done)).unwrap();

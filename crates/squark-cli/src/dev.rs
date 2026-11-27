@@ -630,7 +630,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let pack = dir.path().join("dev.sqpak");
         let mut with_native = input("http://127.0.0.1:5173", Vec::new());
-        with_native.native_modules = vec!["julide".into()];
+        with_native.native_modules = vec!["demo".into()];
         with_native.prelude = Some(crate::pack::Prelude {
             path: "/__squark/tauri.js".into(),
             source: b"globalThis.shim = '</script>';".to_vec(),
@@ -644,7 +644,7 @@ mod tests {
         let bytes = fs::read(&pack).unwrap();
         let text = String::from_utf8_lossy(&bytes);
         assert!(text.contains(r#""modules": ["#), "{text}");
-        assert!(text.contains("julide"));
+        assert!(text.contains("demo"));
         assert!(text.contains(r"<head><script>globalThis.shim = '<\/script>';</script><script type=module"));
     }
 

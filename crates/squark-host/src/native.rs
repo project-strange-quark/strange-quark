@@ -165,8 +165,8 @@ mod tests {
 
     #[test]
     fn manifest_lists_the_enabled_modules() {
-        let manifest = serde_json::json!({ "native": { "modules": ["julide", 3, "extra"] } });
-        assert_eq!(enabled_modules(Some(&manifest)), ["julide", "extra"]);
+        let manifest = serde_json::json!({ "native": { "modules": ["demo", 3, "extra"] } });
+        assert_eq!(enabled_modules(Some(&manifest)), ["demo", "extra"]);
         assert!(enabled_modules(Some(&serde_json::json!({}))).is_empty());
         assert!(enabled_modules(None).is_empty());
     }

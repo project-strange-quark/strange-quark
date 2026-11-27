@@ -341,10 +341,10 @@ mod tests {
         let manifest = dir.path().join("Cargo.toml");
         fs::write(
             &manifest,
-            "[workspace]\nname = \"no\"\n\n[package]\nversion = \"1.0.0\"\nname = \"julide-squark\"\n\n[dependencies]\nname = \"no\"\n",
+            "[workspace]\nname = \"no\"\n\n[package]\nversion = \"1.0.0\"\nname = \"demo-native\"\n\n[dependencies]\nname = \"no\"\n",
         )
         .unwrap();
-        assert_eq!(package_name(&manifest).unwrap(), "julide-squark");
+        assert_eq!(package_name(&manifest).unwrap(), "demo-native");
     }
 
     #[test]
@@ -352,13 +352,13 @@ mod tests {
         let manifest = runtime_manifest(
             Path::new("/src/sq"),
             Path::new("/app/src-tauri"),
-            "julide",
+            "demo",
             &["squark".into()],
             false,
         );
         assert!(manifest.contains(r#"squark-host = { path = "/src/sq/crates/squark-host" }"#));
         assert!(manifest.contains(
-            r#"app = { path = "/app/src-tauri", package = "julide", features = ["squark"], default-features = false }"#
+            r#"app = { path = "/app/src-tauri", package = "demo", features = ["squark"], default-features = false }"#
         ));
         assert!(manifest.contains(r#"stylo = { path = "/src/sq/vendor/stylo" }"#));
         assert!(manifest.contains("[workspace]"));
@@ -373,13 +373,13 @@ mod tests {
         fs::write(dir.path().join("fixture.js"), "/*fixture*/").unwrap();
         let compat = RawCompatConfig {
             tauri: Some(crate::config::RawTauriCompat {
-                module: Some("julide".into()),
+                module: Some("demo".into()),
                 fixture: Some("fixture.js".into()),
             }),
         };
         let prelude = tauri_prelude(dir.path(), &compat).unwrap().unwrap();
         let text = String::from_utf8(prelude.source).unwrap();
-        let config = text.find(r#"globalThis.__STRANGE_QUARK_TAURI__ = {"fixture":true,"module":"julide"};"#);
+        let config = text.find(r#"globalThis.__STRANGE_QUARK_TAURI__ = {"fixture":true,"module":"demo"};"#);
         let fixture = text.find("/*fixture*/");
         let shim = text.find("/*shim*/");
         assert!(config < fixture && fixture < shim, "{text}");

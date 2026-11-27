@@ -31,8 +31,8 @@ test("invoke reaches the transport with camelCase args and keeps rejections as v
       throw "No such file";
     },
   }));
-  assert.equal(await core.invoke("fs_read_file", { path: "/a.jl", sessionId: "s" }), "contents");
-  assert.deepEqual(calls, [{ path: "/a.jl", sessionId: "s" }]);
+  assert.equal(await core.invoke("fs_read_file", { path: "/a.txt", sessionId: "s" }), "contents");
+  assert.deepEqual(calls, [{ path: "/a.txt", sessionId: "s" }]);
   assert.equal(await core.invoke("unknown_command"), undefined);
   await assert.rejects(core.invoke("fail"), error => error === "No such file");
   assert.equal(core.isTauri(), true);
@@ -43,12 +43,12 @@ test("listen receives backend events in Tauri's event shape until unlisten", asy
   fresh(transport);
   const seen = [];
   const unlisten = await event.listen("pty-output", e => seen.push(e));
-  transport.emit("pty-output", { session_id: "a", data: "julia> " });
+  transport.emit("pty-output", { session_id: "a", data: "$ " });
   transport.emit("other", 1);
   assert.equal(seen.length, 1);
   assert.equal(seen[0].event, "pty-output");
   assert.equal(typeof seen[0].id, "number");
-  assert.deepEqual(seen[0].payload, { session_id: "a", data: "julia> " });
+  assert.deepEqual(seen[0].payload, { session_id: "a", data: "$ " });
   await unlisten();
   transport.emit("pty-output", { session_id: "a", data: "more" });
   assert.equal(seen.length, 1);
@@ -81,8 +81,8 @@ test("plugin commands map to the platform or reject plainly", async () => {
   assert.equal(await core.invoke("plugin:clipboard-manager|read_text"), "from clipboard");
   await core.invoke("plugin:clipboard-manager|write_text", { text: "copied" });
   assert.deepEqual(written, ["copied"]);
-  await core.invoke("plugin:opener|open_url", { url: "https://julialang.org" });
-  assert.deepEqual(opened, ["https://julialang.org"]);
+  await core.invoke("plugin:opener|open_url", { url: "https://example.com" });
+  assert.deepEqual(opened, ["https://example.com"]);
   await webview.getCurrentWebview().setZoom(1.25);
   assert.deepEqual(zooms, [1.25]);
   await assert.rejects(core.invoke("plugin:updater|check", {}), error => error === "plugin:updater|check is not available in Strange Quark");
@@ -91,7 +91,7 @@ test("plugin commands map to the platform or reject plainly", async () => {
 
 test("convertFileSrc follows Tauri's per-platform URL form", () => {
   fresh(fixtureTransport());
-  assert.equal(core.convertFileSrc("/home/me/a b.png", "julide-plugin"), "julide-plugin://localhost/%2Fhome%2Fme%2Fa%20b.png");
+  assert.equal(core.convertFileSrc("/home/me/a b.png", "app-plugin"), "app-plugin://localhost/%2Fhome%2Fme%2Fa%20b.png");
   assert.equal(core.convertFileSrc("/x"), "asset://localhost/%2Fx");
 });
 
@@ -100,7 +100,7 @@ test("nativeTransport routes through the private native API and fails clearly wi
   const listeners = new Map();
   const host = {
     [NATIVE_API]: {
-      modules: ["julide"],
+      modules: ["demo"],
       invoke: async (module, command, args) => {
         sent.push([module, command, args]);
         return 42;
@@ -112,14 +112,14 @@ test("nativeTransport routes through the private native API and fails clearly wi
       window: {},
     },
   };
-  const transport = nativeTransport(host, "julide");
+  const transport = nativeTransport(host, "demo");
   assert.equal(await transport.invoke("git_status", { path: "/r" }), 42);
-  assert.deepEqual(sent, [["julide", "git_status", { path: "/r" }]]);
+  assert.deepEqual(sent, [["demo", "git_status", { path: "/r" }]]);
   const off = transport.listen("fs-changed", () => {});
   assert.ok(listeners.has("fs-changed"));
   off();
   assert.ok(!listeners.has("fs-changed"));
-  await assert.rejects(nativeTransport({}, "julide").invoke("x", {}), /no native modules/);
+  await assert.rejects(nativeTransport({}, "demo").invoke("x", {}), /no native modules/);
 });
 
 test("the classic script installs from the injected config", async () => {
