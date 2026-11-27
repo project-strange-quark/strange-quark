@@ -158,6 +158,31 @@ fn contain(input: stylo::Contain, display: stylo::Display) -> taffy::Contain {
     result
 }
 
+/// The axes in which size containment sizes the box as if it were empty:
+/// `[inline, block]`. Like layout and paint containment it skips non-atomic
+/// inline boxes, and it skips internal table boxes too
+/// (<https://drafts.csswg.org/css-contain-2/#containment-size>).
+pub(crate) fn size_containment(style: &stylo::ComputedValues) -> [bool; 2] {
+    let box_style = style.get_box();
+    let display = box_style.display;
+    let contain = box_style.contain;
+    if display.outside() == stylo::DisplayOutside::InternalTable
+        || (display.outside() == stylo::DisplayOutside::Inline
+            && display.inside() == stylo::DisplayInside::Flow)
+    {
+        return [false; 2];
+    }
+    let size = contain.contains(stylo::Contain::SIZE);
+    [size || contain.contains(stylo::Contain::INLINE_SIZE), size]
+}
+
+/// Whether paint containment clips the box's contents to its padding box,
+/// as `overflow: clip` does.
+pub(crate) fn paint_containment(style: &stylo::ComputedValues) -> bool {
+    let box_style = style.get_box();
+    contain(box_style.contain, box_style.display).contains(taffy::Contain::PAINT)
+}
+
 fn direction(input: stylo::Direction) -> taffy::Direction {
     match input {
         stylo::Direction::Ltr => taffy::Direction::Ltr,

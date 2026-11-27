@@ -1357,3 +1357,71 @@ fn matches_stylesheet_faces_by_their_descriptors_and_unicode_ranges() {
         assert_eq!(find(&tree, text - 1).border_box.size.height, 20.0);
     }
 }
+
+#[test]
+fn sizes_lays_out_and_clips_contained_boxes() {
+    let mut fixture = Fixture::new(
+        "body { margin: 0; font: 16px/20px monospace }
+         div { padding: 2px; border: 1px solid }
+         .tall { height: 50px; width: 70px }
+         #size { contain: size; width: 100px }
+         #inline { display: inline-block; contain: inline-size }
+         #float { position: absolute; top: 300px; contain: size; min-height: 12px }
+         #strict { contain: strict; width: 30px; height: 10px }
+         #paint { contain: paint; width: 40px; height: 10px }
+         #layout { contain: layout; width: 40px; height: 10px }
+         span { contain: paint }",
+    );
+    let mut boxes = Vec::new();
+    for id in ["size", "inline", "float", "strict", "paint", "layout"] {
+        let contained = fixture.element(BODY, "div", &[("id", id)]);
+        let child = fixture.element(contained, "div", &[("class", "tall")]);
+        fixture.text(child, "contents");
+        boxes.push(contained);
+    }
+    let inline = fixture.element(BODY, "span", &[]);
+    fixture.text(inline, "inline");
+    let pack = fixture.pack();
+    let media = screen(VIEWPORT.width, VIEWPORT.height, 1.0);
+    let (mut doc, _, mut cascade) = Cascade::from_pack(
+        &pack,
+        Url::parse("https://app.test/index.html").unwrap(),
+        media.clone(),
+    )
+    .unwrap();
+    cascade.update(&mut doc, media).unwrap();
+    for condition in ["contain: strict", "contain: inline-size layout"] {
+        let units: Vec<u16> = condition.encode_utf16().collect();
+        assert!(cascade.css_supports(&units), "{condition}");
+    }
+    let tree = LayoutEngine::default().layout(&doc, &cascade, VIEWPORT);
+    let size = |id: u32| {
+        let size = find(&tree, id).border_box.size;
+        [size.width, size.height]
+    };
+    // Size containment sizes the box as if it were empty: padding and
+    // border only, in both axes or the inline one.
+    assert_eq!(size(boxes[0]), [106.0, 6.0]);
+    assert_eq!(size(boxes[1])[0], 6.0);
+    assert_eq!(size(boxes[1])[1], 62.0);
+    assert_eq!(size(boxes[2]), [6.0, 18.0]);
+    assert_eq!(size(boxes[3]), [36.0, 16.0]);
+    // The contents still lay out, overflowing the contained box.
+    assert_eq!(size(boxes[0] + 1), [76.0, 56.0]);
+    // Paint containment clips without scrolling; layout containment alone
+    // does not clip. Neither applies to a non-atomic inline box.
+    for (id, clips) in [(boxes[3], true), (boxes[4], true), (boxes[5], false)] {
+        let scroll = find(&tree, id).scroll;
+        assert_eq!(
+            scroll.map(|frame| (frame.clip_x, frame.clip_y, frame.scroll_x, frame.scroll_y)),
+            clips.then_some((true, true, false, false)),
+            "{id}"
+        );
+    }
+    assert!(
+        tree.nodes
+            .values()
+            .filter(|fragment| fragment.owner.raw() == inline)
+            .all(|fragment| fragment.scroll.is_none())
+    );
+}
