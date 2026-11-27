@@ -3,7 +3,7 @@
 export {
   bootstrapDocument, createDocument, dispatchImageResult, finishDocumentStartup, flushDocument, hasPendingRecords, installCSSOM, installDocumentBindings, installDOM, notifyWindowResize, Node, Element, CharacterData, Text, Comment,
   Document, XMLDocument, DOMParser, DocumentFragment, DocumentType, HTMLElement, HTMLInputElement, HTMLTextAreaElement, HTMLBRElement,
-  HTMLSelectElement, HTMLOptionElement, HTMLButtonElement, HTMLFormElement, HTMLLabelElement, HTMLIFrameElement, HTMLAnchorElement, HTMLCanvasElement, HTMLImageElement, HTMLUnknownElement, HTMLScriptElement, HTMLStyleElement, HTMLLinkElement, Selection, SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement,
+  HTMLSelectElement, HTMLOptionElement, HTMLButtonElement, HTMLFormElement, HTMLLabelElement, HTMLIFrameElement, HTMLAnchorElement, HTMLCanvasElement, HTMLImageElement, HTMLUnknownElement, HTMLScriptElement, HTMLStyleElement, HTMLLinkElement, SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement,
 } from "./document.js";
 export { Event, CompositionEvent, CustomEvent, EventTarget, DOMException, ErrorEvent, FocusEvent, InputEvent, KeyboardEvent, MouseEvent, PointerEvent, ProgressEvent, SubmitEvent, WheelEvent, Window } from "./events.js";
 export { DOMTokenList, HTMLCollection, NodeList } from "./collections.js";
@@ -21,6 +21,7 @@ export { dispatchAnimationEvent, installMedia } from "./media.js";
 
 export { NodeFilter, TreeWalker } from "./tree-walker.js";
 export { AbstractRange, NodeRange, Range, StaticRange } from "./range.js";
+export { Selection } from "./selection.js";
 
 export { installScroll } from "./scroll.js";
 

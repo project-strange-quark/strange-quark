@@ -22,6 +22,7 @@ import {
   AbstractRange, createRange, installRangeGeometry, NodeRange, Range, rangesAfterInsert, rangesBeforeRemove, rangesMergeText,
   rangesReplaceData, rangesSplitText, StaticRange,
 } from "./range.js";
+import { documentSelection, Selection, textControlFocused, textControlSelectionChanged } from "./selection.js";
 
 import {
   createSheet, CSSRule, CSSRuleList, CSSStyleSheet, detachSheet, styleSheetList, StyleSheetList,
@@ -113,7 +114,6 @@ type DocumentState = {
   active: HTMLElement | null;
   focusChain: Element[];
   focusRevision: number;
-  selection?: Selection;
   focusVisible: boolean;
   keyboardModality: boolean;
   inputDetached?: (child: Node) => void;
@@ -1005,6 +1005,7 @@ function focus(document: Document, next: HTMLElement | null, preventScroll: bool
     state.active = next;
     state.focusVisible = state.keyboardModality || textControl(next) || editableHost(next);
     stateOn(next, ElementState.Focus | (state.focusVisible ? ElementState.FocusVisible : 0), true);
+    if (textControl(next)) textControlFocused(next, selectionFor(next));
     journalFor(next)?.record(Opcode.Focus, nodeId(next), preventScroll ? FocusFlags.PreventScroll : 0, 0);
   }
   const chain = elementChain(state.active);
@@ -1194,7 +1195,7 @@ export class HTMLElement extends Element {
 reflect(HTMLElement.prototype, { title: "title", lang: "lang", dir: "dir", accessKey: "accesskey", slot: "slot" });
 reflect(HTMLElement.prototype, { hidden: "hidden", draggable: "draggable" }, true);
 for (const name of ["click", "dblclick", "input", "change", "focus", "blur", "error", "load", "reset", "submit", "beforeinput",
-  "focusin", "focusout", "select", "search", "cancel", "copy", "cut", "paste", "compositionstart", "compositionupdate", "compositionend", "keydown", "keyup", "keypress", "wheel", "touchmove", "mousedown", "mouseup", "mousemove",
+  "focusin", "focusout", "select", "selectionchange", "search", "cancel", "copy", "cut", "paste", "compositionstart", "compositionupdate", "compositionend", "keydown", "keyup", "keypress", "wheel", "touchmove", "mousedown", "mouseup", "mousemove",
   "mouseover", "mouseout", "mouseenter", "mouseleave", "pointerdown", "pointerup", "pointermove", "pointercancel",
   "pointerover", "pointerout", "pointerenter", "pointerleave", "gotpointercapture", "lostpointercapture",
   "transitionrun", "transitionstart", "transitionend", "transitioncancel",
@@ -1237,15 +1238,20 @@ function setTextSelection(element: TextControl, start: number, end: number, dire
   if (start === previous.start && end === previous.end && next.direction === previous.direction) return;
   const composition = compositions.get(element.ownerDocument);
   if (!preview && textControl(element) && !(composition?.control === element && composition.preview)) writeSelection(element, next);
+  if (textControl(element)) textControlSelectionChanged(element, next);
   if (!notify) return;
   endHistoryGroup(element);
-  const dispatch = () => dispatchTrustedEvent(element, new Event("select", { bubbles: true }));
-  const host = documents.get(element.ownerDocument)!.bindings;
-  if (host !== undefined) host.postTask(dispatch);
+  queueDocumentTask(element.ownerDocument, () => dispatchTrustedEvent(element, new Event("select", { bubbles: true })));
+}
+
+/** Queues a task on the document's event loop, or a timer or microtask outside the engine. */
+export function queueDocumentTask(document: Document, task: () => void): void {
+  const host = documents.get(document)!.bindings;
+  if (host !== undefined) host.postTask(task);
   else {
-    const view = element.ownerDocument.defaultView as { setTimeout?: (callback: () => void, delay: number) => void } | null;
-    if (view?.setTimeout !== undefined) view.setTimeout(dispatch, 0);
-    else Promise.resolve().then(dispatch);
+    const view = document.defaultView as { setTimeout?: (callback: () => void, delay: number) => void } | null;
+    if (view?.setTimeout !== undefined) view.setTimeout(task, 0);
+    else Promise.resolve().then(task);
   }
 }
 
@@ -1264,24 +1270,6 @@ function selectAll(element: TextControl): void {
 
 function moveCaret(element: TextControl, value: string): void {
   setTextSelection(element, value.length, value.length, undefined, false);
-}
-
-const selectionToken = Symbol("Selection constructor");
-export class Selection {
-  #document: Document;
-  constructor(token: symbol, document: Document) {
-    if (token !== selectionToken) throw new TypeError("Illegal Selection constructor");
-    this.#document = document;
-  }
-
-  toString(): string {
-    const target = this.#document.activeElement;
-    if (!textControl(target)) return "";
-    const { start, end } = selectionFor(target);
-    return target instanceof HTMLInputElement && target.type === "password"
-      ? "•".repeat(end - start)
-      : target.value.slice(start, end);
-  }
 }
 
 const inputTypes = new Set("button checkbox color date datetime-local email file hidden image month number password radio range reset search submit tel text time url week".split(" "));
@@ -2697,8 +2685,7 @@ export class Document extends ParentNode {
   set cookie(_value: string) {}
   get readyState(): ReadyState { return documents.get(this)!.ready; }
   getSelection(): Selection | null {
-    const state = documents.get(this)!;
-    return state.view === null ? null : state.selection ??= new Selection(selectionToken, this);
+    return documents.get(this)!.view === null ? null : documentSelection(this);
   }
 
   get scrollingElement(): Element | null {
@@ -2937,7 +2924,7 @@ function serializeXML(node: Node): string {
   return children === "" ? xml + "/>" : xml + ">" + children + "</" + name + ">";
 }
 
-for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", "paste"]) reflectedEvent(Document.prototype, name);
+for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", "paste", "selectionchange"]) reflectedEvent(Document.prototype, name);
 
 function attributeKey(namespace: string | null, localName: string): string { return `${namespace ?? ""}\0${localName}`; }
 
