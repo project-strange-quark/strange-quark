@@ -15,7 +15,6 @@ use squark_js::{DocumentShutdown, document::DocumentTask};
 use squark_types::render::{FrameId, Viewport};
 
 use crate::{
-    native::{NativeRuntime, RecordedWindow},
     HostError, ScreenshotRequest,
     canvas::ReadCanvas,
     clock::{DEFAULT_REFRESH, FrameClock, FrameWake},
@@ -27,6 +26,7 @@ use crate::{
     failure,
     ime::{CursorArea, Edit, ImeState},
     input::InputRouter,
+    native::{NativeRuntime, RecordedWindow},
     pipeline::{self, RenderPipeline},
     screenshot_viewport,
     services::{

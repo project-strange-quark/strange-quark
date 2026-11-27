@@ -16,9 +16,9 @@ use squark_gpu::{StaticWindowRenderer, WindowSurface};
 use squark_js::{DocumentShutdown, document::DocumentTask};
 use squark_paint::HitSnapshot;
 use squark_types::{
-    native::{CloseRequest, NativeDispatcher, WindowOp},
     Size,
     host::{HostValue, Input, InputTask},
+    native::{CloseRequest, NativeDispatcher, WindowOp},
     render::{FrameId, FrameTick, Viewport},
 };
 use winit::{
@@ -30,7 +30,6 @@ use winit::{
 };
 
 use crate::{
-    native::{NativeRuntime, WindowSink},
     GpuAdapter, HostError,
     canvas::PendingCanvasRequests,
     clock::{DEFAULT_REFRESH, FrameClock, FrameWake, TickChannel},
@@ -43,6 +42,7 @@ use crate::{
     fullscreen::FullscreenTracker,
     ime::{CursorArea, Edit, ImeState},
     input::InputRouter,
+    native::{NativeRuntime, WindowSink},
     pipeline::{self, RenderPipeline},
     services::{
         ClipboardMode, FileDialogMode, FileDialogQueue, FullscreenMode, MemoryClipboard,
@@ -617,10 +617,9 @@ impl ApplicationHandler<Event> for App {
         let window = self.window.as_ref().unwrap();
         match event {
             WindowEvent::CloseRequested => {
-                let prevent = self
-                    .native
-                    .as_ref()
-                    .is_some_and(|native| native.dispatcher.close_requested() == CloseRequest::Prevent);
+                let prevent = self.native.as_ref().is_some_and(|native| {
+                    native.dispatcher.close_requested() == CloseRequest::Prevent
+                });
                 if !prevent {
                     events.exit();
                 }

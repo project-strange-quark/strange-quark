@@ -25,7 +25,9 @@ impl RecordedWindow {
     pub(crate) fn sink(&self) -> WindowSink {
         let ops = Arc::clone(&self.0);
         Arc::new(move |op| {
-            ops.lock().unwrap_or_else(|poison| poison.into_inner()).push(op);
+            ops.lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .push(op);
             true
         })
     }

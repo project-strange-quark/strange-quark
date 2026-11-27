@@ -24,12 +24,12 @@ use squark_types::{
 use url::Url;
 use winit::window::Theme;
 
+use crate::{HostError, canvas::PendingCanvasRequests, failure, pipeline::DocumentPipeline};
 use crate::{
     native::{ModuleDialogs, NativeRuntime, WindowSink},
     services::{ClipboardMode, FileDialogMode, FullscreenMode, HostService},
 };
 use squark_types::native::NativeDispatcher;
-use crate::{HostError, canvas::PendingCanvasRequests, failure, pipeline::DocumentPipeline};
 
 include!(concat!(env!("OUT_DIR"), "/squark-dom.rs"));
 
@@ -310,7 +310,10 @@ pub(crate) fn run_packed(
         let manifest = manifest(&pack).ok().flatten();
         native.start(runtime.window.clone(), dialogs, manifest.as_ref());
     }
-    let dispatcher = runtime.native.as_ref().map(|native| Arc::clone(&native.dispatcher));
+    let dispatcher = runtime
+        .native
+        .as_ref()
+        .map(|native| Arc::clone(&native.dispatcher));
     let host_service = match HostService::start(
         wake_tasks.clone(),
         runtime.clipboard,
@@ -447,7 +450,7 @@ mod tests {
             ClipboardMode::Memory(crate::services::MemoryClipboard::default()),
             FileDialogMode::Queued(crate::services::FileDialogQueue::default()),
             FullscreenMode::Recorded(Default::default()),
-                    crate::native::RecordedWindow::default().sink(),
+            crate::native::RecordedWindow::default().sink(),
         )
         .unwrap();
         let mut runner = runner(

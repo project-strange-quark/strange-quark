@@ -531,7 +531,10 @@ fn handle(
         } => (id, file_dialogs.save(&suggested_name, &mime, &bytes)),
         HostRequest::Fullscreen { id, .. } | HostRequest::Window { id, .. } => (
             id,
-            Err(failure("WindowError", "window requests are handled by the window")),
+            Err(failure(
+                "WindowError",
+                "window requests are handled by the window",
+            )),
         ),
     }
 }
