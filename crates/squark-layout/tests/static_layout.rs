@@ -1359,6 +1359,46 @@ fn matches_stylesheet_faces_by_their_descriptors_and_unicode_ranges() {
 }
 
 #[test]
+fn shapes_text_with_font_variation_settings_and_optical_sizing() {
+    let mut fixture = Fixture::new(
+        "body { font: 20px monospace }
+         #axes { font-variation-settings: 'wght' 700, 'wdth' 80 }
+         #fixed { font-optical-sizing: none; font-variation-settings: 'wght' 300 }",
+    );
+    let axes = fixture.element(BODY, "p", &[("id", "axes")]);
+    let fixed = fixture.element(BODY, "p", &[("id", "fixed")]);
+    let pack = fixture.pack();
+    let media = screen(VIEWPORT.width, VIEWPORT.height, 1.0);
+    let (mut doc, _, mut cascade) = Cascade::from_pack(
+        &pack,
+        Url::parse("https://app.test/index.html").unwrap(),
+        media.clone(),
+    )
+    .unwrap();
+    cascade.update(&mut doc, media).unwrap();
+    let variations = |id: u32| {
+        let css = cascade
+            .computed_style(&doc, NodeId::from_raw(id), None)
+            .unwrap();
+        let parley::FontVariations::List(list) =
+            squark_text::style(NodeId::NONE, &css).font_variations
+        else {
+            panic!("expected a variation list");
+        };
+        list.iter()
+            .map(|variation| (variation.tag.to_bytes(), variation.value))
+            .collect::<Vec<_>>()
+    };
+    // Stylo sorts the settings by tag. Optical sizing adds an `opsz` axis
+    // at the font size unless it is off.
+    assert_eq!(
+        variations(axes),
+        [(*b"opsz", 20.0), (*b"wdth", 80.0), (*b"wght", 700.0)]
+    );
+    assert_eq!(variations(fixed), [(*b"wght", 300.0)]);
+}
+
+#[test]
 fn projects_backdrop_filters_from_css() {
     use squark_types::fragment::Filter;
     let mut fixture = Fixture::new(

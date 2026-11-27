@@ -136,6 +136,8 @@ impl<'a> Cascade<'a> {
         stylo_static_prefs::set_pref!("layout.css.contain.enabled", true);
         // Paint and the GPU renderer filter what lies behind the box.
         stylo_static_prefs::set_pref!("layout.css.backdrop-filter.enabled", true);
+        // Text shaping sets the variation axes and the optical size.
+        stylo_static_prefs::set_pref!("layout.css.font-variations.enabled", true);
         let initial = pack.document()?;
         let quirks = match initial.quirks {
             squark_assets::QuirksMode::Standards => QuirksMode::NoQuirks,
