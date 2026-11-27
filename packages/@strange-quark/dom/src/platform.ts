@@ -5,7 +5,7 @@ import {
   clipboardEntries, pasteTransfer,
 } from "./clipboard.js";
 import {
-  clipboardSelection, editClipboardSelection, installPlatformActions,
+  clipboardSelection, editClipboardSelection, focusedElement, installPlatformActions,
 } from "./document.js";
 import type { Document, Element } from "./document.js";
 import { dispatchTrustedEvent, DOMException, EventTarget } from "./events.js";
@@ -126,7 +126,7 @@ export function installPlatform(global: Record<PropertyKey, unknown>, document: 
   }
   async function paste(time: number): Promise<void> {
     const entries = await read();
-    const target = document.activeElement;
+    const target = focusedElement(document);
     if (target === null || !target.isConnected) return;
     const data = pasteTransfer(entries.map(([type, bytes]) => ({
       type,

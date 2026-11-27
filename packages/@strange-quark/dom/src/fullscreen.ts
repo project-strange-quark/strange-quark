@@ -8,7 +8,7 @@
 // document and the window.
 
 import { consumeUserActivation } from "./activation.js";
-import { Document, Element, reflectedEvent } from "./document.js";
+import { Document, Element, reflectedEvent, ShadowRoot } from "./document.js";
 import { dispatchTrustedEvent, Event } from "./events.js";
 
 type FullscreenHost = {
@@ -94,6 +94,11 @@ export function installFullscreen(document: Document, host: FullscreenHost): voi
   define(Document.prototype, "fullscreenElement", {
     enumerable: true,
     get(this: Document): Element | null { return states.get(this)?.fullscreen ? this.documentElement : null; },
+  });
+  // Only the document element can be fullscreen, and it is in no shadow tree.
+  define(ShadowRoot.prototype, "fullscreenElement", {
+    enumerable: true,
+    get(this: ShadowRoot): Element | null { return null; },
   });
   define(Document.prototype, "fullscreen", {
     enumerable: true,

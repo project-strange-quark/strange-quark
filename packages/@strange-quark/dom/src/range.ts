@@ -4,7 +4,8 @@
 
 import {
   CharacterData, childrenOf, Comment, connectedInputTarget, defaultDocument, Document, DocumentFragment, DocumentType,
-  DOMRect, Element, expectNode, HTMLInputElement, HTMLTextAreaElement, nativeRead, Node, parseMarkup, Text,
+  DOMRect, Element, expectNode, HTMLInputElement, HTMLTextAreaElement, nativeRead, Node, parseMarkup, shadowHostOf,
+  shadowIncludingRoot, Text,
 } from "./document.js";
 import { DOMException } from "./events.js";
 
@@ -733,8 +734,23 @@ function textControl(node: Node): node is HTMLInputElement | HTMLTextAreaElement
 }
 
 function rendered(node: Node): Document | null {
-  const root = nodeRoot(node);
+  const root = shadowIncludingRoot(node);
   return root instanceof Document && root.defaultView !== null ? root : null;
+}
+
+/**
+ * A caret inside a shadow tree that the caller did not list moves out to
+ * before its host, as Chromium's caret positions do.
+ */
+function scopedCaret([node, offset]: [Node, number], shadowRoots: readonly unknown[]): [Node, number] | null {
+  for (let root = nodeRoot(node), host = shadowHostOf(root); host !== null; root = nodeRoot(node), host = shadowHostOf(root)) {
+    if (shadowRoots.includes(root)) break;
+    const parent = host.parentNode;
+    if (parent === null) return null;
+    offset = nodeIndex(host);
+    node = parent;
+  }
+  return [node, offset];
 }
 
 /** CSSOM View range client rects, ordered like Chromium: top-most contained elements and every selected Text. */
@@ -832,16 +848,19 @@ export function installRangeGeometry(global: Record<PropertyKey, unknown>): void
   method(Range.prototype, "getBoundingClientRect", function getBoundingClientRect(this: Range) {
     return domRect(boundingRect(clientRects(pointsOf(this))));
   });
-  method(Document.prototype, "caretPositionFromPoint", function caretPositionFromPoint(this: Document, x: number, y: number) {
+  method(Document.prototype, "caretPositionFromPoint", function caretPositionFromPoint(this: Document, x: number, y: number,
+    options?: { shadowRoots?: readonly unknown[] } | null) {
     if (arguments.length < 2) throw new TypeError("caretPositionFromPoint requires x and y");
     x = Number(x);
     y = Number(y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) throw new TypeError("The coordinates must be finite numbers");
-    const caret = caretAt(this, x, y);
+    const hit = caretAt(this, x, y);
+    const caret = hit === null ? null : scopedCaret(hit, options?.shadowRoots === undefined ? [] : [...options.shadowRoots]);
     return caret === null ? null : new CaretPosition(caretToken, caret[0], caret[1]);
   });
   method(Document.prototype, "caretRangeFromPoint", function caretRangeFromPoint(this: Document, x = 0, y = 0) {
-    const caret = caretAt(this, x | 0, y | 0);
+    const hit = caretAt(this, x | 0, y | 0);
+    const caret = hit === null ? null : scopedCaret(hit, []);
     if (caret === null) return null;
     let [node, offset] = caret;
     if (textControl(node)) {

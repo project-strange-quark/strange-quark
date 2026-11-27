@@ -3,7 +3,7 @@
 // Autonomous custom elements (HTML "Custom elements"). Customized built-ins
 // are rejected the way Safari rejects them, so their feature checks fail.
 
-import { descendants, inTemplateContents } from "./document.js";
+import { inTemplateContents, shadowIncludingDescendants } from "./document.js";
 import type { Document, Element, Node } from "./document.js";
 import { DOMException } from "./events.js";
 
@@ -22,6 +22,8 @@ export type CustomElementDefinition = {
   readonly constructor: Function;
   readonly document: Document;
   readonly observedAttributes: ReadonlySet<string>;
+  /** `static disabledFeatures` lists "shadow": attachShadow() then throws. */
+  readonly disableShadow: boolean;
   readonly callbacks: Readonly<Partial<Record<LifecycleName, Callback>>>;
   readonly constructionStack: (Element | typeof alreadyConstructed)[];
 };
@@ -323,6 +325,7 @@ export class CustomElementRegistry {
       this.#running = true;
       const callbacks: Partial<Record<LifecycleName, Callback>> = {};
       let observedAttributes = new Set<string>();
+      let disableShadow = false;
       try {
         const prototype = (constructor as { prototype?: unknown }).prototype;
         if (typeof prototype !== "object" || prototype === null) throw new TypeError("The constructor prototype is not an object");
@@ -341,19 +344,20 @@ export class CustomElementRegistry {
           if (observed !== undefined) observedAttributes = new Set(toStringSequence(observed));
         }
         const disabled = (constructor as { disabledFeatures?: unknown }).disabledFeatures;
-        if (disabled !== undefined) toStringSequence(disabled);
+        if (disabled !== undefined) disableShadow = toStringSequence(disabled).includes("shadow");
         if ((constructor as { formAssociated?: unknown }).formAssociated) for (const key of formNames) callback(key);
       } finally {
         this.#running = false;
       }
       const definition: CustomElementDefinition = {
-        name, localName: name, constructor, document: this.#document, observedAttributes, callbacks, constructionStack: [],
+        name, localName: name, constructor, document: this.#document, observedAttributes, disableShadow, callbacks,
+        constructionStack: [],
       };
       this.#byName.set(name, definition);
       this.#byConstructor.set(constructor, definition);
       definitionsByConstructor.set(constructor, definition);
       customElementsActive = true;
-      for (const node of descendants(this.#document)) {
+      for (const node of shadowIncludingDescendants(this.#document)) {
         if (isElement(node) && node.namespaceURI === HTML_NAMESPACE && node.localName === name) enqueueUpgrade(node, definition);
       }
       const pending = this.#whenDefined.get(name);
@@ -399,7 +403,7 @@ export class CustomElementRegistry {
     }
     if (inTemplateContents(root)) return;
     withCEReactions(() => {
-      for (const node of [root, ...descendants(root)]) if (isElement(node)) tryUpgrade(node);
+      for (const node of [root, ...shadowIncludingDescendants(root)]) if (isElement(node)) tryUpgrade(node);
     });
   }
 }

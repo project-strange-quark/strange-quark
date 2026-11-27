@@ -2,6 +2,7 @@
 
 import { NodeList } from "./collections.js";
 import type { Node } from "./document.js";
+import { dispatchTrustedEvent, Event } from "./events.js";
 
 type Options = {
   childList?: boolean;
@@ -59,6 +60,9 @@ type Registration = {
 const states = new WeakMap<MutationObserver, ObserverState>();
 const observed = new WeakMap<Node, Set<Registration>>();
 const pending = new Set<MutationObserver>();
+// DOM's signal slots: slots whose assigned nodes changed, notified with the
+// mutation observers.
+const signalSlots = new Set<Node>();
 let queued = false;
 
 function removeTransient(state: ObserverState, source?: Registration): void {
@@ -137,6 +141,8 @@ function schedule(): void {
     queued = false;
     const current = [...pending];
     pending.clear();
+    const slots = [...signalSlots];
+    signalSlots.clear();
     for (const observer of current) {
       const state = states.get(observer)!;
       const records = observer.takeRecords();
@@ -149,7 +155,14 @@ function schedule(): void {
         else global.console?.error(error);
       }
     }
+    for (const slot of slots) dispatchTrustedEvent(slot, new Event("slotchange", { bubbles: true }));
   });
+}
+
+/** DOM's "signal a slot change": slotchange fires after the next mutation observer callbacks. */
+export function signalSlotChange(slot: Node): void {
+  signalSlots.add(slot);
+  schedule();
 }
 
 export function queueMutation(target: Node, change: Change): void {
