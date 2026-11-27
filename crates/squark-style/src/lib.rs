@@ -340,6 +340,10 @@ impl<'a> Cascade<'a> {
             .is_ok_and(|condition| condition.eval(&mut context))
     }
 
+    pub fn has_sheet(&self, owner: NodeId) -> bool {
+        self.sources.iter().any(|source| source.owner == Some(owner))
+    }
+
     pub fn sheet_rules(&self, document: &Document, owner: NodeId) -> Vec<String> {
         self.sources
             .iter()
@@ -696,19 +700,33 @@ impl<'a> Cascade<'a> {
                     {
                         continue;
                     }
-                    let Some(entry) = links.get(&id) else {
-                        continue;
+                    let (asset, url) = if let Some(entry) = links.get(&id) {
+                        let path = entry.payload.to_string_lossy();
+                        let Some(asset) = self.pack.entry(&path) else {
+                            continue;
+                        };
+                        let base = entry.base_url.to_string_lossy();
+                        let url = self
+                            .document_url
+                            .join(&base)
+                            .and_then(|base| base.join(&path))
+                            .unwrap_or_else(|_| self.document_url.clone());
+                        (asset, url)
+                    } else {
+                        // A link inserted after load: same-origin hrefs read the pack,
+                        // as same-origin fetches do. Anything else does not load.
+                        let Some((asset, url)) = attr("href")
+                            .and_then(|href| self.document_url.join(&href).ok())
+                            .filter(|url| url.origin() == self.document_url.origin())
+                            .and_then(|url| {
+                                let path = percent_decode_path(url.path())?;
+                                Some((self.pack.entry(&path)?, url))
+                            })
+                        else {
+                            continue;
+                        };
+                        (asset, url)
                     };
-                    let path = entry.payload.to_string_lossy();
-                    let Some(asset) = self.pack.entry(&path) else {
-                        continue;
-                    };
-                    let base = entry.base_url.to_string_lossy();
-                    let url = self
-                        .document_url
-                        .join(&base)
-                        .and_then(|base| base.join(&path))
-                        .unwrap_or_else(|_| self.document_url.clone());
                     (
                         String::from_utf8_lossy(asset.bytes)
                             .trim_start_matches('\u{feff}')
@@ -830,4 +848,22 @@ impl FontMetricsProvider for DefaultFontMetrics {
             16.0
         })
     }
+}
+
+/// A URL path as a pack path: percent escapes decoded, which must yield UTF-8.
+fn percent_decode_path(path: &str) -> Option<String> {
+    let bytes = path.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' && index + 2 < bytes.len() {
+            let hex = std::str::from_utf8(&bytes[index + 1..index + 3]).ok()?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            index += 3;
+        } else {
+            out.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(out).ok()
 }

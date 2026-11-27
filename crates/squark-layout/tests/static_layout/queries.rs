@@ -1281,3 +1281,49 @@ fn resolves_pointer_events_keywords_through_variables_and_visibility() {
         PointerEvents::None
     );
 }
+
+#[test]
+fn links_inserted_after_load_read_same_origin_sheets_from_the_pack() {
+    let mut f = Fixture::new("body { margin: 0 }");
+    let loaded = f.element(
+        BODY,
+        "link",
+        &[("rel", "stylesheet"), ("href", "/assets/late%20one.css")],
+    );
+    let missing = f.element(
+        BODY,
+        "link",
+        &[("rel", "stylesheet"), ("href", "/assets/missing.css")],
+    );
+    let foreign = f.element(
+        BODY,
+        "link",
+        &[("rel", "stylesheet"), ("href", "https://cdn.test/assets/late%20one.css")],
+    );
+    let target = f.element(BODY, "div", &[("id", "target")]);
+    let pack = f.pack_with_assets(&[(
+        "/assets/late one.css",
+        3,
+        b"#target { width: 42px; height: 1px }",
+    )]);
+    let (send, _updates) = resource_channel();
+    let mut engine =
+        StaticDocument::from_pack(&pack, "https://app.test/index.html".parse().unwrap(), send)
+            .unwrap();
+    let frame = input();
+    let loaded_state = |engine: &mut StaticDocument, node| {
+        engine
+            .query(&frame, Query::SheetLoaded(id(node)))
+            .unwrap()
+    };
+    assert_eq!(loaded_state(&mut engine, loaded), QueryValue::Bool(true));
+    assert_eq!(loaded_state(&mut engine, missing), QueryValue::Bool(false));
+    assert_eq!(loaded_state(&mut engine, foreign), QueryValue::Bool(false));
+    let QueryValue::Rect(rect) = engine
+        .query(&frame, Query::BoundingRect(id(target)))
+        .unwrap()
+    else {
+        panic!("expected target rect");
+    };
+    assert_eq!(rect.size.width, 42.0);
+}

@@ -656,7 +656,7 @@ impl DocumentEngine for StaticDocument<'_> {
             Query::ElementFromPoint(_) => {
                 return Err(EngineError::Unsupported("hit test without a frame painter"));
             }
-            Query::SheetRules(id) => id,
+            Query::SheetRules(id) | Query::SheetLoaded(id) => id,
         };
         if !self.document.contains(node) {
             return Err(EngineError::MissingNode(node));
@@ -666,6 +666,10 @@ impl DocumentEngine for StaticDocument<'_> {
             return Ok(QueryValue::Strings(
                 self.cascade.sheet_rules(&self.document, id),
             ));
+        }
+        if let Query::SheetLoaded(id) = query {
+            self.restyle_before_read()?;
+            return Ok(QueryValue::Bool(self.cascade.has_sheet(id)));
         }
         if let Query::Selector { selector, mode, .. } = query {
             self.restyle_before_read()?;
@@ -750,7 +754,10 @@ impl DocumentEngine for StaticDocument<'_> {
                     y: point.y + scroll.y,
                 })))
             }
-            Query::ElementFromPoint(_) | Query::Selector { .. } | Query::SheetRules(_) => {
+            Query::ElementFromPoint(_)
+            | Query::Selector { .. }
+            | Query::SheetRules(_)
+            | Query::SheetLoaded(_) => {
                 unreachable!()
             }
         })

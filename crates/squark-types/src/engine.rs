@@ -332,6 +332,9 @@ pub enum Query<'a> {
     SvgComputedTextLength(NodeId),
     FocusScroll(NodeId),
     SheetRules(NodeId),
+    /// Whether the engine holds a stylesheet for a `<style>` or `<link>` owner:
+    /// `QueryValue::Bool(false)` for a link whose resource did not load.
+    SheetLoaded(NodeId),
     CaretRect(NodeId, u32),
     OffsetFromPoint(NodeId, Point),
 }
