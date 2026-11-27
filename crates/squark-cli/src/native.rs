@@ -244,7 +244,12 @@ pub fn build_native_runtime(
     );
     let status = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
         .current_dir(&dir)
-        .args(["build", "--profile", profile.cargo_name(), "--manifest-path"])
+        .args([
+            "build",
+            "--profile",
+            profile.cargo_name(),
+            "--manifest-path",
+        ])
         .arg(dir.join("Cargo.toml"))
         .arg("--target-dir")
         .arg(&target_dir)
@@ -263,9 +268,10 @@ pub fn build_native_runtime(
             detail: format!("exit status {:?}", status.code()),
         });
     }
-    let exe = target_dir
-        .join(profile.output_dir())
-        .join(format!("squark-app-runtime{}", std::env::consts::EXE_SUFFIX));
+    let exe = target_dir.join(profile.output_dir()).join(format!(
+        "squark-app-runtime{}",
+        std::env::consts::EXE_SUFFIX
+    ));
     if !exe.is_file() {
         return Err(CliError::Usage(format!(
             "the app runtime build did not produce {}",
@@ -382,7 +388,9 @@ mod tests {
         let prelude = preludes(&project, &entries).unwrap().unwrap();
         let text = String::from_utf8(prelude.source).unwrap();
         let fixture = text.find("/*fixture*/").unwrap();
-        let global = text.find(r#"globalThis["__ACME__"] = {"module":"demo"};"#).unwrap();
+        let global = text
+            .find(r#"globalThis["__ACME__"] = {"module":"demo"};"#)
+            .unwrap();
         let shim = text.find("/*shim*/").unwrap();
         assert!(fixture < global && global < shim, "{text}");
         assert_eq!(prelude.path, "/__squark/prelude.js");
@@ -410,9 +418,15 @@ mod prelude_tests {
         );
         // <header> is not <head>.
         assert_eq!(
-            inject_prelude("<body><header></header><script src=/a.js></script>", "/p.js"),
+            inject_prelude(
+                "<body><header></header><script src=/a.js></script>",
+                "/p.js"
+            ),
             "<body><header></header><script src=\"/p.js\"></script><script src=/a.js></script>"
         );
-        assert_eq!(inject_prelude("<p>hi</p>", "/p.js"), "<p>hi</p><script src=\"/p.js\"></script>");
+        assert_eq!(
+            inject_prelude("<p>hi</p>", "/p.js"),
+            "<p>hi</p><script src=\"/p.js\"></script>"
+        );
     }
 }

@@ -320,7 +320,10 @@ fn insert_first_script(html: &str, tag: &str) -> String {
     let at = head.unwrap_or_else(|| {
         // No <head> tag: the parser implies one before the first element of
         // the body or the first script, so insert before whichever comes first.
-        lower.find("<script").or_else(|| lower.find("<body")).unwrap_or(html.len())
+        lower
+            .find("<script")
+            .or_else(|| lower.find("<body"))
+            .unwrap_or(html.len())
     });
     let mut out = String::with_capacity(html.len() + tag.len());
     out.push_str(&html[..at]);
@@ -435,7 +438,11 @@ pub fn pack_directory(options: &PackOptions) -> Result<PackSummary, CliError> {
     builder.add_entry(DOCUMENT_PATH, MimeSpec::Builtin(0), compiled.bytes.clone())?;
     builder.add_entry(MANIFEST_PATH, MimeSpec::Builtin(4), manifest_bytes)?;
     if let Some(prelude) = &options.prelude {
-        builder.add_entry(prelude.path.clone(), MimeSpec::Builtin(2), prelude.source.clone())?;
+        builder.add_entry(
+            prelude.path.clone(),
+            MimeSpec::Builtin(2),
+            prelude.source.clone(),
+        )?;
     }
     // Declared assets win over nothing: a file that the app's own CSS or code
     // asks for, which the app build did not emit (a Vite asset outside dist, a

@@ -229,16 +229,16 @@ pub fn run_dev(options: &DevOptions) -> Result<DevSummary, CliError> {
     }
 
     // An app with native modules runs its own runtime, built with the dev profile.
-    let native_runtime =
-        if options.runtime_binary.is_none() && project.raw.build.runtime.is_none() {
-            crate::native::build_native_runtime(
-                &project.dir,
-                &project.raw.native,
-                crate::native::RuntimeProfile::Dev,
-            )
-        } else {
-            Ok(None)
-        };
+    let native_runtime = if options.runtime_binary.is_none() && project.raw.build.runtime.is_none()
+    {
+        crate::native::build_native_runtime(
+            &project.dir,
+            &project.raw.native,
+            crate::native::RuntimeProfile::Dev,
+        )
+    } else {
+        Ok(None)
+    };
     let runtime_path = match native_runtime.and_then(|native| match native {
         Some(path) => Ok(path),
         None => resolve_runtime_binary(
@@ -645,7 +645,9 @@ mod tests {
         let text = String::from_utf8_lossy(&bytes);
         assert!(text.contains(r#""modules": ["#), "{text}");
         assert!(text.contains("demo"));
-        assert!(text.contains(r"<head><script>globalThis.shim = '<\/script>';</script><script type=module"));
+        assert!(text.contains(
+            r"<head><script>globalThis.shim = '<\/script>';</script><script type=module"
+        ));
     }
 
     #[test]

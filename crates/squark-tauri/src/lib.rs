@@ -56,7 +56,10 @@ impl std::error::Error for Error {}
 
 /// As Tauri's: a command returning `tauri::Result` rejects with the message.
 impl Serialize for Error {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
         serializer.serialize_str(&self.0)
     }
 }
@@ -370,9 +373,7 @@ impl FileDialogBuilder {
         // A blocking call from inside an async command must not stall a
         // runtime worker: hand the worker's other tasks to another thread.
         let paths = match tokio::runtime::Handle::try_current() {
-            Ok(handle)
-                if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread =>
-            {
+            Ok(handle) if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => {
                 tokio::task::block_in_place(ask)
             }
             _ => ask(),

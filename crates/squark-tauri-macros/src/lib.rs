@@ -50,21 +50,34 @@ fn expand(attr: TokenStream2, function: ItemFn) -> syn::Result<TokenStream2> {
             return Err(syn::Error::new(input.span(), "commands cannot take self"));
         };
         let Pat::Ident(pat) = &*typed.pat else {
-            return Err(syn::Error::new(typed.pat.span(), "command parameters must be plain names"));
+            return Err(syn::Error::new(
+                typed.pat.span(),
+                "command parameters must be plain names",
+            ));
         };
         let ident = &pat.ident;
         let ty = &typed.ty;
         match last_segment(ty) {
             Some(segment) if segment.ident == "AppHandle" => {
-                args.push(quote!(::squark_tauri::AppHandle::from_native(::core::clone::Clone::clone(&__squark_app))));
+                args.push(quote!(::squark_tauri::AppHandle::from_native(
+                    ::core::clone::Clone::clone(&__squark_app)
+                )));
             }
             Some(segment) if segment.ident == "Window" || segment.ident == "WebviewWindow" => {
-                args.push(quote!(::squark_tauri::AppHandle::from_native(::core::clone::Clone::clone(&__squark_app)).main_window()));
+                args.push(quote!(
+                    ::squark_tauri::AppHandle::from_native(::core::clone::Clone::clone(
+                        &__squark_app
+                    ))
+                    .main_window()
+                ));
             }
             Some(segment) if segment.ident == "State" => {
-                let inner = state_type(segment)
-                    .ok_or_else(|| syn::Error::new(segment.span(), "State needs a type: State<'_, T>"))?;
-                args.push(quote!(::squark_tauri::State::<#inner>::__from_app(&__squark_app, #command)));
+                let inner = state_type(segment).ok_or_else(|| {
+                    syn::Error::new(segment.span(), "State needs a type: State<'_, T>")
+                })?;
+                args.push(
+                    quote!(::squark_tauri::State::<#inner>::__from_app(&__squark_app, #command)),
+                );
             }
             _ => {
                 params.push(quote!(#ident: #ty));

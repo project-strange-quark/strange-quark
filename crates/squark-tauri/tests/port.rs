@@ -110,14 +110,15 @@ fn call(dispatcher: &dyn NativeDispatcher, command: &str, args: &str) -> Result<
         },
         Box::new(move |result| send.send(result).unwrap()),
     );
-    receive.recv_timeout(Duration::from_secs(10)).expect("a reply")
+    receive
+        .recv_timeout(Duration::from_secs(10))
+        .expect("a reply")
 }
 
 #[test]
 fn tauri_commands_run_as_a_native_module() {
-    let dispatcher = dispatcher([Module::new("app")
-        .manage(Shared::default())
-        .commands(squark_tauri::generate_handler![
+    let dispatcher = dispatcher([Module::new("app").manage(Shared::default()).commands(
+        squark_tauri::generate_handler![
             greet,
             remember,
             announce,
@@ -125,26 +126,45 @@ fn tauri_commands_run_as_a_native_module() {
             echo,
             quit,
             nested::status
-        ])]);
+        ],
+    )]);
     let host = Arc::new(Host::default());
     dispatcher.start(host.clone(), &["app".into()]);
     let events = Arc::new(Events::default());
     dispatcher.attach(events.clone());
 
-    assert_eq!(call(&*dispatcher, "greet", r#"{"fullName":"Ada"}"#), Ok(r#""Hello, Ada!""#.into()));
-    assert_eq!(call(&*dispatcher, "remember", r#"{"item":"x"}"#), Ok("1".into()));
-    assert_eq!(call(&*dispatcher, "announce", r#"{"sessionId":"s1"}"#), Ok("null".into()));
+    assert_eq!(
+        call(&*dispatcher, "greet", r#"{"fullName":"Ada"}"#),
+        Ok(r#""Hello, Ada!""#.into())
+    );
+    assert_eq!(
+        call(&*dispatcher, "remember", r#"{"item":"x"}"#),
+        Ok("1".into())
+    );
+    assert_eq!(
+        call(&*dispatcher, "announce", r#"{"sessionId":"s1"}"#),
+        Ok("null".into())
+    );
     assert_eq!(
         events.0.lock().unwrap().as_slice(),
-        [("announced".to_string(), r#"{"session_id":"s1"}"#.to_string())]
+        [(
+            "announced".to_string(),
+            r#"{"session_id":"s1"}"#.to_string()
+        )]
     );
-    assert_eq!(call(&*dispatcher, "open_folder", "{}"), Ok(r#""/work/a.jl""#.into()));
+    assert_eq!(
+        call(&*dispatcher, "open_folder", "{}"),
+        Ok(r#""/work/a.jl""#.into())
+    );
     // "All Files" (`*`) means no filter on Strange Quark.
     assert!(matches!(
         host.dialogs.lock().unwrap().as_slice(),
         [DialogRequest::PickFiles { filters, multiple: false, .. }] if filters.is_empty()
     ));
-    assert_eq!(call(&*dispatcher, "echo", r#"{"raw_value":7}"#), Ok("7".into()));
+    assert_eq!(
+        call(&*dispatcher, "echo", r#"{"raw_value":7}"#),
+        Ok("7".into())
+    );
     assert_eq!(call(&*dispatcher, "status", "{}"), Ok("null".into()));
     assert_eq!(call(&*dispatcher, "quit", "{}"), Ok("null".into()));
     assert_eq!(host.ops.lock().unwrap().as_slice(), [WindowOp::Close]);
