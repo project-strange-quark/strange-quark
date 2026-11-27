@@ -9,6 +9,7 @@ mod fullscreen;
 mod headless;
 mod ime;
 mod input;
+mod menu;
 mod native;
 mod pipeline;
 mod runtime;

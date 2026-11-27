@@ -385,6 +385,37 @@ fn headless_fullscreen_requests_record_state_and_fire_change_events() {
     );
 }
 
+#[test]
+fn headless_menu_accelerators_run_unless_the_page_cancels_the_key() {
+    if std::env::var("SQUARK_GPU_TESTS").as_deref() != Ok("1") {
+        return;
+    }
+    let fixtures = pack().parent().unwrap().to_owned();
+    let output = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+        "../../target/squark-host-menu-test-{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&output).unwrap();
+    let run = timeout::output(
+        Command::new("node")
+            .arg(fixtures.join("menu-driver.mjs"))
+            .arg(env!("CARGO_BIN_EXE_squark-runtime"))
+            .arg(fixtures.join("runtime-menu.sqpak"))
+            .arg(&output),
+        Duration::from_secs(55),
+    )
+    .unwrap();
+    let socket_left_behind = cfg!(unix) && output.join("squark.sock").exists();
+    std::fs::remove_dir_all(output).unwrap();
+    assert!(!socket_left_behind, "test-control socket was not removed");
+    assert!(
+        run.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+}
+
 fn run_blob_driver(mode: &str) {
     let fixtures = pack().parent().unwrap().to_owned();
     let output = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(

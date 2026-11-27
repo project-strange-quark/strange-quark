@@ -1,0 +1,34 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Menu test</title>
+<body>
+<textarea id="editor"></textarea>
+<script>
+  window.log = [];
+  window.errors = [];
+  addEventListener("error", event => errors.push(String(event.message)));
+  addEventListener("unhandledrejection", event => errors.push(String(event.reason)));
+  const native = globalThis[Symbol.for("strange-quark.native")];
+  native.onMenu(id => log.push(`menu:${id}`));
+  // The editor handles Ctrl+S itself, so the menu's Save must not run too.
+  document.getElementById("editor").addEventListener("keydown", event => {
+    if (event.ctrlKey && event.code === "KeyS") {
+      event.preventDefault();
+      log.push("editor:save");
+    }
+  });
+  native.window.setMenu([
+    { label: "&File", submenu: [
+      { id: "file.open", label: "Open…", accelerator: "CmdOrCtrl+O" },
+      { id: "file.save", label: "Save", accelerator: "CmdOrCtrl+S" },
+      { label: "Reload", accelerator: "CmdOrCtrl+Shift+R", click: () => log.push("click:reload") },
+      { id: "file.disabled", label: "Disabled", accelerator: "CmdOrCtrl+D", enabled: false },
+      { type: "separator" },
+      { role: "quit" },
+    ] },
+  ]).then(() => log.push("menu-set"), error => errors.push(String(error)));
+</script>
+</body>
+</html>

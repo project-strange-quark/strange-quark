@@ -7,7 +7,7 @@ use std::{
 
 use squark_compositor::{Compositor, FrameMailbox, HitSnapshots, Painter, ScrollOffsets};
 use squark_gpu::StaticRenderer;
-use squark_js::document::DocumentTask;
+use squark_js::document::{DocumentError, DocumentTask, InputResult};
 use squark_paint::{CommittedFrame, HitSnapshot};
 use squark_types::{
     host::InputTask,
@@ -132,7 +132,7 @@ impl RenderPipeline {
         let boundary = self.mouse.boundary_update(&snapshot, time);
         let boundary_updated = boundary.is_some();
         if let Some(task) = boundary {
-            self.input.dispatch(tasks, task, None)?;
+            self.input.dispatch(tasks, task, None, None)?;
         }
         Ok(Presentation {
             published_hits: true,
@@ -147,9 +147,10 @@ impl RenderPipeline {
         mut task: InputTask,
         mouse: Option<PhysicalPosition<f64>>,
         snapshot: Option<Arc<HitSnapshot>>,
+        decision: Option<mpsc::Sender<Result<InputResult, DocumentError>>>,
     ) -> Result<(), HostError> {
         self.mouse.record(&mut task, mouse);
-        self.input.dispatch(tasks, task, snapshot)
+        self.input.dispatch(tasks, task, snapshot, decision)
     }
 
     pub fn adopt(
@@ -263,6 +264,7 @@ mod tests {
                 movement,
                 input.mouse_position(),
                 Some(first_hit.clone()),
+                None,
             )
             .unwrap();
         assert!(matches!(
@@ -288,6 +290,7 @@ mod tests {
                 wheel,
                 input.mouse_position(),
                 Some(first_hit.clone()),
+                None,
             )
             .unwrap();
         assert!(matches!(

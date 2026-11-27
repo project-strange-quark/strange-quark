@@ -74,6 +74,12 @@ pub(crate) enum Request {
     /// Leaves fullscreen as the window system would (a compositor key).
     #[serde(rename = "window.leaveFullscreen")]
     LeaveFullscreen {},
+    /// The window's menu, in the page API's template shape (null for none).
+    #[serde(rename = "menu.get")]
+    MenuGet {},
+    /// Activate the enabled menu command `id`, as clicking it does.
+    #[serde(rename = "menu.activate")]
+    MenuActivate { id: String },
     #[serde(rename = "app.quit")]
     Quit {},
 }
@@ -488,6 +494,8 @@ fn handle_line(bytes: &[u8], submit: &impl Fn(Call) -> bool) -> Value {
             | "fileDialog.queue"
             | "window.fullscreen"
             | "window.leaveFullscreen"
+            | "menu.get"
+            | "menu.activate"
             | "app.quit"
     ) {
         return rpc_error(id.clone(), -32601, "Method not found");

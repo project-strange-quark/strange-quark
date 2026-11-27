@@ -13,7 +13,10 @@ use serde_json::json;
 use squark_assets::Pack;
 use squark_compositor::HitSnapshots;
 use squark_gpu::{StaticWindowRenderer, WindowSurface};
-use squark_js::{DocumentShutdown, document::DocumentTask};
+use squark_js::{
+    DocumentShutdown,
+    document::{DocumentError, DocumentTask, InputResult},
+};
 use squark_paint::HitSnapshot;
 use squark_types::{
     Size,
@@ -42,6 +45,7 @@ use crate::{
     fullscreen::FullscreenTracker,
     ime::{CursorArea, Edit, ImeState},
     input::InputRouter,
+    menu::{Activation, KeyDecisions, MenuState},
     native::{NativeRuntime, WindowSink},
     pipeline::{self, RenderPipeline},
     services::{
@@ -84,6 +88,8 @@ pub fn run_window(request: WindowRequest) -> Result<(), HostError> {
         focused: true,
         reported_window_state: Some((true, true)),
         proxy: events.create_proxy(),
+        menu: MenuState::default(),
+        key_decisions: None,
         clipboard: MemoryClipboard::default(),
         file_dialogs: FileDialogQueue::default(),
         recorded_fullscreen: RecordedFullscreen::default(),
@@ -176,8 +182,14 @@ enum Event {
     RequestRedraw(Instant),
     Presented,
     ImeArea(Option<CursorArea>),
-    Fullscreen { id: u32, enter: bool },
+    Fullscreen {
+        id: u32,
+        enter: bool,
+    },
     Window(WindowOp),
+    /// A menu item activated by its accelerator, after the page let the
+    /// key through.
+    Menu(Activation),
     Control(Call),
     Failed(HostError),
 }
@@ -196,6 +208,8 @@ enum Command {
         mouse: Option<PhysicalPosition<f64>>,
         snapshot: Option<Arc<HitSnapshot>>,
         reply: Option<mpsc::Sender<Reply>>,
+        /// For keys that match a menu accelerator: the page's decision.
+        decision: Option<mpsc::Sender<Result<InputResult, DocumentError>>>,
     },
     WaitIdle {
         frames: u32,
@@ -251,6 +265,11 @@ struct App {
     /// out focused and visible.
     reported_window_state: Option<(bool, bool)>,
     proxy: EventLoopProxy<Event>,
+    /// The window's menu and its accelerators.
+    menu: MenuState,
+    /// Started with the first menu: waits for the page's verdict on
+    /// accelerator keys.
+    key_decisions: Option<KeyDecisions>,
     request: WindowRequest,
     pack: Arc<Pack>,
     settings: WindowSettings,
@@ -384,6 +403,50 @@ impl App {
                 }
                 events.exit();
             }
+            WindowOp::SetMenu(menu) => {
+                if menu.is_some() && self.key_decisions.is_none() {
+                    let proxy = self.proxy.clone();
+                    self.key_decisions = Some(KeyDecisions::start(move |activation| {
+                        proxy.send_event(Event::Menu(activation)).is_ok()
+                    }));
+                }
+                self.menu.set(menu);
+            }
+        }
+    }
+
+    /// The decision channel for a key that matches a menu accelerator.
+    fn key_decision(
+        &self,
+        task: &InputTask,
+    ) -> Option<mpsc::Sender<Result<InputResult, DocumentError>>> {
+        let activation = self.menu.accelerator(task)?;
+        Some(self.key_decisions.as_ref()?.watch(activation))
+    }
+
+    /// Run a menu item: commands go to the modules and the page.
+    fn activate(&mut self, events: &ActiveEventLoop, activation: Activation) {
+        match activation {
+            Activation::Command(id) => {
+                if let Some(native) = &self.native {
+                    native.dispatcher.menu(&id);
+                }
+                if let Some(threads) = &self.threads {
+                    let _ = threads.tasks.send(DocumentTask::Menu(id));
+                }
+            }
+            Activation::Close => self.close_requested(events),
+        }
+    }
+
+    /// The user asked to close the window; native modules may keep it open.
+    fn close_requested(&mut self, events: &ActiveEventLoop) {
+        let prevent = self
+            .native
+            .as_ref()
+            .is_some_and(|native| native.dispatcher.close_requested() == CloseRequest::Prevent);
+        if !prevent {
+            events.exit();
         }
     }
 
@@ -404,11 +467,13 @@ impl App {
             if let Input::Key { composing, .. } = &mut task.input {
                 *composing = self.ime.composing();
             }
+            let decision = self.key_decision(&task);
             let _ = threads.commands.send(Command::Input {
                 task,
                 mouse: self.input.mouse_position(),
                 snapshot: snapshot.clone(),
                 reply: None,
+                decision,
             });
         }
         if matches!(
@@ -477,6 +542,7 @@ impl App {
                 mouse: None,
                 snapshot: None,
                 reply: None,
+                decision: None,
             })
             .map_err(|_| failure("ThreadError", "render thread closed"))
     }
@@ -557,6 +623,22 @@ impl App {
                 let result = control::leave_fullscreen(&self.recorded_fullscreen, &tasks);
                 control::send(reply, result);
             }
+            Request::MenuGet {} => {
+                control::send(reply, Ok(json!({ "menu": self.menu.to_json() })));
+            }
+            Request::MenuActivate { id } => match self.menu.command(&id) {
+                Some(activation) => {
+                    self.activate(events, activation);
+                    control::send(reply, Ok(json!({ "ok": true })));
+                }
+                None => control::send(
+                    reply,
+                    Err(failure(
+                        "ControlError",
+                        format!("the menu has no enabled command {id:?}"),
+                    )),
+                ),
+            },
             Request::Ime(input) => {
                 control::send(reply, self.control_ime(input));
             }
@@ -589,11 +671,13 @@ impl App {
                 let task =
                     self.input
                         .synthetic(request, Instant::now(), viewport, snapshot.as_deref());
+                let decision = self.key_decision(&task);
                 self.send(Command::Input {
                     task,
                     mouse: self.input.mouse_position(),
                     snapshot,
                     reply: Some(reply),
+                    decision,
                 });
                 self.refresh_cursor();
             }
@@ -638,14 +722,7 @@ impl ApplicationHandler<Event> for App {
         }
         let window = self.window.as_ref().unwrap();
         match event {
-            WindowEvent::CloseRequested => {
-                let prevent = self.native.as_ref().is_some_and(|native| {
-                    native.dispatcher.close_requested() == CloseRequest::Prevent
-                });
-                if !prevent {
-                    events.exit();
-                }
-            }
+            WindowEvent::CloseRequested => self.close_requested(events),
             WindowEvent::Resized(size) => self.resize(size, window.scale_factor()),
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.resize(window.inner_size(), scale_factor)
@@ -715,6 +792,7 @@ impl ApplicationHandler<Event> for App {
             Event::ImeArea(area) => self.ime_area(area),
             Event::Fullscreen { id, enter } => self.set_fullscreen(id, enter),
             Event::Window(op) => self.window_op(events, op),
+            Event::Menu(activation) => self.activate(events, activation),
             Event::Control(call) => self.control(events, call),
             Event::RequestRedraw(_) => {}
             Event::Failed(error) => {
@@ -1128,11 +1206,13 @@ fn run_render(
                 mouse,
                 snapshot,
                 reply,
+                decision,
             }) => {
                 if matches!(&task.input, Input::Wheel { .. }) {
                     timeline.wheel(task.time);
                 }
-                let result = pipeline.dispatch_input(channel.sender(), task, mouse, snapshot);
+                let result =
+                    pipeline.dispatch_input(channel.sender(), task, mouse, snapshot, decision);
                 request_frame = result.is_ok();
                 if let Some(reply) = reply {
                     control::send(reply, result.map(|()| json!({ "ok": true })));

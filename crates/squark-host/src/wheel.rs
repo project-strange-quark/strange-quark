@@ -42,8 +42,11 @@ impl InputQueue {
         tasks: &mpsc::Sender<DocumentTask>,
         task: InputTask,
         snapshot: Option<Arc<HitSnapshot>>,
+        decision: Option<mpsc::Sender<Result<InputResult, DocumentError>>>,
     ) -> Result<(), HostError> {
-        let mut reply = None;
+        // A key that may trigger a menu accelerator waits for the page's
+        // decision; wheels make their own below.
+        let mut reply = decision;
         let mut wheel = None;
         if let (Input::Wheel { css, delta, mode }, Some(snapshot)) = (&task.input, snapshot)
             && let Some(hit) = hit_test(&snapshot, *css)

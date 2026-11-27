@@ -12,7 +12,10 @@ use serde_json::json;
 use squark_compositor::HitSnapshots;
 use squark_gpu::StaticRenderer;
 use squark_js::{DocumentShutdown, document::DocumentTask};
-use squark_types::render::{FrameId, Viewport};
+use squark_types::{
+    native::{NativeDispatcher, WindowOp},
+    render::{FrameId, Viewport},
+};
 
 use crate::{
     HostError, ScreenshotRequest,
@@ -26,7 +29,8 @@ use crate::{
     failure,
     ime::{CursorArea, Edit, ImeState},
     input::InputRouter,
-    native::{NativeRuntime, RecordedWindow},
+    menu::{Activation, KeyDecisions, MenuState},
+    native::{NativeRuntime, RecordedWindow, WindowSink},
     pipeline::{self, RenderPipeline},
     screenshot_viewport,
     services::{
@@ -60,8 +64,23 @@ pub fn run_headless_control(request: ScreenshotRequest, socket: &Path) -> Result
     let fullscreen = RecordedFullscreen::default();
     let service_fullscreen = fullscreen.clone();
     let recorded_window = RecordedWindow::default();
+    // Window operations are recorded, except the menu, which test control
+    // reads and drives as a window's.
+    let menu = Arc::new(Mutex::new(MenuState::default()));
+    let window_sink: WindowSink = {
+        let recorded = recorded_window.sink();
+        let menu = Arc::clone(&menu);
+        Arc::new(move |op| {
+            if let WindowOp::SetMenu(value) = &op {
+                lock(&menu).set(value.clone());
+            }
+            recorded(op)
+        })
+    };
     let native = request.native.clone();
     let exit_native = request.native.clone();
+    let menu_native = request.native.clone();
+    let menu_events = submit.clone();
     let signal = submit.clone();
     let (wake, demand) = FrameWake::pair(move || {
         let _ = signal.send(Event::Demand);
@@ -85,7 +104,7 @@ pub fn run_headless_control(request: ScreenshotRequest, socket: &Path) -> Result
                         clipboard: ClipboardMode::Memory(service_clipboard),
                         file_dialogs: FileDialogMode::Queued(service_file_dialogs),
                         fullscreen: FullscreenMode::Recorded(service_fullscreen),
-                        window: recorded_window.sink(),
+                        window: window_sink,
                         native: native.map(|dispatcher| NativeRuntime { dispatcher }),
                     },
                     crate::document::DocumentControl {
@@ -109,6 +128,7 @@ pub fn run_headless_control(request: ScreenshotRequest, socket: &Path) -> Result
             tasks,
             events,
             pending_calls: VecDeque::new(),
+            pending_menus: VecDeque::new(),
             clock: FrameClock::new(false),
             wake,
             now: Instant::now(),
@@ -118,6 +138,10 @@ pub fn run_headless_control(request: ScreenshotRequest, socket: &Path) -> Result
             clipboard,
             file_dialogs,
             fullscreen,
+            menu,
+            menu_events,
+            key_decisions: None,
+            native: menu_native,
         };
         let result = session.serve(socket, submit);
         request_document_stop(&shutdown, &session.tasks, &pending_canvas);
@@ -130,8 +154,13 @@ pub fn run_headless_control(request: ScreenshotRequest, socket: &Path) -> Result
     })
 }
 
+fn lock(menu: &Mutex<MenuState>) -> std::sync::MutexGuard<'_, MenuState> {
+    menu.lock().unwrap_or_else(|poison| poison.into_inner())
+}
+
 enum Event {
     Call(Call),
+    Menu(Activation),
     Demand,
     Committed(Result<(), HostError>),
     ReadCanvas(ReadCanvas),
@@ -145,6 +174,7 @@ struct Session {
     tasks: mpsc::Sender<DocumentTask>,
     events: mpsc::Receiver<Event>,
     pending_calls: VecDeque<Call>,
+    pending_menus: VecDeque<Activation>,
     clock: FrameClock,
     wake: FrameWake,
     now: Instant,
@@ -154,15 +184,37 @@ struct Session {
     clipboard: MemoryClipboard,
     file_dialogs: FileDialogQueue,
     fullscreen: RecordedFullscreen,
+    menu: Arc<Mutex<MenuState>>,
+    menu_events: mpsc::Sender<Event>,
+    key_decisions: Option<KeyDecisions>,
+    native: Option<Arc<dyn NativeDispatcher>>,
 }
 
 impl Session {
+    /// Run a menu item. Returns false when it closed the app.
+    fn activate(&mut self, activation: Activation) -> bool {
+        match activation {
+            Activation::Command(id) => {
+                if let Some(native) = &self.native {
+                    native.menu(&id);
+                }
+                let _ = self.tasks.send(DocumentTask::Menu(id));
+                true
+            }
+            Activation::Close => self.native.as_ref().is_some_and(|native| {
+                native.close_requested() == squark_types::native::CloseRequest::Prevent
+            }),
+        }
+    }
+
     fn serve(&mut self, path: &Path, submit: mpsc::Sender<Event>) -> Result<(), HostError> {
         self.advance()?;
         let _server = Server::start(path, move |call| submit.send(Event::Call(call)).is_ok())
             .map_err(|error| failure("ControlError", error))?;
         loop {
-            let event = if let Some(call) = self.pending_calls.pop_front() {
+            let event = if let Some(activation) = self.pending_menus.pop_front() {
+                Ok(Event::Menu(activation))
+            } else if let Some(call) = self.pending_calls.pop_front() {
                 Ok(Event::Call(call))
             } else if self.wake.requested() {
                 self.events.recv_timeout(DEFAULT_REFRESH)
@@ -177,6 +229,12 @@ impl Session {
                 received_at,
             } = match event {
                 Ok(Event::Call(call)) => call,
+                Ok(Event::Menu(activation)) => {
+                    if !self.activate(activation) {
+                        break;
+                    }
+                    continue;
+                }
                 Ok(Event::Demand) => continue,
                 Ok(Event::Committed(result)) => {
                     result?;
@@ -216,6 +274,26 @@ impl Session {
                     let result = control::leave_fullscreen(&self.fullscreen, &self.tasks);
                     control::send(reply, result);
                 }
+                Request::MenuGet {} => {
+                    let menu = lock(&self.menu).to_json();
+                    control::send(reply, Ok(json!({ "menu": menu })));
+                }
+                Request::MenuActivate { id } => {
+                    let activation = lock(&self.menu).command(&id);
+                    match activation {
+                        Some(activation) => {
+                            self.activate(activation);
+                            control::send(reply, Ok(json!({ "ok": true })));
+                        }
+                        None => control::send(
+                            reply,
+                            Err(failure(
+                                "ControlError",
+                                format!("the menu has no enabled command {id:?}"),
+                            )),
+                        ),
+                    }
+                }
                 Request::Ime(input) => {
                     let result = self.control_ime(input, monotonic_now(&self.floor));
                     control::send(reply, result);
@@ -251,15 +329,36 @@ impl Session {
                         self.viewport,
                         snapshot.as_deref(),
                     );
+                    let decision = self.key_decision(&task);
                     let result = self
                         .render
-                        .dispatch_input(&self.tasks, task, self.input.mouse_position(), snapshot)
+                        .dispatch_input(
+                            &self.tasks,
+                            task,
+                            self.input.mouse_position(),
+                            snapshot,
+                            decision,
+                        )
                         .and_then(|()| self.advance().map(|_| json!({ "ok": true })));
                     control::send(reply, result);
                 }
             }
         }
         Ok(())
+    }
+
+    fn key_decision(
+        &mut self,
+        task: &squark_types::host::InputTask,
+    ) -> Option<
+        mpsc::Sender<Result<squark_js::document::InputResult, squark_js::document::DocumentError>>,
+    > {
+        let activation = lock(&self.menu).accelerator(task)?;
+        let events = self.menu_events.clone();
+        let decisions = self.key_decisions.get_or_insert_with(|| {
+            KeyDecisions::start(move |activation| events.send(Event::Menu(activation)).is_ok())
+        });
+        Some(decisions.watch(activation))
     }
 
     fn next_presented(&mut self, after: Instant) -> Result<serde_json::Value, HostError> {
@@ -306,6 +405,7 @@ impl Session {
                 }
                 Event::ReadCanvas(request) => self.render.read_canvas(&mut self.gpu, request),
                 Event::Call(call) => self.pending_calls.push_back(call),
+                Event::Menu(activation) => self.pending_menus.push_back(activation),
                 Event::Demand => {}
             }
         }
@@ -395,7 +495,8 @@ impl Session {
 
     fn dispatch_ime(&mut self, edit: Edit) -> Result<(), HostError> {
         let task = self.input.ime(edit);
-        self.render.dispatch_input(&self.tasks, task, None, None)
+        self.render
+            .dispatch_input(&self.tasks, task, None, None, None)
     }
 }
 
