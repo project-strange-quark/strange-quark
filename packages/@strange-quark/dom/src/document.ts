@@ -262,11 +262,16 @@ export class Node extends EventTarget {
 
   get nodeType(): number { return nodeState(this).type; }
 
+  // Subclasses override nodeName, but scripts may call this getter from
+  // Node.prototype on any node, so it answers for every kind.
   get nodeName(): string {
     switch (this.nodeType) {
+      case ELEMENT: return (this as Node as Element).tagName;
+      case ATTRIBUTE: return (this as Node as Attr).name;
       case TEXT: return "#text";
       case NodeType.Comment: return "#comment";
       case NodeType.Document: return "#document";
+      case NodeType.DocumentType: return (this as Node as DocumentType).name;
       case NodeType.DocumentFragment: return "#document-fragment";
       default: throw new TypeError("Unknown node kind");
     }

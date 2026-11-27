@@ -274,3 +274,14 @@ test("nodeType is a Node.prototype accessor, so getters cached from the prototyp
   assert.equal(Object.hasOwn(element, "nodeType"), false);
   assert.throws(() => descriptor.get.call({}), TypeError);
 });
+
+test("Node.prototype's nodeName getter answers for every kind of node", () => {
+  const document = installDOM({});
+  const nodeName = Object.getOwnPropertyDescriptor(Node.prototype, "nodeName").get;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg:rect");
+  const nodes = [document.createElement("div"), svg, document.createAttribute("title"), document.createTextNode("t"),
+    document.createComment("c"), document, document.doctype, document.createDocumentFragment()];
+  const names = ["DIV", "svg:rect", "title", "#text", "#comment", "#document", "html", "#document-fragment"];
+  assert.deepEqual(nodes.map(node => nodeName.call(node)), names);
+  assert.deepEqual(nodes.map(node => node.nodeName), names);
+});
