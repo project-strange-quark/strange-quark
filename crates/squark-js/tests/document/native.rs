@@ -168,3 +168,66 @@ fn window_operations_go_to_the_host_and_the_api_exists_without_modules() {
         r#""native module \"demo\" is not available""#
     );
 }
+
+#[test]
+fn menus_from_templates_reach_the_host_and_activations_reach_the_page() {
+    use squark_types::native::{Menu, MenuItem, MenuRole};
+    let mut h = Harness::new(None);
+    h.eval(&format!(
+        r#"
+        globalThis.log = [];
+        globalThis.errors = [];
+        {API}.window.setMenu([
+          {{ label: "&File", submenu: [
+            {{ id: "file.open", label: "Open…", accelerator: "CmdOrCtrl+O" }},
+            {{ label: "Reload", click: item => log.push(["click", item.label]) }},
+            {{ type: "separator" }},
+            {{ role: "quit" }},
+          ] }},
+        ]);
+        {API}.window.setMenu({{}}).catch(error => errors.push(error.constructor.name));
+        {API}.window.setMenu([{{ label: "No id" }}]).catch(error => errors.push(error.message));
+        globalThis.off = {API}.onMenu(id => log.push(["menu", id]));
+        "#
+    ));
+    assert_eq!(
+        h.host.try_recv().unwrap(),
+        HostRequest::Window {
+            id: 1,
+            op: WindowOp::SetMenu(Some(Menu {
+                items: vec![MenuItem::submenu(
+                    "&File",
+                    vec![
+                        MenuItem::command("file.open", "Open…").with_accelerator("CmdOrCtrl+O"),
+                        MenuItem::command("strange-quark-menu-1", "Reload"),
+                        MenuItem::Separator,
+                        MenuItem::role(MenuRole::Quit),
+                    ],
+                )],
+            })),
+        }
+    );
+    assert!(
+        h.host.try_recv().is_err(),
+        "invalid menus never reach the host"
+    );
+    h.runner.host_reply(1, Ok(HostValue::Done)).unwrap();
+    h.settle();
+    h.runner.menu("file.open").unwrap();
+    h.runner.menu("strange-quark-menu-1").unwrap();
+    h.eval("off()");
+    h.runner.menu("file.open").unwrap();
+    assert_eq!(
+        h.eval("JSON.stringify([log, errors])"),
+        r#""[[[\"menu\",\"file.open\"],[\"click\",\"Reload\"],[\"menu\",\"strange-quark-menu-1\"]],[\"TypeError\",\"invalid menu: a menu command needs an id\"]]""#
+    );
+    h.eval(&format!("{API}.window.setMenu(null)"));
+    assert_eq!(
+        h.host.try_recv().unwrap(),
+        HostRequest::Window {
+            // The template refused in JavaScript never made a request.
+            id: 3,
+            op: WindowOp::SetMenu(None)
+        }
+    );
+}

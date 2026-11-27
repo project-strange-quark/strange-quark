@@ -14,6 +14,8 @@ type NativeHost = {
 
 type WindowRequest = (op: string, value?: unknown) => Promise<unknown>;
 type Listener = (payload: unknown) => void;
+type MenuListener = (id: string) => void;
+type MenuClick = (item: Record<string, unknown>) => void;
 
 export const NATIVE_API = Symbol.for("strange-quark.native");
 
@@ -29,9 +31,31 @@ function parse(json: string): unknown {
 }
 
 /**
+ * Copy an Electron-style menu template for the host: items with a `click`
+ * callback and no `id` get one, and the callbacks are kept by id.
+ */
+function menuTemplate(items: unknown, clicks: Map<string, [MenuClick, Record<string, unknown>]>, depth = 0): unknown[] {
+  if (!Array.isArray(items)) throw new TypeError("A menu is an array of items, or null");
+  if (depth > 16) throw new TypeError("Menu nests too deeply");
+  return items.map(item => {
+    if (item === null || typeof item !== "object") throw new TypeError("A menu item is an object");
+    const copy: Record<string, unknown> = { ...(item as Record<string, unknown>) };
+    delete copy.click;
+    const click = (item as { click?: unknown }).click;
+    if (typeof click === "function") {
+      if (copy.id === undefined) copy.id = `strange-quark-menu-${clicks.size + 1}`;
+      clicks.set(String(copy.id), [click as MenuClick, item as Record<string, unknown>]);
+    }
+    if (copy.submenu !== undefined) copy.submenu = menuTemplate(copy.submenu, clicks, depth + 1);
+    return copy;
+  });
+}
+
+/**
  * Install the native API when the runtime has native modules or window
  * operations. Returns the dispatcher squark-js calls with
- * `["reply", id, ok, json]` and `["event", name, json]` messages.
+ * `["reply", id, ok, json]`, `["event", name, json]` and `["menu", id]`
+ * messages.
  */
 export function installNative(global: Record<PropertyKey, unknown>, host: NativeHost): ((message: unknown[]) => void) | undefined {
   const windowRequest = windowRequests.get(global);
@@ -44,6 +68,8 @@ export function installNative(global: Record<PropertyKey, unknown>, host: Native
   const modules = Object.freeze([...(host.nativeModules ?? [])]);
   const pending = new Map<number, { resolve: (value: unknown) => void; reject: (reason: unknown) => void }>();
   const listeners = new Map<string, Set<Listener>>();
+  const menuListeners = new Set<MenuListener>();
+  let menuClicks = new Map<string, [MenuClick, Record<string, unknown>]>();
   let next = 0;
 
   const windowOp = (op: string, value?: unknown): Promise<unknown> =>
@@ -94,7 +120,30 @@ export function installNative(global: Record<PropertyKey, unknown>, host: Native
       close: () => windowOp("close"),
       relaunch: () => windowOp("relaunch"),
       exit: (code = 0) => windowOp("exit", Number(code) | 0),
+      /**
+       * Set the window's menu from an Electron-style template, or remove it
+       * with null. Activated items run their `click` and reach `onMenu`.
+       */
+      setMenu: (template: unknown): Promise<unknown> => {
+        const clicks = new Map<string, [MenuClick, Record<string, unknown>]>();
+        let json: string;
+        try {
+          json = template === null ? "null" : JSON.stringify(menuTemplate(template, clicks));
+        } catch (error) {
+          return Promise.reject(error);
+        }
+        return windowOp("menu", json).then(value => {
+          menuClicks = clicks;
+          return value;
+        });
+      },
     }),
+    /** Listen for activated menu commands (by item or accelerator). */
+    onMenu(callback: MenuListener): () => void {
+      const entry: MenuListener = id => callback(id);
+      menuListeners.add(entry);
+      return () => menuListeners.delete(entry);
+    },
   });
   Object.defineProperty(global, NATIVE_API, { value: api, enumerable: false, writable: false, configurable: false });
 
@@ -126,6 +175,23 @@ export function installNative(global: Record<PropertyKey, unknown>, host: Native
       for (const listener of [...set]) {
         try {
           listener(payload);
+        } catch (error) {
+          report(error);
+        }
+      }
+    } else if (kind === "menu") {
+      const id = String(first);
+      const click = menuClicks.get(id);
+      if (click !== undefined) {
+        try {
+          click[0](click[1]);
+        } catch (error) {
+          report(error);
+        }
+      }
+      for (const listener of [...menuListeners]) {
+        try {
+          listener(id);
         } catch (error) {
           report(error);
         }

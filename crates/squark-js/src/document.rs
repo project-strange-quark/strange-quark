@@ -148,6 +148,9 @@ pub enum DocumentTask {
         focused: bool,
         visible: bool,
     },
+    /// The user activated a menu command (`MenuItem::Command`'s id), by its
+    /// item or its accelerator.
+    Menu(String),
     FontResult {
         face: FaceId,
         result: Result<(), String>,
@@ -789,6 +792,7 @@ impl<'engine> DocumentRunner<'engine> {
                     DocumentTask::WindowState { focused, visible } => {
                         self.window_state(focused, visible)?
                     }
+                    DocumentTask::Menu(id) => self.menu(&id)?,
                     DocumentTask::FontResult { face, result } => self.font_result(face, result)?,
                     DocumentTask::Eval { script, reply } => {
                         let _ = reply.send(self.eval(&script));
@@ -922,6 +926,26 @@ impl<'engine> DocumentRunner<'engine> {
             let args = platform::reply(scope, request, result)
                 .ok_or_else(|| setup("cannot encode host service reply"))?;
             call(scope, dispatch, &args).map_err(js_error)?;
+            realm.tasks.checkpoint_after_startup(scope);
+            realm.request_frame_if_needed(scope);
+            Ok(())
+        })
+    }
+
+    /// Tell the page's native API listeners that a menu command ran.
+    pub fn menu(&mut self, id: &str) -> Result<(), DocumentError> {
+        self.enter(|scope, realm| {
+            let Some(dispatch) = &realm.native else {
+                return Ok(());
+            };
+            let dispatch = Local::new(scope, dispatch);
+            let (Some(kind), Some(id)) =
+                (v8::String::new(scope, "menu"), v8::String::new(scope, id))
+            else {
+                return Err(DocumentError::JavaScript("menu id too long".into()));
+            };
+            let message = v8::Array::new_with_elements(scope, &[kind.into(), id.into()]);
+            call(scope, dispatch, &[message.into()]).map_err(js_error)?;
             realm.tasks.checkpoint_after_startup(scope);
             realm.request_frame_if_needed(scope);
             Ok(())

@@ -16,6 +16,7 @@ pub mod document;
 mod fonts;
 mod input;
 mod loader;
+mod menu;
 mod module_cache;
 mod native;
 mod navigation;

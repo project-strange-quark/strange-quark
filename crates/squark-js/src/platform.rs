@@ -148,6 +148,7 @@ fn fullscreen(scope: &mut PinScope<'_, '_>, args: FunctionCallbackArguments<'_>,
 }
 
 fn window_op(scope: &mut PinScope<'_, '_>, args: FunctionCallbackArguments<'_>, _: ReturnValue) {
+    let mut invalid = None;
     let request = (|| {
         let id = unsigned(args.get(0))?;
         let op = string(scope, args.get(1))?;
@@ -161,10 +162,21 @@ fn window_op(scope: &mut PinScope<'_, '_>, args: FunctionCallbackArguments<'_>, 
             "close" => WindowOp::Close,
             "relaunch" => WindowOp::Relaunch,
             "exit" => WindowOp::Exit(value.int32_value(scope).unwrap_or(0)),
+            "menu" => match crate::menu::parse_menu(&string(scope, value)?) {
+                Ok(menu) => WindowOp::SetMenu(menu),
+                Err(message) => {
+                    invalid = Some(format!("invalid menu: {message}"));
+                    return None;
+                }
+            },
             _ => return None,
         };
         Some(HostRequest::Window { id, op })
     })();
+    if let Some(message) = invalid {
+        throw(scope, &message, false);
+        return;
+    }
     send(scope, request);
 }
 
