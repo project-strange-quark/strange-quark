@@ -212,7 +212,15 @@ impl Builder<'_, '_> {
         let mut index = 0;
         while index < children.len() {
             if flex_grid || !self.is_table_part(children[index]) {
-                self.collect(children[index], owner, css, flex_grid, tokens, parent, inline);
+                self.collect(
+                    children[index],
+                    owner,
+                    css,
+                    flex_grid,
+                    tokens,
+                    parent,
+                    inline,
+                );
                 index += 1;
                 continue;
             }

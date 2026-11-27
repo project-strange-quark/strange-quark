@@ -1134,7 +1134,11 @@ fn leaves_anonymous_table_boxes_out_of_their_elements_rects() {
         panic!("expected the table's own box only");
     };
     assert_eq!(
-        (table_rect.origin.x, table_rect.origin.y, table_rect.size.width),
+        (
+            table_rect.origin.x,
+            table_rect.origin.y,
+            table_rect.size.width
+        ),
         (0.0, 10.0, 40.0)
     );
 }

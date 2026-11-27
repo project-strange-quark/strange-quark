@@ -272,7 +272,12 @@ fn layout(tree: &mut BoxTree<'_>, id: Id, table: &mut Table, input: LayoutInput)
     let mut heights: Vec<f32> = table
         .rows
         .iter()
-        .map(|row| row.height.maybe_resolve(None, resolve).unwrap_or(0.0).max(0.0))
+        .map(|row| {
+            row.height
+                .maybe_resolve(None, resolve)
+                .unwrap_or(0.0)
+                .max(0.0)
+        })
         .collect();
     let mut measures = Vec::with_capacity(table.cells.len());
     for (cell, &child) in table.cells.iter().zip(&children) {
@@ -373,7 +378,10 @@ fn layout(tree: &mut BoxTree<'_>, id: Id, table: &mut Table, input: LayoutInput)
         let range = cell.row..(cell.row + cell.rows).min(row_count);
         let current = heights[range.clone()].iter().sum::<f32>()
             + spacing.height * range.len().saturating_sub(1) as f32;
-        grow(&mut heights[range], needed(cell, &measures[index]) - current);
+        grow(
+            &mut heights[range],
+            needed(cell, &measures[index]) - current,
+        );
     }
     let content_height = heights.iter().sum::<f32>() + block_spacing + inset.top + inset.bottom;
     let height = input.known_dimensions.height.unwrap_or_else(|| {
@@ -423,12 +431,8 @@ fn layout(tree: &mut BoxTree<'_>, id: Id, table: &mut Table, input: LayoutInput)
     // the cell's alignment offset.
     let mut overflow_rect: Option<Rect<f32>> = None;
     let mut candidates = OofCandidates::new();
-    for (order, ((cell, measure), &child)) in table
-        .cells
-        .iter()
-        .zip(&measures)
-        .zip(&children)
-        .enumerate()
+    for (order, ((cell, measure), &child)) in
+        table.cells.iter().zip(&measures).zip(&children).enumerate()
     {
         let width = span_width(cell);
         let rows = cell.row..(cell.row + cell.rows).min(row_count);
@@ -531,7 +535,8 @@ fn layout(tree: &mut BoxTree<'_>, id: Id, table: &mut Table, input: LayoutInput)
             cell_overflow,
             cell_contain.contains_scrollable_overflow(),
         ) {
-            overflow_rect = Some(overflow_rect.map_or(contribution, |rect| rect.union(contribution)));
+            overflow_rect =
+                Some(overflow_rect.map_or(contribution, |rect| rect.union(contribution)));
         }
     }
     // Cells are placed in the border-box frame; overflow is relative to the
@@ -830,7 +835,11 @@ fn max_content(columns: &[Column]) -> f32 {
 fn distribute_fixed(columns: &[Column], target: f32) -> Vec<f32> {
     let mut widths: Vec<f32> = columns
         .iter()
-        .map(|column| column.percent.map_or(column.max, |percent| percent * target))
+        .map(|column| {
+            column
+                .percent
+                .map_or(column.max, |percent| percent * target)
+        })
         .collect();
     let excess = target - widths.iter().sum::<f32>();
     let automatic: Vec<f32> = columns

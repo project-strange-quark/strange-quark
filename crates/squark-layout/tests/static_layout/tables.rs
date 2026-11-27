@@ -38,7 +38,14 @@ fn aligns_cell_content_inside_cells_that_fill_their_row() {
     let mut cells = Vec::new();
     let mut blocks = Vec::new();
     // `td` is `vertical-align: middle` in the user agent style sheet.
-    for class in ["top", "middle", "bottom", "baseline", "baseline shifted", ""] {
+    for class in [
+        "top",
+        "middle",
+        "bottom",
+        "baseline",
+        "baseline shifted",
+        "",
+    ] {
         let cell = fixture.element(row, "td", &[("class", class)]);
         blocks.push(fixture.element(cell, "div", &[]));
         cells.push(cell);
