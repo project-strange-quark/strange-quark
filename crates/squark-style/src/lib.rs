@@ -134,6 +134,8 @@ impl<'a> Cascade<'a> {
         stylo_static_prefs::set_pref!("layout.css.text-overflow.enabled", true);
         // Layout sizes, lays out and clips contained boxes.
         stylo_static_prefs::set_pref!("layout.css.contain.enabled", true);
+        // Paint and the GPU renderer filter what lies behind the box.
+        stylo_static_prefs::set_pref!("layout.css.backdrop-filter.enabled", true);
         let initial = pack.document()?;
         let quirks = match initial.quirks {
             squark_assets::QuirksMode::Standards => QuirksMode::NoQuirks,

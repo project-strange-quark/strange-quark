@@ -1359,6 +1359,31 @@ fn matches_stylesheet_faces_by_their_descriptors_and_unicode_ranges() {
 }
 
 #[test]
+fn projects_backdrop_filters_from_css() {
+    use squark_types::fragment::Filter;
+    let mut fixture = Fixture::new(
+        "#glass { width: 20px; height: 20px; backdrop-filter: invert(1) grayscale(50%) }",
+    );
+    let glass = fixture.element(BODY, "div", &[("id", "glass")]);
+    let pack = fixture.pack();
+    let media = screen(VIEWPORT.width, VIEWPORT.height, 1.0);
+    let (mut doc, _, mut cascade) = Cascade::from_pack(
+        &pack,
+        Url::parse("https://app.test/index.html").unwrap(),
+        media.clone(),
+    )
+    .unwrap();
+    cascade.update(&mut doc, media).unwrap();
+    let units: Vec<u16> = "backdrop-filter: blur(2px)".encode_utf16().collect();
+    assert!(cascade.css_supports(&units));
+    let tree = LayoutEngine::default().layout(&doc, &cascade, VIEWPORT);
+    assert_eq!(
+        *find(&tree, glass).style.properties.backdrop_filters,
+        [Filter::Invert(1.0), Filter::Grayscale(0.5)]
+    );
+}
+
+#[test]
 fn sizes_lays_out_and_clips_contained_boxes() {
     let mut fixture = Fixture::new(
         "body { margin: 0; font: 16px/20px monospace }
