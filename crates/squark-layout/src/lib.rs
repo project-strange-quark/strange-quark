@@ -61,6 +61,7 @@ pub struct LayoutEngine {
     margins: fragments::Margins,
     editing: editing::Fields,
     table_parts: table::Parts,
+    anonymous: std::collections::BTreeSet<squark_types::fragment::FragmentId>,
     flows: text_flow::Flows,
     measure_timings: bool,
 }
@@ -121,6 +122,7 @@ impl LayoutEngine {
         self.margins = emitted.margins;
         self.editing = emitted.editing;
         self.table_parts = emitted.table_parts;
+        self.anonymous = emitted.anonymous;
         self.flows = emitted.flows;
         emitted.tree
     }
@@ -246,6 +248,11 @@ struct BoxNode {
     details: DetailedLayoutInfo<style::Atom>,
     claims: ContainingBlockClaims,
     marker_outside: bool,
+    /// How far a table cell's layout moved its in-flow children down for
+    /// `vertical-align` since they were last laid out.
+    content_offset: f32,
+    /// An anonymous table box, which belongs to no element of its own.
+    anonymous: bool,
 }
 
 enum Content {
@@ -263,6 +270,22 @@ enum Replacement {
     BrokenImage,
     EmptyImage,
     Svg,
+}
+
+impl BoxNode {
+    /// The baseline that aligns the box as an inline-block: the last line
+    /// box's for a block container, which tables do not give it, and the
+    /// first baseline for other boxes that have no last one.
+    fn inline_block_baseline(&self, baselines: Baselines) -> Option<f32> {
+        let block_container = matches!(self.content, Content::Container)
+            && matches!(
+                self.style.display,
+                taffy::Display::Block | taffy::Display::FlowRoot
+            );
+        baselines
+            .last
+            .or(baselines.first.filter(|_| !block_container))
+    }
 }
 
 impl BoxTree<'_> {
@@ -296,6 +319,8 @@ impl BoxTree<'_> {
             details: DetailedLayoutInfo::None,
             claims,
             marker_outside: false,
+            content_offset: 0.0,
+            anonymous: false,
         });
         id
     }
@@ -340,6 +365,34 @@ fn replaced_size(intrinsic: IntrinsicSize, known: taffy::Size<Option<f32>>) -> t
         }
     };
     taffy::Size { width, height }
+}
+
+/// The offset `position: relative` gives a box (CSS 2 § 9.4.3): `left` wins
+/// over `right`, or the reverse in a right-to-left containing block, and
+/// `top` over `bottom`. A percentage without a basis is `auto`.
+fn relative_offset(
+    style: &taffy::Style<style::Atom>,
+    basis: taffy::Size<Option<f32>>,
+    rtl: bool,
+    calcs: &Calcs,
+) -> taffy::Point<f32> {
+    use taffy::MaybeResolve;
+
+    if style.position != taffy::Position::Relative {
+        return taffy::Point::ZERO;
+    }
+    let resolve = |value: taffy::LengthPercentageAuto, basis: Option<f32>| {
+        value.maybe_resolve(basis, |handle, basis| calcs.resolve(handle, basis))
+    };
+    let inset = style.inset;
+    let left = resolve(inset.left, basis.width);
+    let right = resolve(inset.right, basis.width).map(|right| -right);
+    taffy::Point {
+        x: if rtl { right.or(left) } else { left.or(right) }.unwrap_or(0.0),
+        y: resolve(inset.top, basis.height)
+            .or_else(|| resolve(inset.bottom, basis.height).map(|bottom| -bottom))
+            .unwrap_or(0.0),
+    }
 }
 
 fn style_edges(edges: squark_types::fragment::Edges<f32>) -> taffy::Rect<f32> {

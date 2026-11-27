@@ -1101,6 +1101,45 @@ fn markdown_fragment_parse_timing() {
 }
 
 #[test]
+fn leaves_anonymous_table_boxes_out_of_their_elements_rects() {
+    let mut fixture = Fixture::new(
+        "body { margin: 0 } .cell { display: table-cell; width: 30px; height: 10px }
+         .table { display: table } .box { display: inline-block; width: 40px; height: 10px }",
+    );
+    // An anonymous table wraps the cells, and an anonymous cell the box.
+    let block = fixture.element(BODY, "div", &[]);
+    for _ in 0..2 {
+        fixture.element(block, "span", &[("class", "cell")]);
+    }
+    let table = fixture.element(BODY, "div", &[("class", "table")]);
+    fixture.element(table, "span", &[("class", "box")]);
+    let pack = fixture.pack();
+    let (send, _updates) = resource_channel();
+    let mut engine =
+        StaticDocument::from_pack(&pack, "https://example.test/".parse().unwrap(), send).unwrap();
+    let rects = |engine: &mut StaticDocument<'_>, node| {
+        let QueryValue::Rects(rects) = engine
+            .query(&input(), Query::ClientRects(id(node)))
+            .unwrap()
+        else {
+            panic!("expected client rects");
+        };
+        rects
+    };
+    assert_eq!(
+        rects(&mut engine, block),
+        [Rect::new(0.0, 0.0, VIEWPORT.width, 10.0)]
+    );
+    let [table_rect] = rects(&mut engine, table)[..] else {
+        panic!("expected the table's own box only");
+    };
+    assert_eq!(
+        (table_rect.origin.x, table_rect.origin.y, table_rect.size.width),
+        (0.0, 10.0, 40.0)
+    );
+}
+
+#[test]
 fn measures_table_rows_and_sections_from_their_tracks() {
     let mut fixture = Fixture::new(
         "body { margin: 0 } table { border-spacing: 4px; transform: translateX(10px) }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use squark_mirror::Document;
 use squark_types::{
@@ -18,12 +18,16 @@ use crate::fragments::inset;
 pub(crate) struct BoxIndex(BTreeMap<NodeId, Vec<FragmentId>>);
 
 impl BoxIndex {
-    pub fn build(tree: &FragmentTree) -> Self {
+    /// Indexes the box fragments of each element, leaving out `anonymous`
+    /// boxes, which layout generates for no element of their own.
+    pub fn build(tree: &FragmentTree, anonymous: &BTreeSet<FragmentId>) -> Self {
         let mut boxes = BTreeMap::<_, Vec<_>>::new();
         let mut pending = vec![tree.root];
         while let Some(id) = pending.pop() {
             let fragment = &tree.nodes[&id];
-            if matches!(fragment.kind, FragmentKind::Box | FragmentKind::Replaced) {
+            if matches!(fragment.kind, FragmentKind::Box | FragmentKind::Replaced)
+                && !anonymous.contains(&id)
+            {
                 boxes.entry(fragment.owner).or_default().push(id);
             }
             pending.extend(fragment.children.iter().rev());

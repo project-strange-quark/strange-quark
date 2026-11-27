@@ -605,10 +605,8 @@ impl BoxTree<'_> {
             };
             constraints.available_space = available;
             let computed = self.compute_child_layout(child, constraints);
-            let baseline = computed
-                .baselines
-                .last
-                .or(computed.baselines.first)
+            let baseline = self[child]
+                .inline_block_baseline(computed.baselines)
                 .filter(|_| visible_overflow)
                 .map(|baseline| baseline + margin.top);
             let css = self[child].css.as_ref().expect("atomic inline style");

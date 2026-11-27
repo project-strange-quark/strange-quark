@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     sync::Arc,
 };
 
@@ -138,6 +138,7 @@ pub(crate) fn emit(
         margins: emit.margins,
         editing: emit.editing,
         table_parts: emit.table_parts,
+        anonymous: emit.anonymous,
         flows: emit.flows,
     }
 }
@@ -147,6 +148,8 @@ pub(crate) struct Emitted {
     pub margins: Margins,
     pub editing: editing::Fields,
     pub table_parts: crate::table::Parts,
+    /// Anonymous table boxes, which queries for their owner skip.
+    pub anonymous: BTreeSet<FragmentId>,
     pub flows: Flows,
 }
 
@@ -189,6 +192,7 @@ pub(crate) struct Emitter<'a, 'b> {
     margins: Margins,
     editing: editing::Fields,
     table_parts: crate::table::Parts,
+    anonymous: BTreeSet<FragmentId>,
     flows: Flows,
     ids_by_box: HashMap<Id, FragmentId>,
     propagation: Option<Id>,
@@ -229,6 +233,7 @@ impl<'a, 'b> Emitter<'a, 'b> {
             margins: BTreeMap::new(),
             editing: BTreeMap::new(),
             table_parts: BTreeMap::new(),
+            anonymous: BTreeSet::new(),
             flows: Flows::default(),
             ids_by_box: HashMap::new(),
             propagation: None,
@@ -332,10 +337,11 @@ impl<'a, 'b> Emitter<'a, 'b> {
                 height: layout.size.height,
             },
         };
-        if let (Content::Table(table), taffy::DetailedLayoutInfo::Grid(grid)) =
-            (&data.content, &data.details)
-        {
-            crate::table::record_parts(&table.parts, grid, id, rect, &mut self.table_parts);
+        if let Content::Table(table) = &data.content {
+            crate::table::record_parts(table, id, rect, &mut self.table_parts);
+        }
+        if data.anonymous {
+            self.anonymous.insert(id);
         }
         let border = edges(layout.border);
         let padding = edges(layout.padding);
