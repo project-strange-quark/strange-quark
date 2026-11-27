@@ -1,4 +1,8 @@
 [
+  "custom-elements/Document-createElementNS.html",
+  "custom-elements/createElement-reentrant-construction.window.js",
+  "custom-elements/reaction-timing.html",
+  "custom-elements/reactions/DOMTokenList.html",
   "dom/abort/event.any.js",
   "dom/collections/HTMLCollection-live-mutations.window.js",
   "dom/events/AddEventListenerOptions-once.any.js",
