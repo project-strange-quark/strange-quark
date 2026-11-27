@@ -8,7 +8,7 @@ use std::{
 };
 
 use serde::Serialize;
-use squark_native::{App, CloseRequest, DialogRequest, Emitter, Module, State, export, handlers};
+use squark_native::{App, CloseRequest, DialogRequest, Module, State, export, handlers};
 
 #[derive(Default)]
 struct Counter(AtomicU32);
@@ -73,7 +73,7 @@ pub fn modules() -> Vec<Module> {
             .manage(CloseGuard::default())
             .commands(handlers![echo, fail, count, burst, delayed, pick_folder, guard_close])
             .on_close_requested(|app| {
-                if app.state::<CloseGuard>().0.load(Ordering::SeqCst) {
+                if app.state::<CloseGuard>().is_some_and(|guard| guard.0.load(Ordering::SeqCst)) {
                     let _ = app.emit("close-requested", ());
                     CloseRequest::Prevent
                 } else {

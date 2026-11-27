@@ -12,8 +12,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use squark_native::{
-    App, CloseRequest, DialogRequest, Emitter, Module, State, WindowOp, dispatcher, export,
-    handlers,
+    App, CloseRequest, DialogRequest, Module, State, WindowOp, dispatcher, export, handlers,
 };
 use squark_types::native::{NativeCall, NativeDispatcher, NativeEvents, NativeHost};
 
@@ -191,8 +190,8 @@ fn events_before_a_document_attaches_are_dropped_and_state_can_be_added_later() 
     dispatcher.app().emit("early", 1).unwrap();
     assert!(dispatcher.app().manage(5_u8));
     assert!(!dispatcher.app().manage(6_u8));
-    assert_eq!(*dispatcher.app().state::<u8>(), 5);
-    assert!(dispatcher.app().try_state::<u16>().is_none());
+    assert_eq!(*dispatcher.app().state::<u8>().unwrap(), 5);
+    assert!(dispatcher.app().state::<u16>().is_none());
     assert_eq!(dispatcher.close_requested(), CloseRequest::Allow);
 }
 

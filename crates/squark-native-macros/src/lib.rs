@@ -4,8 +4,7 @@
 //! `#[export]` keeps the function as written and adds a hidden unit struct,
 //! `__squark_command_<name>`, implementing `squark_native::Command`. Its
 //! arguments arrive as one JSON object whose keys are the parameter names in
-//! camelCase, as Tauri commands receive them. Parameters typed `App` (or
-//! `AppHandle`, for ported Tauri code) receive the app handle and `State<T>`
+//! camelCase. Parameters typed `App` receive the app handle and `State<T>`
 //! the managed `T`; neither comes from JSON.
 //! `handlers![a, module::b]` lists the structs for `Module::commands`.
 
@@ -54,12 +53,7 @@ fn classify(arg: &FnArg) -> syn::Result<Param> {
         ));
     }
     match last_segment(&typed.ty) {
-        Some(segment)
-            if (segment.ident == "App" || segment.ident == "AppHandle")
-                && segment.arguments.is_empty() =>
-        {
-            Ok(Param::App)
-        }
+        Some(segment) if segment.ident == "App" && segment.arguments.is_empty() => Ok(Param::App),
         Some(segment) if segment.ident == "State" => {
             let PathArguments::AngleBracketed(args) = &segment.arguments else {
                 return Err(syn::Error::new(segment.span(), "State needs a type: State<T>"));
@@ -185,7 +179,7 @@ fn expand(attr: TokenStream2, function: ItemFn) -> syn::Result<TokenStream2> {
             Param::State(inner) => {
                 let local = format_ident!("__state{}", index);
                 bindings.push(quote! {
-                    let #local = app.try_state::<#inner>().ok_or_else(|| {
+                    let #local = app.state::<#inner>().ok_or_else(|| {
                         ::squark_native::__private::missing_state(#command, ::core::any::type_name::<#inner>())
                     })?;
                 });

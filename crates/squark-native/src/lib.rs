@@ -6,7 +6,7 @@
 //! an app runtime, so it costs no extra process or IPC.
 //!
 //! ```ignore
-//! use squark_native::{App, Emitter, Module, State, export, handlers};
+//! use squark_native::{App, Module, State, export, handlers};
 //!
 //! #[export]
 //! fn greet(name: String) -> String {
@@ -23,13 +23,12 @@
 //! }
 //! ```
 //!
-//! JavaScript reaches it through `@strange-quark/native`
-//! (`invoke("demo", "greet", { name: "Ada" })`) or, for a Tauri frontend,
-//! through `@strange-quark/tauri`. A module runs only when the app's
-//! `squark.config.ts` lists it under `native.modules`.
+//! JavaScript reaches it through the runtime's native API
+//! (`invoke("demo", "greet", { name: "Ada" })`). A module runs only when the
+//! app's `squark.config.ts` lists it under `native.modules`.
 //!
 //! Commands receive their arguments as one JSON object whose keys are the
-//! parameter names in camelCase. A plain return value is the result; a
+//! parameter names in camelCase (`rename_all = "snake_case"` keeps them). A plain return value is the result; a
 //! `Result` rejects the JavaScript promise with its error, serialized. Sync
 //! commands run on a blocking thread and async commands on the runtime the
 //! app's networking uses, so a module adds no threads of its own.
@@ -162,7 +161,7 @@ impl Module {
 
     /// Decide what happens when the user asks to close the window. Return
     /// `CloseRequest::Prevent` to keep it open (and close it later with
-    /// `app.window().close()`), as Tauri apps do from `on_window_event`.
+    /// `app.window().close()`), for example to ask about unsaved work.
     pub fn on_close_requested(
         mut self,
         handler: impl Fn(&App) -> CloseRequest + Send + Sync + 'static,
@@ -172,8 +171,7 @@ impl Module {
     }
 
     /// Run once when the app ends (the window closed or the app exited),
-    /// after the page has stopped: stop child processes here, as Tauri apps
-    /// do on `RunEvent::Exit`.
+    /// after the page has stopped: stop child processes here.
     pub fn on_exit(mut self, handler: impl FnOnce(&App) + Send + 'static) -> Self {
         self.on_exit.push(Box::new(handler));
         self
@@ -208,22 +206,25 @@ impl App {
         }))
     }
 
-    /// State registered with `Module::manage` or `App::manage`.
-    ///
-    /// # Panics
-    /// If no module manages a `T`, as Tauri's `Manager::state` does; use
-    /// [`App::try_state`] when the state is optional.
-    pub fn state<T: Send + Sync + 'static>(&self) -> State<T> {
-        self.try_state().unwrap_or_else(|| {
-            panic!(
-                "state {} is not managed; add it with Module::manage",
-                std::any::type_name::<T>()
-            )
-        })
+    /// Send `payload`, serialized, to every JavaScript listener of `event`.
+    /// Events before the page starts or after it closes are dropped, which
+    /// is not an error.
+    pub fn emit<P: Serialize>(&self, event: &str, payload: P) -> Result<(), Error> {
+        let json = serde_json::to_string(&payload).map_err(|error| Error(error.to_string()))?;
+        let events = self
+            .0
+            .events
+            .read()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .clone();
+        if let Some(events) = events {
+            events.emit(event, json);
+        }
+        Ok(())
     }
 
     /// State registered with `Module::manage` or `App::manage`, if any.
-    pub fn try_state<T: Send + Sync + 'static>(&self) -> Option<State<T>> {
+    pub fn state<T: Send + Sync + 'static>(&self) -> Option<State<T>> {
         let states = self
             .0
             .states
@@ -289,31 +290,6 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
-
-/// Sends events to JavaScript listeners. A trait, as Tauri's `Emitter` is,
-/// so ported code's `use tauri::Emitter` maps onto it.
-pub trait Emitter {
-    /// Send `payload`, serialized, to every listener of `event`. Events
-    /// before the page starts or after it closes are dropped, which is not
-    /// an error.
-    fn emit<P: Serialize>(&self, event: &str, payload: P) -> Result<(), Error>;
-}
-
-impl Emitter for App {
-    fn emit<P: Serialize>(&self, event: &str, payload: P) -> Result<(), Error> {
-        let json = serde_json::to_string(&payload).map_err(|error| Error(error.to_string()))?;
-        let events = self
-            .0
-            .events
-            .read()
-            .unwrap_or_else(|poison| poison.into_inner())
-            .clone();
-        if let Some(events) = events {
-            events.emit(event, json);
-        }
-        Ok(())
-    }
-}
 
 /// The app window, for module code.
 #[derive(Clone)]
