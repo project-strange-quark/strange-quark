@@ -250,14 +250,7 @@ impl App {
 
     /// The runtime async commands run on, for spawning background work.
     pub fn runtime(&self) -> tokio::runtime::Handle {
-        self.0
-            .runtime
-            .get_or_init(|| {
-                squark_net::shared_runtime()
-                    .or_else(|| tokio::runtime::Handle::try_current().ok())
-                    .expect("squark-native: no async runtime")
-            })
-            .clone()
+        self.0.runtime.get_or_init(runtime).clone()
     }
 
     pub fn window(&self) -> Window {
@@ -277,6 +270,14 @@ impl App {
             None => Err("the window system is not available".into()),
         }
     }
+}
+
+/// The runtime async commands run on: the one squark-net already owns, so a
+/// module adds no threads of its own.
+pub fn runtime() -> tokio::runtime::Handle {
+    squark_net::shared_runtime()
+        .or_else(|| tokio::runtime::Handle::try_current().ok())
+        .expect("squark-native: no async runtime")
 }
 
 /// An event payload that could not be serialized.
