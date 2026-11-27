@@ -169,7 +169,8 @@ fn font_faces_flush_descriptors_and_settle_on_resource_tasks() {
         for (const name of ["loading", "loadingdone", "loadingerror"]) {
           document.fonts.addEventListener(name, e => events.push([name, e.fontfaces.map(face => face.family)]));
         }
-        globalThis.first = new FontFace("UI", "url(/fonts/app.woff2)", {unicodeRange:"U+0000-007F"});
+        globalThis.first = new FontFace("UI", "url(/fonts/app.woff2)",
+          {unicodeRange:"U+0000-007F", weight:"700", style:"italic", stretch:"condensed"});
         const data = Uint8Array.of(0, 1, 2, 3, 4);
         globalThis.second = new FontFace("UI", data.subarray(1, 4));
         data[1] = 99;
@@ -196,6 +197,10 @@ fn font_faces_flush_descriptors_and_settle_on_resource_tasks() {
         );
         assert_eq!(log.fonts[0].family, "UI");
         assert_eq!(log.fonts[0].descriptor["unicode-range"], "U+0000-007F");
+        // The engine parses each value as the @font-face descriptor it names.
+        assert_eq!(log.fonts[0].descriptor["font-weight"], "700");
+        assert_eq!(log.fonts[0].descriptor["font-style"], "italic");
+        assert_eq!(log.fonts[0].descriptor["font-stretch"], "condensed");
         assert_eq!(
             log.fonts[0].descriptor["source"],
             serde_json::json!({"css":"url(/fonts/app.woff2)", "baseUrl":URL})
