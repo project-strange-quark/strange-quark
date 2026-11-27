@@ -36,6 +36,7 @@ const XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace";
 const XMLNS_NAMESPACE = "http://www.w3.org/2000/xmlns/";
 const MAX_SLOT = 0x00ff_ffff;
 const ELEMENT = 1;
+const ATTRIBUTE = 2;
 const TEXT = 3;
 
 type QuirksMode = 0 | 1 | 2;
@@ -400,6 +401,7 @@ export class Node extends EventTarget {
   }
 
   cloneNode(deep = false): Node {
+    if (this instanceof Attr) return cloneNodeInto(this, this.ownerDocument, false);
     return cloneNodeInto(this, ownerOf(this), Boolean(deep), !inTemplateContents(this));
   }
 }
@@ -658,7 +660,7 @@ function qualifiedName(namespace: string | null, qualified: string): { prefix: s
 const classLists = new WeakMap<Element, DOMTokenList>();
 const styles = new WeakMap<Element, CSSStyleDeclaration>();
 const datasets = new WeakMap<Element, Record<string, string>>();
-const attributeLists = new WeakMap<Element, NodeList<Attribute>>();
+const attributeLists = new WeakMap<Element, NamedNodeMap>();
 
 export class Element extends ParentNode {
   readonly localName: string;
@@ -788,13 +790,10 @@ export class Element extends ParentNode {
     return style;
   }
 
-  get attributes(): NodeList<Attribute> {
-    let list = attributeLists.get(this);
-    if (list === undefined) {
-      list = new NodeList(() => [...(nodeState(this).attributes?.values() ?? [])].map((attribute) => ({ ...attribute })));
-      attributeLists.set(this, list);
-    }
-    return list;
+  get attributes(): NamedNodeMap {
+    let map = attributeLists.get(this);
+    if (map === undefined) attributeLists.set(this, map = new NamedNodeMap(namedNodeMapToken, this));
+    return map;
   }
 
   getAttributeNames(): string[] { return [...this.attributes].map(({ name }) => name); }
@@ -839,6 +838,51 @@ export class Element extends ParentNode {
     if (attribute !== undefined) eraseAttribute(this, attribute);
   }
 
+  getAttributeNode(qualifiedName: string): Attr | null {
+    const attribute = this.#namedAttribute(qualifiedName);
+    return attribute === undefined ? null : attrNode(this, attribute);
+  }
+
+  getAttributeNodeNS(namespace: string | null, localName: string): Attr | null {
+    namespace = namespace == null || namespace === "" ? null : String(namespace);
+    const attribute = nodeState(this).attributes?.get(attributeKey(namespace, String(localName)));
+    return attribute === undefined ? null : attrNode(this, attribute);
+  }
+
+  setAttributeNode(attr: Attr): Attr | null {
+    if (!(attr instanceof Attr)) throw new TypeError("Expected an Attr");
+    const state = attrStates.get(attr)!;
+    if (state.element === this) return attr;
+    if (state.element !== null) fail("InUseAttributeError", "The attribute is in use by another element");
+    const attribute = { ...state.detached };
+    const key = attributeKey(attribute.namespaceURI, attribute.localName);
+    const previous = nodeState(this).attributes?.get(key);
+    const replaced = previous === undefined ? null : attrNode(this, previous);
+    if (previous !== undefined) {
+      detachAttr(this, key, previous);
+      const journal = journalFor(this);
+      if (journal !== null && previous.name !== attribute.name) {
+        journal.record(Opcode.RemoveAttr, nodeId(this), attributeAtomFor(journal, previous), 0);
+      }
+    }
+    writeAttribute(this, attribute);
+    state.element = this;
+    nodeState(attr).owner = this.ownerDocument;
+    attrCache(this).set(key, attr);
+    return replaced;
+  }
+
+  setAttributeNodeNS(attr: Attr): Attr | null { return this.setAttributeNode(attr); }
+
+  removeAttributeNode(attr: Attr): Attr {
+    if (!(attr instanceof Attr)) throw new TypeError("Expected an Attr");
+    const state = attrStates.get(attr)!;
+    const attribute = state.element === this ? nodeState(this).attributes?.get(state.key) : undefined;
+    if (attribute === undefined) fail("NotFoundError", "The attribute is not on this element");
+    eraseAttribute(this, attribute);
+    return attr;
+  }
+
   toggleAttribute(name: string, force?: boolean): boolean {
     if (arguments.length === 0) throw new TypeError("toggleAttribute requires a name");
     name = validateLocalName(this.#normalName(name), false);
@@ -851,6 +895,177 @@ export class Element extends ParentNode {
     return enabled;
   }
 }
+
+// Attr nodes are created on demand and stay the same object while their
+// attribute is on the element. A removed attribute's node keeps its last value.
+type AttrState = { element: Element | null; key: string; detached: Attribute };
+const attrStates = new WeakMap<Attr, AttrState>();
+const attrNodes = new WeakMap<Element, Map<string, Attr>>();
+const attrToken = Symbol("Attr constructor");
+
+function attrCache(element: Element): Map<string, Attr> {
+  let cache = attrNodes.get(element);
+  if (cache === undefined) attrNodes.set(element, cache = new Map());
+  return cache;
+}
+
+function attrNode(element: Element, attribute: Attribute): Attr {
+  const key = attributeKey(attribute.namespaceURI, attribute.localName);
+  const cache = attrCache(element);
+  let attr = cache.get(key);
+  if (attr === undefined) cache.set(key, attr = new Attr(attrToken, element.ownerDocument, attribute, element));
+  return attr;
+}
+
+function detachAttr(element: Element, key: string, attribute: Attribute): void {
+  const cache = attrNodes.get(element);
+  const attr = cache?.get(key);
+  if (attr === undefined) return;
+  cache!.delete(key);
+  const state = attrStates.get(attr)!;
+  state.element = null;
+  state.detached = { ...attribute };
+  nodeState(attr).owner = element.ownerDocument;
+}
+
+export class Attr extends Node {
+  constructor(token: symbol, owner: Document, attribute: Attribute, element: Element | null) {
+    if (token !== attrToken) throw new TypeError("Illegal constructor");
+    // Attr nodes stay out of the journal, so the node starts without an owner.
+    super(0, ATTRIBUTE, null);
+    nodeState(this).owner = owner;
+    attrStates.set(this, { element, key: attributeKey(attribute.namespaceURI, attribute.localName), detached: { ...attribute } });
+  }
+
+  #attribute(): Attribute {
+    const { element, key, detached } = attrStates.get(this)!;
+    return element === null ? detached : nodeState(element).attributes?.get(key) ?? detached;
+  }
+
+  override [listenerFlagsChanged](): void {}
+  override get ownerDocument(): Document {
+    const element = attrStates.get(this)!.element;
+    return element === null ? nodeState(this).owner! : element.ownerDocument;
+  }
+  override get nodeName(): string { return this.name; }
+  override get nodeValue(): string { return this.value; }
+  override set nodeValue(value: string | null) { this.value = value === null ? "" : value; }
+  get namespaceURI(): string | null { return this.#attribute().namespaceURI; }
+  get prefix(): string | null { return this.#attribute().prefix; }
+  get localName(): string { return this.#attribute().localName; }
+  get name(): string { return this.#attribute().name; }
+  get ownerElement(): Element | null { return attrStates.get(this)!.element; }
+  get specified(): boolean { return true; }
+
+  get value(): string { return this.#attribute().value; }
+  set value(value: string) {
+    const state = attrStates.get(this)!;
+    value = String(value);
+    if (state.element === null) state.detached = { ...state.detached, value };
+    else writeAttribute(state.element, { ...this.#attribute(), value });
+  }
+}
+
+function createAttr(document: Document, attribute: Attribute): Attr {
+  return new Attr(attrToken, document, attribute, null);
+}
+
+const namedNodeMapToken = Symbol("NamedNodeMap constructor");
+const namedNodeMapOwners = new WeakMap<NamedNodeMap, Element>();
+
+function attributeRecords(element: Element): Attribute[] {
+  return [...(nodeState(element).attributes?.values() ?? [])];
+}
+
+/** NamedNodeMap's supported property names leave out uppercase names of HTML elements in HTML documents. */
+function namedAttributeNames(element: Element): string[] {
+  const html = element.namespaceURI === HTML_NAMESPACE && documents.get(element.ownerDocument)!.html;
+  return [...new Set(attributeRecords(element).map(({ name }) => name).filter(name => !html || !/[A-Z]/.test(name)))];
+}
+
+function indexKey(key: PropertyKey): number {
+  if (typeof key !== "string") return -1;
+  const index = Number(key);
+  return Number.isInteger(index) && index >= 0 && String(index) === key ? index : -1;
+}
+
+export class NamedNodeMap implements Iterable<Attr> {
+  readonly [index: number]: Attr;
+
+  constructor(token: symbol, element: Element) {
+    if (token !== namedNodeMapToken) throw new TypeError("Illegal constructor");
+    const named = (key: PropertyKey): Attr | null =>
+      typeof key === "string" && namedAttributeNames(element).includes(key) ? proxy.getNamedItem(key) : null;
+    const proxy: NamedNodeMap = new Proxy(this, {
+      get(target, key, receiver) {
+        const index = indexKey(key);
+        if (index >= 0) return target.item.call(receiver, index) ?? undefined;
+        return Reflect.has(target, key) ? Reflect.get(target, key, receiver) : named(key) ?? undefined;
+      },
+      has(target, key) {
+        const index = indexKey(key);
+        return index >= 0 ? index < attributeRecords(element).length : Reflect.has(target, key) || named(key) !== null;
+      },
+      ownKeys(target) {
+        return [...attributeRecords(element).map((_, index) => String(index)), ...namedAttributeNames(element), ...Reflect.ownKeys(target)];
+      },
+      getOwnPropertyDescriptor(target, key) {
+        const index = indexKey(key);
+        const value = index >= 0 ? proxy.item(index) : Reflect.has(target, key) ? null : named(key);
+        if (value !== null) return { value, configurable: true, enumerable: index >= 0, writable: false };
+        return Reflect.getOwnPropertyDescriptor(target, key);
+      },
+      set(target, key, value, receiver) {
+        return indexKey(key) < 0 && named(key) === null && Reflect.set(target, key, value, receiver);
+      },
+      defineProperty(target, key, descriptor) {
+        return indexKey(key) < 0 && named(key) === null && Reflect.defineProperty(target, key, descriptor);
+      },
+    });
+    namedNodeMapOwners.set(proxy, element);
+    return proxy;
+  }
+
+  get length(): number { return attributeRecords(namedNodeMapOwners.get(this)!).length; }
+
+  item(index: number): Attr | null {
+    const element = namedNodeMapOwners.get(this)!;
+    const attribute = attributeRecords(element)[Number(index) >>> 0];
+    return attribute === undefined ? null : attrNode(element, attribute);
+  }
+
+  getNamedItem(qualifiedName: string): Attr | null {
+    if (arguments.length === 0) throw new TypeError("getNamedItem requires a name");
+    return namedNodeMapOwners.get(this)!.getAttributeNode(String(qualifiedName));
+  }
+
+  getNamedItemNS(namespace: string | null, localName: string): Attr | null {
+    if (arguments.length < 2) throw new TypeError("getNamedItemNS requires a namespace and a local name");
+    return namedNodeMapOwners.get(this)!.getAttributeNodeNS(namespace, localName);
+  }
+
+  setNamedItem(attr: Attr): Attr | null { return namedNodeMapOwners.get(this)!.setAttributeNode(attr); }
+  setNamedItemNS(attr: Attr): Attr | null { return namedNodeMapOwners.get(this)!.setAttributeNode(attr); }
+
+  removeNamedItem(qualifiedName: string): Attr {
+    const element = namedNodeMapOwners.get(this)!;
+    const attr = element.getAttributeNode(String(qualifiedName));
+    if (attr === null) fail("NotFoundError", "No attribute has this name");
+    return element.removeAttributeNode(attr);
+  }
+
+  removeNamedItemNS(namespace: string | null, localName: string): Attr {
+    const element = namedNodeMapOwners.get(this)!;
+    const attr = element.getAttributeNodeNS(namespace, localName);
+    if (attr === null) fail("NotFoundError", "No attribute has this namespace and local name");
+    return element.removeAttributeNode(attr);
+  }
+
+  *[Symbol.iterator](): IterableIterator<Attr> {
+    for (let index = 0; index < this.length; index++) yield this.item(index)!;
+  }
+}
+Object.defineProperty(NamedNodeMap.prototype, Symbol.toStringTag, { value: "NamedNodeMap", configurable: true });
 
 const attributeChanged = Symbol("attribute changed");
 
@@ -2862,6 +3077,21 @@ export class Document extends ParentNode {
     return new Text(String(data), this);
   }
 
+  createAttribute(localName: string): Attr {
+    if (arguments.length === 0) throw new TypeError("createAttribute requires a name");
+    const { html } = documents.get(this)!;
+    const name = validateLocalName(html ? lowerAscii(String(localName)) : String(localName), false);
+    return createAttr(this, { name, localName: name, prefix: null, namespaceURI: null, value: "" });
+  }
+
+  createAttributeNS(namespace: string | null, qualified: string): Attr {
+    if (arguments.length < 2) throw new TypeError("createAttributeNS requires a namespace and a name");
+    namespace = namespace == null || namespace === "" ? null : String(namespace);
+    const name = String(qualified);
+    const { prefix, localName } = qualifiedName(namespace, name);
+    return createAttr(this, { name, localName, prefix, namespaceURI: namespace, value: "" });
+  }
+
   createComment(data: string): Comment {
     if (arguments.length === 0) throw new TypeError("createComment requires data");
     return new Comment(String(data), this);
@@ -2886,6 +3116,11 @@ export class Document extends ParentNode {
   adoptNode<T extends Node>(node: T): T {
     expectNode(node);
     if (node instanceof Document) fail("NotSupportedError", "Cannot adopt a Document");
+    if (node instanceof Attr) {
+      node.ownerElement?.removeAttributeNode(node);
+      nodeState(node).owner = this;
+      return node;
+    }
     if (node.parentNode !== null) unlink(node.parentNode, node);
     adoptSubtree(this, node);
     return node;
@@ -3024,6 +3259,9 @@ ceReactions(Element.prototype, ["before", "after", "replaceWith", "remove", "inn
 ceReactions(HTMLElement.prototype, ["innerText", "tabIndex"]);
 ceReactions(Document.prototype, ["createElement", "createElementNS", "importNode", "adoptNode", "title"]);
 ceReactions(CSSStyleDeclaration.prototype, ["cssText", "setProperty", "removeProperty"]);
+ceReactions(Element.prototype, ["setAttributeNode", "setAttributeNodeNS", "removeAttributeNode"]);
+ceReactions(Attr.prototype, ["value", "nodeValue"]);
+ceReactions(NamedNodeMap.prototype, ["setNamedItem", "setNamedItemNS", "removeNamedItem", "removeNamedItemNS"]);
 
 function attributeKey(namespace: string | null, localName: string): string { return `${namespace ?? ""}\0${localName}`; }
 
@@ -3051,7 +3289,9 @@ function writeAttribute(element: Element, attribute: Attribute, initial = false)
 }
 
 function eraseAttribute(element: Element, attribute: Attribute): void {
-  nodeState(element).attributes!.delete(attributeKey(attribute.namespaceURI, attribute.localName));
+  const key = attributeKey(attribute.namespaceURI, attribute.localName);
+  detachAttr(element, key, attribute);
+  nodeState(element).attributes!.delete(key);
   const journal = journalFor(element);
   if (journal !== null) {
     journal.record(Opcode.RemoveAttr, nodeId(element), attributeAtomFor(journal, attribute), 0);
@@ -3075,6 +3315,10 @@ function unlink(parent: Node, child: Node, suppressObserver = false, syncText = 
 
 function cloneNodeInto(source: Node, targetDoc: Document, deep: boolean, upgrade = true): Node {
   let clone: Node;
+  if (source instanceof Attr) {
+    const { name, localName, prefix, namespaceURI, value } = source;
+    return createAttr(targetDoc, { name, localName, prefix, namespaceURI, value });
+  }
   if (source instanceof Element) {
     clone = targetDoc[createElementInternal](source.localName, source.namespaceURI, source.prefix);
     const definition = upgrade ? lookupDefinition(targetDoc, source.namespaceURI, source.localName) : null;
@@ -3236,7 +3480,7 @@ function mutate(parent: Node, incoming: readonly Node[], before: Node | null, re
   for (const child of incoming) {
     expectNode(child);
     if (child.contains(parent) || child instanceof Document ||
-        child instanceof DocumentType && !(parent instanceof Document)) {
+        child instanceof DocumentType && !(parent instanceof Document) || child instanceof Attr) {
       fail("HierarchyRequestError", "Cannot insert an ancestor or this node kind into its descendant");
     }
     const childJournal = journalFor(child);
@@ -3534,7 +3778,7 @@ export function installDOM(global: Record<PropertyKey, unknown>, supplied?: Docu
   installCustomElements(global, document);
   Object.assign(global, {
     window: global, self: global, opener: null, Window, document, Node, Element, CharacterData, Text, Comment, DocumentFragment,
-    Document, XMLDocument, DOMParser, DocumentType, EventTarget, Event, UIEvent, CompositionEvent, CustomEvent, FocusEvent, MouseEvent, KeyboardEvent,
+    Document, XMLDocument, DOMParser, DocumentType, Attr, NamedNodeMap, EventTarget, Event, UIEvent, CompositionEvent, CustomEvent, FocusEvent, MouseEvent, KeyboardEvent,
     PointerEvent, WheelEvent, InputEvent, SubmitEvent, ErrorEvent, ProgressEvent,
     CSSStyleSheet, CSSRule, CSSRuleList, StyleSheetList, HTMLStyleElement, HTMLLinkElement,
     SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement, NodeFilter, TreeWalker, Selection,

@@ -4,9 +4,10 @@ import { ListenerFlags } from "./journal.js";
 
 const legacyCodes: Record<string, number> = {
   IndexSizeError: 1, HierarchyRequestError: 3, WrongDocumentError: 4, NoModificationAllowedError: 7,
-  InvalidCharacterError: 5, NotFoundError: 8, NotSupportedError: 9,
-  InvalidStateError: 11, SyntaxError: 12, NamespaceError: 14,
-  AbortError: 20, TimeoutError: 23, DataCloneError: 25,
+  InvalidCharacterError: 5, NotFoundError: 8, NotSupportedError: 9, InUseAttributeError: 10,
+  InvalidStateError: 11, SyntaxError: 12, InvalidModificationError: 13, NamespaceError: 14, InvalidAccessError: 15,
+  TypeMismatchError: 17, SecurityError: 18, NetworkError: 19, AbortError: 20, URLMismatchError: 21, QuotaExceededError: 22,
+  TimeoutError: 23, InvalidNodeTypeError: 24, DataCloneError: 25,
 };
 
 export class DOMException extends Error {
