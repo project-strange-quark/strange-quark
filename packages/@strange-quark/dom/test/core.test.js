@@ -262,3 +262,15 @@ test("active listener removal, duplicates and stopImmediatePropagation follow di
   target.dispatchEvent(new Event("x"));
   assert.deepEqual(log, ["action", "last"]);
 });
+
+test("nodeType is a Node.prototype accessor, so getters cached from the prototype read every node", () => {
+  const document = createDocument(new Journal());
+  const descriptor = Object.getOwnPropertyDescriptor(Node.prototype, "nodeType");
+  assert.equal(typeof descriptor.get, "function");
+  const element = document.createElement("form");
+  const nodes = [element, document.createTextNode("t"), document.createComment("c"), document, document.createDocumentFragment()];
+  assert.deepEqual(nodes.map(node => descriptor.get.call(node)), [1, 3, 8, 9, 11]);
+  assert.deepEqual(nodes.map(node => node.nodeType), [1, 3, 8, 9, 11]);
+  assert.equal(Object.hasOwn(element, "nodeType"), false);
+  assert.throws(() => descriptor.get.call({}), TypeError);
+});

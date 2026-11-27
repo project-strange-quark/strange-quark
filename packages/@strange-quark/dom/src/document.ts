@@ -52,6 +52,7 @@ type Attribute = {
 
 type NodeState = {
   id: number;
+  type: number;
   owner: Document | null;
   parent: Node | null;
   children?: Node[];
@@ -220,13 +221,10 @@ export class Node extends EventTarget {
   static readonly DOCUMENT_POSITION_CONTAINED_BY = 16;
   static readonly DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 32;
 
-  readonly nodeType: number;
-
   protected constructor(id: number, type: number, owner: Document | null, value: string | null = null,
                         named?: NamedProperty) {
     super();
     if (new.target === Node) throw new TypeError("Illegal Node constructor");
-    this.nodeType = type;
     // The proxy must be returned from super() so subclass private members
     // are installed on the same object that script and event dispatch see.
     const node: Node = named === undefined ? this : new Proxy(this, {
@@ -242,7 +240,7 @@ export class Node extends EventTarget {
       },
     });
     if (node !== this) aliasEventTarget(this, node);
-    const state = { id, owner, parent: null, value };
+    const state = { id, type, owner, parent: null, value };
     nodes.set(node, state);
     if (owner !== null) rememberNode(documents.get(owner)!.journal, state, node, true);
     return node;
@@ -260,6 +258,8 @@ export class Node extends EventTarget {
     if (this instanceof Document) return event.type === "load" ? null : this.defaultView;
     return this.parentNode;
   }
+
+  get nodeType(): number { return nodeState(this).type; }
 
   get nodeName(): string {
     switch (this.nodeType) {
