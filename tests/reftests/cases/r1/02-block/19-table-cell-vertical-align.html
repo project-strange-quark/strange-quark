@@ -1,0 +1,60 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":360,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.03} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Table cell vertical-align, row baselines and spans</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 14px; line-height: 20px; padding: 12px; }
+    table { border-spacing: 4px; background: #e2e8f0; margin-bottom: 10px; }
+    td { padding: 4px; background: #ffffff; border: 1px solid #94a3b8; }
+    .top { vertical-align: top; background: #dbeafe; }
+    .middle { vertical-align: middle; background: #dcfce7; }
+    .bottom { vertical-align: bottom; background: #fef9c3; }
+    .baseline { vertical-align: baseline; background: #fce7f3; }
+    .tall { height: 70px; }
+    .big { font-size: 28px; line-height: 34px; }
+    .small { font-size: 10px; line-height: 12px; }
+    .pad { padding-top: 18px; }
+    .chip { display: block; width: 18px; height: 10px; background: #475569; }
+    .note { width: 90px; }
+  </style>
+</head>
+<body>
+  <!-- Cells fill the row; their content moves inside them. -->
+  <table>
+    <tr>
+      <td class="top tall">top</td>
+      <td class="middle">middle</td>
+      <td class="bottom">bottom</td>
+      <td class="baseline big">Big</td>
+      <td class="baseline small">small</td>
+      <td class="baseline pad">padded</td>
+      <td class="baseline"><span class="chip"></span></td>
+    </tr>
+  </table>
+  <!-- Spanning cells, a row height and wrapped text. -->
+  <table>
+    <tr style="height: 40px">
+      <td class="middle" rowspan="2">two<br>rows</td>
+      <td class="bottom" colspan="2">two columns</td>
+      <td class="baseline note" rowspan="2">text that wraps onto lines</td>
+    </tr>
+    <tr>
+      <td class="top">a</td>
+      <td class="baseline big">b</td>
+    </tr>
+  </table>
+  <!-- No cell on the baseline. -->
+  <table>
+    <tr>
+      <td class="top">top</td>
+      <td class="bottom big">Bottom</td>
+      <td class="middle small">small</td>
+    </tr>
+  </table>
+</body>
+</html>

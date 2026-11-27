@@ -1,0 +1,35 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.03} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Anonymous table boxes</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 15px; line-height: 22px; padding: 12px; }
+    section { margin-bottom: 12px; background: #f8fafc; }
+    .table { display: table; background: #bfdbfe; border-spacing: 3px; }
+    .row { display: table-row; }
+    .cell { display: table-cell; background: #ffffff; padding: 2px 6px; vertical-align: middle; }
+    .centered { margin: 0 auto; padding: 4px; }
+    .tall { height: 40px; }
+  </style>
+</head>
+<body>
+  <!-- Text straight in a table gets an anonymous cell; the table still
+       shrinks to fit and centres with auto margins. -->
+  <section><div class="table centered">Centred by a shrink-to-fit table</div></section>
+  <!-- Cells straight in a table share an anonymous row. -->
+  <section><div class="table"><span class="cell tall">one</span> <span class="cell">two</span> <span class="cell">three</span></div></section>
+  <!-- Loose text in a row gets an anonymous cell next to the real ones. -->
+  <section><div class="table"><div class="row"><span class="cell">cell</span> loose text <span class="cell">cell</span></div></div></section>
+  <!-- Cells without a table: an anonymous block table, or an inline one
+       inside an inline box. -->
+  <section>before <span class="cell tall">left</span> <span class="cell">right</span> after</section>
+  <section><span>inline <span class="cell tall">cell</span> <span class="cell">pair</span> text</span></section>
+  <!-- A row without a table. -->
+  <section><div class="row"><span class="cell">row</span><span class="cell">only</span></div></section>
+</body>
+</html>

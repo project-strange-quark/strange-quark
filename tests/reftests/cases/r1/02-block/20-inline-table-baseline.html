@@ -1,0 +1,46 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":480,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.03} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Inline table baselines and column widths</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { font-family: "TestSans", sans-serif; font-size: 16px; line-height: 24px; padding: 12px; }
+    p { margin: 0 0 10px; background: #f1f5f9; }
+    .t { display: inline-table; border-collapse: collapse; background: #bfdbfe; }
+    .r { display: table-row; }
+    .c { display: table-cell; padding: 0 3px; }
+    .bottom { vertical-align: bottom; }
+    .rule { display: block; height: 2px; background: #1e3a8a; }
+    .ib { display: inline-block; background: #fde68a; padding: 2px; }
+    .grid { display: table; border: 2px solid #64748b; padding: 3px; border-spacing: 2px; }
+    .grid .c { background: #e2e8f0; }
+    table { border-spacing: 2px; background: #cbd5e1; margin-bottom: 8px; }
+    td { background: #ffffff; padding: 2px 4px; }
+  </style>
+</head>
+<body>
+  <!-- An inline table sits on its first row's baseline. Without a
+       baseline-aligned cell that is the bottom of the row's cells. -->
+  <p>Above <span class="t"><span class="r"><span class="c bottom" style="height: 30px">x</span></span><span class="r"><span class="c bottom" style="height: 12px"><span class="rule"></span></span></span></span> below and
+     <span class="t"><span class="r"><span class="c">first</span><span class="c bottom" style="height: 34px">tall</span></span><span class="r"><span class="c">second</span></span></span> rows.</p>
+  <!-- An inline-block takes no baseline from a table inside it. -->
+  <p>Blocks <span class="ib"><span class="grid"><span class="r"><span class="c">a</span><span class="c">b</span></span></span></span>
+     and <span class="ib">line<span class="grid"><span class="r"><span class="c">c</span></span></span></span> end.</p>
+  <!-- Automatic, percentage, fixed and spanning columns. -->
+  <table style="width: 440px">
+    <tr><td>aa</td><td style="width: 25%">quarter</td><td style="width: 60px">sixty</td><td>bbbbbb bbb</td></tr>
+    <tr><td colspan="2">spanning the first two columns</td><td>c</td><td>d</td></tr>
+  </table>
+  <table style="width: 300px; table-layout: fixed">
+    <tr><td style="width: 50px">fifty</td><td>shared</td><td>shared</td></tr>
+    <tr><td style="width: 200px">ignored</td><td>row</td><td>two</td></tr>
+  </table>
+  <table>
+    <tr><td style="min-width: 80px">min</td><td style="width: 40px">a long fixed cell</td></tr>
+  </table>
+</body>
+</html>

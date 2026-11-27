@@ -1,14 +1,14 @@
 <!-- SPDX-License-Identifier: MIT -->
 # Reftest Suite R1 (Static HTML/CSS)
 
-155 static HTML/CSS cases (zero JavaScript, zero external network URLs) rendered
+159 static HTML/CSS cases (zero JavaScript, zero external network URLs) rendered
 against headless Chromium (`/usr/bin/chromium`) with bundled fonts under
 `_assets/fonts/` and deterministic images under `_assets/images/`.
 
 | Directory | Count | Coverage |
 | --- | ---: | --- |
 | `01-inline/` | 21 | Inline-layout cases (with `data-geom` paired geometry baselines in `tests/results/r1/geometry.json`: whitespace across spans, preserved line breaks, nested `inline-block` baselines, `vertical-align`, mixed bidi + inline image, fractional widths, loaded WOFF2 line-break change, flex/grid intrinsic inline sizing, clipping/ellipsis, missing-image fallback) plus font weights, line-height, text-align, spacing, word-break, decorations, transforms, shadows, `font-variation-settings` on a variable font |
-| `02-block/` | 18 | Block stacking, `box-sizing`, sibling & parent-child margin collapsing, auto centering, negative margins, percentages, `min/max-*`, `display: none/contents`, `aspect-ratio`, `flow-root`, logical margin/padding, `calc/min/max/clamp`, viewport/`rem` units, lists, basic table, `contain` (size, inline-size, layout, paint, strict, content) |
+| `02-block/` | 22 | Block stacking, `box-sizing`, sibling & parent-child margin collapsing, auto centering, negative margins, percentages, `min/max-*`, `display: none/contents`, `aspect-ratio`, `flow-root`, logical margin/padding, `calc/min/max/clamp`, viewport/`rem` units, lists, `contain` (size, inline-size, layout, paint, strict, content), tables: cell `vertical-align` and row baselines, row and column spans, `inline-table` baselines, automatic, percentage and fixed column widths, anonymous table boxes, and math stacked in inline tables the way KaTeX does |
 | `03-flex/` | 16 | Row/column/reverse, `flex-grow`, `flex-shrink`/`flex-basis`, `flex-wrap`/`align-content`, `justify-content`, `align-items`/`align-self`, `gap`, `order`, auto margins, `inline-flex`, nested dashboard, `min-width: 0` truncation, `aspect-ratio`, baseline alignment |
 | `04-grid/` | 14 | Fixed tracks, `fr`, `repeat()`/`minmax()`, `row-gap`/`column-gap`, line placement & spans, `grid-template-areas`, `grid-auto-flow` (`column`/`dense`), implicit `grid-auto-rows`, alignment, `place-self`/auto margins, `inline-grid`, `%`/`calc()`, z-index overlap, `auto-fill` |
 | `05-position/` | 15 | `relative`, `absolute` containing blocks/`inset`/auto-center/`%`/shrink-to-fit, `fixed` viewport & transformed CB, `sticky`, `z-index`, `isolation: isolate`, stacking contexts (`opacity`, `transform`, negative `z-index`, `auto` vs `0`), absolute inside flex/grid |
@@ -27,3 +27,20 @@ timeout 180 node tests/reftests/src/cli.mjs --suite r1 --mode chromium
 # Compare squark screenshot against expected PNGs
 timeout 300 node tests/reftests/src/cli.mjs --suite r1 --mode compare
 ```
+
+## KaTeX
+
+`02-block/22-math-vertical-lists` rebuilds KaTeX's vertical lists with the
+bundled fonts, so the suite carries no KaTeX code or fonts. To compare real
+KaTeX output, render formulas with KaTeX's own `renderToString` into a page
+outside the repository, copy `katex.min.css` and its `fonts/` next to it, and
+screenshot that directory with both renderers:
+
+```bash
+node -e 'const katex = require("katex"); console.log(`<!DOCTYPE html><link rel="stylesheet" href="katex.min.css">${katex.renderToString("\\sum_{k=1}^{n} k = \\frac{n(n+1)}{2}", { displayMode: true, output: "html" })}`)' > /tmp/katex/index.html
+timeout 60 cargo run -p squark-cli -- screenshot /tmp/katex --out /tmp/katex-squark.png
+```
+
+and take the Chromium screenshot of the same page with the pinned Chromium
+(`scripts/chromium-path.mjs`), for instance through Playwright as
+`src/chromium.mjs` does.
