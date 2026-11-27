@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createContext, runInContext } from "node:vm";
-import { EventTarget, finishDocumentStartup, installDOM } from "@strange-quark/dom";
+import { Event, EventTarget, finishDocumentStartup, installDOM } from "@strange-quark/dom";
 
 test("the realm global is an EventTarget and supports strict unqualified calls", () => {
   const context = createContext({ assert });
@@ -54,4 +54,16 @@ test("document startup publishes readiness before the load event", () => {
   finishDocumentStartup(document);
   assert.equal(document.readyState, "complete");
   assert.deepEqual(seen, ["interactive", "dom loaded", "complete", "load"]);
+});
+
+test("the window's document has focus and is visible, while documents without a window are neither", () => {
+  const document = installDOM({});
+  assert.deepEqual([document.hasFocus(), document.visibilityState, document.hidden], [true, "visible", false]);
+  const inert = document.implementation.createHTMLDocument();
+  assert.deepEqual([inert.hasFocus(), inert.visibilityState, inert.hidden], [false, "hidden", true]);
+  assert.equal(document.onvisibilitychange, null);
+  const seen = [];
+  document.onvisibilitychange = event => seen.push(event.type);
+  document.dispatchEvent(new Event("visibilitychange"));
+  assert.deepEqual(seen, ["visibilitychange"]);
 });

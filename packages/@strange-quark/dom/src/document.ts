@@ -2996,6 +2996,13 @@ export class Document extends ParentNode {
   get cookie(): string { return ""; }
   set cookie(_value: string) {}
   get readyState(): ReadyState { return documents.get(this)!.ready; }
+
+  // The host reports no window focus, occlusion or minimising to the
+  // document, so a document with a window counts as focused and visible, and
+  // visibilitychange never fires. Documents without a window are neither.
+  hasFocus(): boolean { return documents.get(this)!.view !== null; }
+  get visibilityState(): "visible" | "hidden" { return documents.get(this)!.view === null ? "hidden" : "visible"; }
+  get hidden(): boolean { return this.visibilityState === "hidden"; }
   getSelection(): Selection | null {
     const state = documents.get(this)!;
     return state.view === null ? null : state.selection ??= new Selection(selectionToken, this);
@@ -3318,7 +3325,9 @@ function serializeXML(node: Node): string {
   return children === "" ? xml + "/>" : xml + ">" + children + "</" + name + ">";
 }
 
-for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", "paste"]) reflectedEvent(Document.prototype, name);
+for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", "paste", "visibilitychange"]) {
+  reflectedEvent(Document.prototype, name);
+}
 
 ceReactions(Node.prototype, ["nodeValue", "textContent", "appendChild", "insertBefore", "removeChild", "replaceChild", "normalize", "cloneNode"]);
 ceReactions(ParentNode.prototype, ["append", "prepend", "replaceChildren"]);
