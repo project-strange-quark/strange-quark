@@ -183,13 +183,20 @@ fn throw_type_error(scope: &mut PinScope<'_, '_>, message: &str) {
     }
 }
 
-/// The JS functions that select a timer or the next callback in a frame's rAF snapshot.
+/// The longest idle period, as the requestIdleCallback standard bounds it.
+pub const MAX_IDLE_PERIOD_MS: f64 = 50.0;
+
+/// The JS functions that select a timer, the next callback in a frame's rAF
+/// snapshot, or the next callback of an idle period.
 #[derive(Debug)]
 pub struct TaskLoop {
     fire_timer: Global<Function>,
     begin_frame: Global<Function>,
     has_animation: Global<Function>,
     next_animation: Global<Function>,
+    idle_wakeup: Global<Function>,
+    begin_idle: Global<Function>,
+    next_idle: Global<Function>,
 }
 
 impl TaskLoop {
@@ -203,6 +210,9 @@ impl TaskLoop {
             begin_frame: binding(scope, timing, "beginFrame")?,
             has_animation: binding(scope, timing, "hasAnimationCallbacks")?,
             next_animation: binding(scope, timing, "nextAnimation")?,
+            idle_wakeup: binding(scope, timing, "idleWakeup")?,
+            begin_idle: binding(scope, timing, "beginIdle")?,
+            next_idle: binding(scope, timing, "nextIdle")?,
         })
     }
 
@@ -221,6 +231,48 @@ impl TaskLoop {
 
     pub fn has_posted_tasks(&self, scope: &mut PinScope<'_, '_>) -> bool {
         !scope.get_slot::<Queue>().unwrap().posted.is_empty()
+    }
+
+    /// When the next idle period may start, while idle callbacks wait for one.
+    pub fn idle_wakeup(&self, scope: &mut PinScope<'_, '_>) -> Option<f64> {
+        let wakeup = Local::new(scope, &self.idle_wakeup);
+        let value = call(scope, wakeup, &[]).ok()?;
+        value
+            .is_number()
+            .then(|| value.number_value(scope))
+            .flatten()
+    }
+
+    /// Runs an idle period if one is due and no task is ready. The period ends
+    /// at the next timer, after `budget_ms`, or after MAX_IDLE_PERIOD_MS.
+    /// Each callback and its microtask checkpoint complete before the deadline
+    /// is checked again, as for timers.
+    pub fn run_idle(&self, scope: &mut PinScope<'_, '_>, budget_ms: f64) -> Result<(), TaskError> {
+        let Some(start) = self.idle_wakeup(scope) else {
+            return Ok(());
+        };
+        let queue = scope.get_slot::<Queue>().unwrap();
+        let now = (queue.clock)();
+        let timer = queue.timer.map(|timer| timer.0);
+        if start > now || !queue.posted.is_empty() || timer.is_some_and(|deadline| deadline <= now)
+        {
+            return Ok(());
+        }
+        let period = now + budget_ms.min(MAX_IDLE_PERIOD_MS);
+        let deadline = timer.map_or(period, |timer| timer.min(period));
+        let begin = Local::new(scope, &self.begin_idle);
+        let deadline = v8::Number::new(scope, deadline);
+        call(scope, begin, &[deadline.into()])?;
+        let next = Local::new(scope, &self.next_idle);
+        let mut error = None;
+        while let Ok(callback) = Local::<Function>::try_from(call(scope, next, &[])?) {
+            let result = call(scope, callback, &[]);
+            scope.perform_microtask_checkpoint();
+            if let Err(failed) = result {
+                error.get_or_insert(failed);
+            }
+        }
+        error.map_or(Ok(()), Err)
     }
 
     pub(crate) fn has_animation_callbacks(&self, scope: &mut PinScope<'_, '_>) -> bool {

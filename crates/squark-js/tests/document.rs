@@ -19,6 +19,8 @@ mod dompurify_tests;
 mod editing_tests;
 #[path = "document/fonts.rs"]
 mod font_tests;
+#[path = "document/idle.rs"]
+mod idle_tests;
 #[path = "document/input.rs"]
 mod input_tests;
 #[path = "document/local_storage.rs"]
