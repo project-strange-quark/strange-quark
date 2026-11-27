@@ -90,13 +90,19 @@ fn font_context() -> FontContext {
 
 impl Default for Fonts {
     fn default() -> Self {
+        let context = font_context();
+        // The metrics provider shares the system font list.
+        let metrics = Arc::new(FontMetricsSource::new(FontContext {
+            collection: context.collection.clone(),
+            source_cache: context.source_cache.clone(),
+        }));
         Self {
-            context: font_context(),
+            context,
             layout: LayoutContext::new(),
             set: Arc::default(),
             web: Default::default(),
             document_blobs: Vec::new(),
-            metrics: Arc::default(),
+            metrics,
             keys: HashMap::new(),
             instances: Vec::new(),
             measured_sources: HashMap::new(),

@@ -44,7 +44,8 @@ struct State {
     set: Arc<FaceSet>,
     /// The web fonts changed since the cached answers were checked.
     stale: bool,
-    /// Installed fonts, read on the first query that reaches them.
+    /// Installed fonts. A default provider reads them on the first query
+    /// that reaches them.
     context: Option<FontContext>,
     local: HashMap<String, Option<fontique::Blob<u8>>>,
     documents: HashMap<u32, (Arc<[u8]>, fontique::Blob<u8>)>,
@@ -132,6 +133,17 @@ struct Unscaled {
 }
 
 impl FontMetricsSource {
+    /// A provider that finds installed fonts through `context`, which can
+    /// share another collection's system font list as a clone of it.
+    pub(crate) fn new(context: FontContext) -> Self {
+        Self {
+            state: Mutex::new(State {
+                context: Some(context),
+                ..State::default()
+            }),
+        }
+    }
+
     /// Follows a new set of web fonts. Answers given so far are checked
     /// again by the next `revalidate`.
     pub(crate) fn set_faces(&self, set: Arc<FaceSet>) {
