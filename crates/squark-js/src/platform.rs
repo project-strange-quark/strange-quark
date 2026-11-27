@@ -2,7 +2,10 @@
 
 use std::sync::mpsc::Sender;
 
-use squark_types::host::{ClipboardItem, FileHandle, HostError, HostRequest, HostValue};
+use squark_types::{
+    host::{ClipboardItem, FileHandle, HostError, HostRequest, HostValue},
+    native::WindowOp,
+};
 use v8::{Function, FunctionCallbackArguments, Local, Object, PinScope, ReturnValue, Value};
 
 use crate::{
@@ -25,6 +28,7 @@ pub(crate) fn install(
             ("fileSave", Function::new(scope, file_save)),
             ("openExternal", Function::new(scope, open_external)),
             ("fullscreen", Function::new(scope, fullscreen)),
+            ("windowOp", Function::new(scope, window_op)),
         ] {
             set(scope, host, name, callback?.into())?;
         }
@@ -140,6 +144,27 @@ fn fullscreen(scope: &mut PinScope<'_, '_>, args: FunctionCallbackArguments<'_>,
         let enter = Local::<v8::Boolean>::try_from(args.get(1)).ok()?.is_true();
         Some(HostRequest::Fullscreen { id, enter })
     });
+    send(scope, request);
+}
+
+fn window_op(scope: &mut PinScope<'_, '_>, args: FunctionCallbackArguments<'_>, _: ReturnValue) {
+    let request = (|| {
+        let id = unsigned(args.get(0))?;
+        let op = string(scope, args.get(1))?;
+        let value = args.get(2);
+        let op = match op.as_str() {
+            "title" => WindowOp::SetTitle(string(scope, value)?),
+            "zoom" => {
+                let factor = value.number_value(scope)?;
+                (factor.is_finite() && factor > 0.0).then_some(WindowOp::SetZoom(factor))?
+            }
+            "close" => WindowOp::Close,
+            "relaunch" => WindowOp::Relaunch,
+            "exit" => WindowOp::Exit(value.int32_value(scope).unwrap_or(0)),
+            _ => return None,
+        };
+        Some(HostRequest::Window { id, op })
+    })();
     send(scope, request);
 }
 

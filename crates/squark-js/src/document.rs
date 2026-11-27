@@ -36,7 +36,7 @@ use crate::{
     canvas, clone_value, crypto, css, data, fonts,
     input::{self, QueuedInput},
     loader::{self, RUNTIME_ENTRY, RUNTIME_JOURNAL, ScriptSources},
-    navigation, network, observer, platform, scroll,
+    native, navigation, network, observer, platform, scroll,
     task_loop::{TaskLoop, call, install_task_host},
     wasm,
 };
@@ -125,6 +125,8 @@ pub enum DocumentTask {
     AnimationEvent(AnimationEvent),
     ResourceLayoutChanged,
     NetworkReady,
+    /// A native module replied or emitted an event (coalesced).
+    NativeReady,
     ImageResult {
         target: NodeId,
         generation: u32,
@@ -218,6 +220,8 @@ struct Realm {
     drain_indexed_db: Global<Function>,
     flush_local_storage: Global<Function>,
     network_queued: Arc<AtomicBool>,
+    native: Option<Global<Function>>,
+    native_queued: Arc<AtomicBool>,
     demand: FrameDemand,
     media_changed: bool,
     in_frame: bool,
@@ -328,6 +332,8 @@ impl<'engine> DocumentRunner<'engine> {
             platform::install(scope, host, sources.host_requests.take())
                 .ok_or_else(|| setup("failed to install host services"))?;
             let dev = sources.dev;
+            native::install(scope, host, sources.native.take())
+                .ok_or_else(|| setup("failed to install native module bindings"))?;
             loader::install(scope, url, sources);
             let console = bindings::console_enabled(dev, options.test_control);
             bindings::install(scope, host, console)
@@ -472,6 +478,12 @@ impl<'engine> DocumentRunner<'engine> {
             )
             .map_err(setup)?;
             let host_reply = Local::<Function>::try_from(host_reply).map_err(setup)?;
+            let install_native = function(scope, api, "installNative")?;
+            let native = call(scope, install_native, &[global.into(), host.into()])
+                .map_err(setup)?;
+            let native = Local::<Function>::try_from(native)
+                .ok()
+                .map(|native| Global::new(scope, native));
             let image_resource = function(scope, api, "dispatchImageResult")?;
             let fullscreen_change = function(scope, api, "dispatchFullscreenChange")?;
             clone_value::prepare(scope).ok_or_else(|| setup("failed to stash clone prototypes"))?;
@@ -525,6 +537,8 @@ impl<'engine> DocumentRunner<'engine> {
                 drain_indexed_db: Global::new(scope, drain_indexed_db),
                 flush_local_storage: Global::new(scope, flush_local_storage),
                 network_queued: Arc::default(),
+                native,
+                native_queued: Arc::default(),
                 demand: options.frame_demand,
                 media_changed: false,
                 in_frame: false,
@@ -560,9 +574,16 @@ impl<'engine> DocumentRunner<'engine> {
     pub fn set_network_wakeup(&mut self, sender: Sender<DocumentTask>) {
         self.with_realm(|scope, realm| {
             let queued = Arc::clone(&realm.network_queued);
+            let network_sender = sender.clone();
             network::set_waker(scope, move || {
                 if !queued.swap(true, Ordering::AcqRel) {
-                    let _ = sender.send(DocumentTask::NetworkReady);
+                    let _ = network_sender.send(DocumentTask::NetworkReady);
+                }
+            });
+            let queued = Arc::clone(&realm.native_queued);
+            native::set_waker(scope, move || {
+                if !queued.swap(true, Ordering::AcqRel) {
+                    let _ = sender.send(DocumentTask::NativeReady);
                 }
             });
         });
@@ -578,6 +599,7 @@ impl<'engine> DocumentRunner<'engine> {
         let mut messages = VecDeque::new();
         let result = self.run_queue(&receiver, &mut messages, &mut committed);
         self.shutdown.close();
+        self.with_realm(|scope, _| native::close(scope));
         messages
             .into_iter()
             .chain(receiver.try_iter())
@@ -709,6 +731,9 @@ impl<'engine> DocumentRunner<'engine> {
                     DocumentTask::ResourceLayoutChanged => self.resource_layout_changed(),
                     DocumentTask::NetworkReady => {
                         self.realm.network_queued.store(false, Ordering::Release)
+                    }
+                    DocumentTask::NativeReady => {
+                        self.realm.native_queued.store(false, Ordering::Release)
                     }
                     DocumentTask::ImageResult {
                         target,
@@ -1089,6 +1114,7 @@ impl<'engine> DocumentRunner<'engine> {
             timer
                 .into_iter()
                 .chain(network::wakeup(scope))
+                .chain(native::wakeup(scope))
                 .chain(wasm::wakeup(scope))
                 .min()
         })
@@ -1224,6 +1250,21 @@ impl Realm {
             self.tasks.checkpoint_after_startup(scope);
             if (self.clock)() >= deadline {
                 break;
+            }
+        }
+        if let Some(dispatch) = &self.native {
+            let dispatch = Local::new(scope, dispatch);
+            for _ in 0..MAX_TASKS {
+                let Some(message) = native::next(scope) else {
+                    break;
+                };
+                if let Err(error) = call(scope, dispatch, &[message]) {
+                    report_message(scope, &error.to_string());
+                }
+                self.tasks.checkpoint_after_startup(scope);
+                if (self.clock)() >= deadline {
+                    break;
+                }
             }
         }
         let deadline = millis(deadline, self.origin);

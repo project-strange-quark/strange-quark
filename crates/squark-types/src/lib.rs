@@ -12,6 +12,7 @@ pub mod geometry;
 pub mod host;
 pub mod id;
 pub mod journal;
+pub mod native;
 pub mod pack;
 pub mod render;
 pub mod scroll;

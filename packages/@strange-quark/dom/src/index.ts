@@ -36,6 +36,7 @@ export { installCrypto } from "./web-crypto.js";
 export { installFonts } from "./fonts.js";
 export { installIndexedDB } from "./indexed-db.js";
 export { installPlatform } from "./platform.js";
+export { installNative, NATIVE_API } from "./native.js";
 export { dispatchFullscreenChange } from "./fullscreen.js";
 export { installFormData } from "./form-data.js";
 export { installWasm } from "./wasm.js";

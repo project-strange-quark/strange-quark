@@ -21,6 +21,8 @@ mod font_tests;
 mod input_tests;
 #[path = "document/local_storage.rs"]
 mod local_storage_tests;
+#[path = "document/native.rs"]
+mod native_tests;
 #[path = "document/navigation.rs"]
 mod navigation_tests;
 #[path = "document/network.rs"]

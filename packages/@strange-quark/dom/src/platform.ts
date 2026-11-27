@@ -11,6 +11,7 @@ import type { Document, Element } from "./document.js";
 import { dispatchTrustedEvent, DOMException, EventTarget } from "./events.js";
 import { FileList } from "./file-list.js";
 import { installFullscreen } from "./fullscreen.js";
+import { registerWindowRequests } from "./native.js";
 import type { DOMFile } from "./file-list.js";
 import { blobBytes } from "./fetch.js";
 import type { BodyInit, NetworkBlob } from "./fetch.js";
@@ -29,6 +30,7 @@ type Host = {
   fileSave?(request: number, url: string, suggestedName: string): void;
   openExternal?(request: number, url: string): void;
   fullscreen?(request: number, enter: boolean): void;
+  windowOp?(request: number, op: string, value?: unknown): void;
   utf8Encode(text: string): Bytes;
   utf8Decode(bytes: Bytes): string;
   postTask(callback: () => void): void;
@@ -191,6 +193,9 @@ export function installPlatform(global: Record<PropertyKey, unknown>, document: 
       send: enter => request(id => host.fullscreen!(id, enter)),
       postTask: host.postTask,
     });
+  }
+  if (host.windowOp !== undefined) {
+    registerWindowRequests(global, (op, value) => request(id => host.windowOp!(id, op, value)));
   }
   return (id: number, ok: boolean, payload: unknown): void => {
     const resolve = pending.get(id);

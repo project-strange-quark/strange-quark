@@ -136,7 +136,7 @@ pub struct ClipboardItem {
     pub bytes: Arc<[u8]>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum HostRequest {
     ClipboardRead {
         id: u32,
@@ -165,6 +165,12 @@ pub enum HostRequest {
     Fullscreen {
         id: u32,
         enter: bool,
+    },
+    /// A window operation from the page (title, zoom, close, relaunch,
+    /// exit). The reply is `HostValue::Done`.
+    Window {
+        id: u32,
+        op: crate::native::WindowOp,
     },
 }
 

@@ -17,6 +17,7 @@ mod fonts;
 mod input;
 mod loader;
 mod module_cache;
+mod native;
 mod navigation;
 mod network;
 mod observer;

@@ -31,6 +31,7 @@ pub struct ScriptSources {
     pub(crate) host_requests: Option<std::sync::mpsc::Sender<squark_types::host::HostRequest>>,
     pub(crate) storage_root: Option<std::path::PathBuf>,
     pub(crate) shutdown: crate::DocumentShutdown,
+    pub(crate) native: Option<std::sync::Arc<dyn squark_types::native::NativeDispatcher>>,
 }
 
 impl ScriptSources {
@@ -47,7 +48,17 @@ impl ScriptSources {
             host_requests: None,
             storage_root: None,
             shutdown: Default::default(),
+            native: None,
         }
+    }
+
+    /// Expose the app runtime's native modules to the document's JavaScript.
+    pub fn with_native(
+        mut self,
+        dispatcher: std::sync::Arc<dyn squark_types::native::NativeDispatcher>,
+    ) -> Self {
+        self.native = Some(dispatcher);
+        self
     }
     /// Allow connections to the document's exact HTTP/WS development origin.
     pub fn with_dev_server(mut self) -> Self {
