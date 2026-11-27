@@ -27,12 +27,14 @@ type InputMessage = { id: number; target: number; related: number; time: number;
   { type: "wheel"; fields: WheelFields } |
   { type: "ime"; fields: { kind: ImeKind; text: string; selection: [number, number] | null } }
 );
-type ClickPress = { target: Element; x: number; y: number; time: number; detail: number; modifiers: number };
+type ClickPress = { target: Element; button: number; x: number; y: number; time: number; detail: number; modifiers: number };
 type Pointer = {
   hover: Element[];
   active: Element[];
   down: Element | null;
   clickPress: ClickPress | null;
+  /** The press of a non-primary button, which an auxclick completes. */
+  auxPress: ClickPress | null;
   selection: PointerSelection | null;
   buttons: number;
   suppressMouse: boolean;
@@ -43,6 +45,7 @@ type Pointer = {
 };
 
 const controllers = new WeakMap<Document, InputController>();
+const CONTEXT_MENU_BUTTON = 2;
 // Chromium's desktop repeated-click window and per-axis movement tolerance.
 const DOUBLE_CLICK_MS = 500;
 const DOUBLE_CLICK_TOLERANCE = 2;
@@ -53,7 +56,9 @@ class InputController {
   #spaceChain: Element[] = [];
   #lastClick: ClickPress | null = null;
 
-  constructor(readonly document: Document) {
+  // Chromium shows the context menu, and fires contextmenu, when the right
+  // button goes down, except on Windows, where it waits for the button to rise.
+  constructor(readonly document: Document, readonly contextMenuOnRelease: boolean) {
     onInputDetach(document, child => {
       const hover = this.chain("hover");
       const active = this.chain("active");
@@ -66,6 +71,7 @@ class InputController {
           pointer.clickPress = null;
           pointer.active = [];
         }
+        if (pointer.auxPress !== null && child.contains(pointer.auxPress.target)) pointer.auxPress = null;
         if (pointer.pendingCapture !== null && child.contains(pointer.pendingCapture)) pointer.pendingCapture = null;
         if (pointer.selection !== null && child.contains(pointer.selection.control)) pointer.selection = null;
       }
@@ -145,15 +151,15 @@ class InputController {
   beginClick(target: Element | null, fields: PointerFields, time: number): ClickPress | null {
     const previous = this.#lastClick;
     this.#lastClick = null;
-    if (target === null || fields.button !== 0) return null;
-    const { x, y } = fields;
+    if (target === null) return null;
+    const { x, y, button } = fields;
     const modifiers = Number(fields.ctrlKey) | Number(fields.shiftKey) << 1 |
       Number(fields.altKey) << 2 | Number(fields.metaKey) << 3;
-    const repeated = fields.clickCount == null && previous !== null && previous.target === target && previous.modifiers === modifiers &&
-      time >= previous.time && time - previous.time <= DOUBLE_CLICK_MS &&
+    const repeated = fields.clickCount == null && previous !== null && previous.target === target && previous.button === button &&
+      previous.modifiers === modifiers && time >= previous.time && time - previous.time <= DOUBLE_CLICK_MS &&
       Math.abs(previous.x - x) <= DOUBLE_CLICK_TOLERANCE && Math.abs(previous.y - y) <= DOUBLE_CLICK_TOLERANCE;
     const detail = fields.clickCount ?? (repeated ? Math.min(previous.detail + 1, 3) : 1);
-    return { target, x, y, time, modifiers, detail };
+    return { target, button, x, y, time, modifiers, detail };
   }
 
   dispatchPointer(type: "pointerdown" | "pointerup" | "pointermove" | "pointercancel",
@@ -162,7 +168,7 @@ class InputController {
     let pointer = this.pointers.get(id);
     if (pointer === undefined) {
       if (stale || type === "pointercancel" || type === "pointerup") return false;
-      pointer = { hover: [], active: [], down: null, clickPress: null, selection: null, buttons: 0,
+      pointer = { hover: [], active: [], down: null, clickPress: null, auxPress: null, selection: null, buttons: 0,
         suppressMouse: false, capture: null, pendingCapture: null, last: null };
       this.pointers.set(id, pointer);
     }
@@ -189,9 +195,12 @@ class InputController {
     const movement = type === "pointermove" ? { movementX: fields.x - origin.x, movementY: fields.y - origin.y } : {};
     if (type !== "pointercancel") pointer.last = { x: fields.x, y: fields.y };
     if (pressed && fields.isPrimary && fields.pointerType === "mouse") {
-      pointer.clickPress = this.beginClick(target, fields, time);
+      const press = this.beginClick(target, fields, time);
+      if (fields.button === 0) pointer.clickPress = press;
+      else pointer.auxPress = press;
     }
-    const detail = fields.clickCount ?? (fields.button === 0 ? pointer.clickPress?.detail ?? 1 : 1);
+    const press = fields.button === 0 ? pointer.clickPress : pointer.auxPress?.button === fields.button ? pointer.auxPress : null;
+    const detail = fields.clickCount ?? press?.detail ?? 1;
     if (pressed && fields.button === 0) {
       pointer.down = target;
       this.active(pointer, target);
@@ -234,6 +243,7 @@ class InputController {
       }
       canceled ||= !allowed;
     }
+    if (pressed && !this.contextMenuOnRelease) canceled = this.contextMenu(target, disabled, fields, init, time) || canceled;
     if (target !== null && type === "pointerup" && !disabled && mouse) {
       canceled = !dispatchTrustedEvent(target, new MouseEvent("mouseup", { ...init, ...pointerEvents, detail, button: fields.button }), time) || canceled;
     }
@@ -257,6 +267,20 @@ class InputController {
           }
         }
       }
+      const aux = pointer.auxPress;
+      if (type === "pointerup" && fields.button !== 0 && fields.isPrimary && aux?.button === fields.button &&
+          target?.isConnected && aux.target.isConnected && !disabled) {
+        const auxTarget = captured === target ? target : elementChain(target).find(node => node.contains(aux.target));
+        if (auxTarget !== undefined && !elementChain(auxTarget).some(disabledControl)) {
+          const count = fields.clickCount ?? aux.detail;
+          this.#lastClick = { ...aux, target: auxTarget, detail: count };
+          canceled = !dispatchTrustedEvent(auxTarget, new PointerEvent("auxclick", {
+            ...init, ...pointerEvents, button: fields.button, detail: count,
+          }), time) || canceled;
+        }
+      }
+      if (type === "pointerup" && aux?.button === fields.button || type === "pointercancel") pointer.auxPress = null;
+      if (type === "pointerup" && this.contextMenuOnRelease) canceled = this.contextMenu(target, disabled, fields, init, time) || canceled;
       pointer.down = null;
       pointer.clickPress = null;
       pointer.suppressMouse = false;
@@ -264,6 +288,14 @@ class InputController {
     }
     if (pointer.hover.length === 0 && pointer.buttons === 0 && pointer.pendingCapture === null) this.pointers.delete(id);
     return canceled;
+  }
+
+  /** Fires contextmenu for a right button change; the mouse events a canceled pointerdown suppresses do not gate it. */
+  contextMenu(target: Element | null, disabled: boolean, fields: PointerFields, init: ReturnType<typeof mouseInit>, time: number): boolean {
+    if (!target?.isConnected || disabled || !fields.isPrimary || fields.pointerType === "touch" || fields.button !== CONTEXT_MENU_BUTTON) {
+      return false;
+    }
+    return !dispatchTrustedEvent(target, new PointerEvent("contextmenu", { ...init, ...pointerEvents, button: CONTEXT_MENU_BUTTON }), time);
   }
 
   dispatch(message: InputMessage): boolean {
@@ -401,8 +433,8 @@ function activates(message: InputMessage): boolean {
   }
 }
 
-export function installInput(document: Document, host: { inputResult(id: number, defaultPrevented: boolean): void }) {
-  const controller = new InputController(document);
+export function installInput(document: Document, host: { os?: string; inputResult(id: number, defaultPrevented: boolean): void }) {
+  const controller = new InputController(document, host.os === "windows");
   controllers.set(document, controller);
   for (const [name, value] of Object.entries({ setPointerCapture, releasePointerCapture, hasPointerCapture })) {
     Object.defineProperty(Element.prototype, name, { value, configurable: true, writable: true });
