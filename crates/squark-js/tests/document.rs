@@ -13,10 +13,14 @@ mod css_tests;
 mod data_tests;
 #[path = "document/domparser.rs"]
 mod domparser_tests;
+#[path = "document/dompurify.rs"]
+mod dompurify_tests;
 #[path = "document/editing.rs"]
 mod editing_tests;
 #[path = "document/fonts.rs"]
 mod font_tests;
+#[path = "document/idle.rs"]
+mod idle_tests;
 #[path = "document/input.rs"]
 mod input_tests;
 #[path = "document/local_storage.rs"]

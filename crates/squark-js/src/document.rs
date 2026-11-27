@@ -37,7 +37,7 @@ use crate::{
     input::{self, QueuedInput},
     loader::{self, RUNTIME_ENTRY, RUNTIME_JOURNAL, ScriptSources},
     native, navigation, network, observer, platform, scroll,
-    task_loop::{TaskLoop, call, install_task_host},
+    task_loop::{MAX_IDLE_PERIOD_MS, TaskLoop, call, install_task_host},
     wasm,
 };
 
@@ -774,11 +774,21 @@ impl<'engine> DocumentRunner<'engine> {
         }
     }
 
-    /// A bounded timer and posted-task turn, also used between frames.
+    /// A bounded timer and posted-task turn, also used between frames. With
+    /// nothing else ready it ends in an idle period, kept to the task budget
+    /// while a frame is wanted so that idle callbacks cannot delay it.
     pub fn run_ready(&mut self) -> Result<(), DocumentError> {
         self.enter(|scope, realm| {
             realm.ready(scope, (realm.clock)() + TASK_BUDGET)?;
             realm.dispatch_media(scope)?;
+            let budget = if realm.request_frame_if_needed(scope) {
+                TASK_BUDGET.as_secs_f64() * 1000.0
+            } else {
+                MAX_IDLE_PERIOD_MS
+            };
+            if let Err(error) = realm.tasks.run_idle(scope, budget) {
+                report_message(scope, &error.to_string());
+            }
             realm.request_frame_if_needed(scope);
             Ok(())
         })
@@ -1108,11 +1118,14 @@ impl<'engine> DocumentRunner<'engine> {
                 return Some(Duration::ZERO);
             }
             let now = millis((realm.clock)(), realm.origin);
-            let timer = realm.tasks.next_timer_deadline(scope).and_then(|deadline| {
+            let until = |deadline: f64| {
                 Duration::try_from_secs_f64((deadline - now).max(0.0) / 1000.0).ok()
-            });
+            };
+            let timer = realm.tasks.next_timer_deadline(scope).and_then(until);
+            let idle = realm.tasks.idle_wakeup(scope).and_then(until);
             timer
                 .into_iter()
+                .chain(idle)
                 .chain(network::wakeup(scope))
                 .chain(native::wakeup(scope))
                 .chain(wasm::wakeup(scope))
@@ -1305,9 +1318,11 @@ impl Realm {
         Ok(())
     }
 
-    fn request_frame_if_needed(&self, scope: &mut PinScope<'_, '_>) {
+    /// Requests a frame when the document has something to show, and tells
+    /// whether a frame is underway or wanted.
+    fn request_frame_if_needed(&self, scope: &mut PinScope<'_, '_>) -> bool {
         if self.in_frame {
-            return;
+            return true;
         }
         if observer::pending(scope)
             || with_bridge(scope, |bridge| {
@@ -1318,13 +1333,15 @@ impl Realm {
             || self.tasks.has_animation_callbacks(scope)
         {
             self.demand.request_frame();
-            return;
+            return true;
         }
         let check = Local::new(scope, &self.pending_records);
         let document = Local::new(scope, &self.document);
-        if call(scope, check, &[document.into()]).is_ok_and(|value| value.is_true()) {
+        let pending = call(scope, check, &[document.into()]).is_ok_and(|value| value.is_true());
+        if pending {
             self.demand.request_frame();
         }
+        pending
     }
 
     fn layout(&self, scope: &mut PinScope<'_, '_>) -> Result<(), DocumentError> {

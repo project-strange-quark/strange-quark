@@ -8,7 +8,8 @@ import type { JournalAtom } from "./journal.js";
 import {
   aliasEventTarget, CompositionEvent, createLegacyEvent, CustomEvent, defaultPassive, dispatchTrustedEvent, DOMException,
   ErrorEvent, Event, eventActivation, EventTarget, eventParent, FocusEvent, InputEvent, installWindowEventTarget,
-  KeyboardEvent, listenerFlagsChanged, MouseEvent, observeListenerFlags, PointerEvent, ProgressEvent, SubmitEvent, WheelEvent, Window,
+  KeyboardEvent, listenerFlagsChanged, MouseEvent, observeListenerFlags, PointerEvent, ProgressEvent, SubmitEvent, UIEvent, WheelEvent,
+  Window,
 } from "./events.js";
 import { dataset, DOMTokenList, HTMLCollection, NodeList } from "./collections.js";
 import { FileList, fileList } from "./file-list.js";
@@ -16,13 +17,19 @@ import { renderedInnerText } from "./inner-text.js";
 import type { DOMFile } from "./file-list.js";
 import { AbortController, AbortSignal } from "./abort.js";
 import { computedStyle, CSSStyleDeclaration } from "./style.js";
-import { NodeFilter, TreeWalker, treeWalker } from "./tree-walker.js";
+import { NodeFilter, NodeIterator, nodeIterator, nodeIteratorsBeforeRemove, TreeWalker, treeWalker } from "./tree-walker.js";
 import { MutationObserver, MutationRecord, observeDetachedSubtree, queueMutation } from "./mutation.js";
 import {
   AbstractRange, createRange, installRangeGeometry, NodeRange, Range, rangesAfterInsert, rangesBeforeRemove, rangesMergeText,
   rangesReplaceData, rangesSplitText, StaticRange,
 } from "./range.js";
 import { documentSelection, Selection, textControlFocused, textControlSelectionChanged } from "./selection.js";
+import {
+  ceReactions, ceWrap, customElementAdopted, customElementAttributeChanged, customElementInserted, customElementRemoved,
+  customElementsActive, enqueueUpgrade, htmlElementConstructor, installCustomElements, isValidCustomElementName,
+  lookupDefinition, markCustom, markFailed, reportException,
+} from "./custom-elements.js";
+import type { CustomElementDefinition } from "./custom-elements.js";
 
 import {
   createSheet, CSSRule, CSSRuleList, CSSStyleSheet, detachSheet, styleSheetList, StyleSheetList,
@@ -34,6 +41,7 @@ const XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace";
 const XMLNS_NAMESPACE = "http://www.w3.org/2000/xmlns/";
 const MAX_SLOT = 0x00ff_ffff;
 const ELEMENT = 1;
+const ATTRIBUTE = 2;
 const TEXT = 3;
 
 type QuirksMode = 0 | 1 | 2;
@@ -50,6 +58,7 @@ type Attribute = {
 
 type NodeState = {
   id: number;
+  type: number;
   owner: Document | null;
   parent: Node | null;
   children?: Node[];
@@ -217,13 +226,10 @@ export class Node extends EventTarget {
   static readonly DOCUMENT_POSITION_CONTAINED_BY = 16;
   static readonly DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 32;
 
-  readonly nodeType: number;
-
   protected constructor(id: number, type: number, owner: Document | null, value: string | null = null,
                         named?: NamedProperty) {
     super();
     if (new.target === Node) throw new TypeError("Illegal Node constructor");
-    this.nodeType = type;
     // The proxy must be returned from super() so subclass private members
     // are installed on the same object that script and event dispatch see.
     const node: Node = named === undefined ? this : new Proxy(this, {
@@ -239,7 +245,7 @@ export class Node extends EventTarget {
       },
     });
     if (node !== this) aliasEventTarget(this, node);
-    const state = { id, owner, parent: null, value };
+    const state = { id, type, owner, parent: null, value };
     nodes.set(node, state);
     if (owner !== null) rememberNode(documents.get(owner)!.journal, state, node, true);
     return node;
@@ -258,11 +264,18 @@ export class Node extends EventTarget {
     return this.parentNode;
   }
 
+  get nodeType(): number { return nodeState(this).type; }
+
+  // Subclasses override nodeName, but scripts may call this getter from
+  // Node.prototype on any node, so it answers for every kind.
   get nodeName(): string {
     switch (this.nodeType) {
+      case ELEMENT: return (this as Node as Element).tagName;
+      case ATTRIBUTE: return (this as Node as Attr).name;
       case TEXT: return "#text";
       case NodeType.Comment: return "#comment";
       case NodeType.Document: return "#document";
+      case NodeType.DocumentType: return (this as Node as DocumentType).name;
       case NodeType.DocumentFragment: return "#document-fragment";
       default: throw new TypeError("Unknown node kind");
     }
@@ -404,7 +417,8 @@ export class Node extends EventTarget {
   }
 
   cloneNode(deep = false): Node {
-    return cloneNodeInto(this, ownerOf(this), Boolean(deep));
+    if (this instanceof Attr) return cloneNodeInto(this, this.ownerDocument, false);
+    return cloneNodeInto(this, ownerOf(this), Boolean(deep), !inTemplateContents(this));
   }
 }
 
@@ -435,7 +449,7 @@ function sibling(node: Node, direction: number): Node | null {
   return siblings[siblings.indexOf(node) + direction] ?? null;
 }
 
-function* descendants(parent: Node): IterableIterator<Node> {
+export function* descendants(parent: Node): IterableIterator<Node> {
   const roots = childrenOf(parent);
   if (roots.length === 0) return;
   const pending = roots.slice().reverse();
@@ -677,7 +691,7 @@ function qualifiedName(namespace: string | null, qualified: string): { prefix: s
 const classLists = new WeakMap<Element, DOMTokenList>();
 const styles = new WeakMap<Element, CSSStyleDeclaration>();
 const datasets = new WeakMap<Element, Record<string, string>>();
-const attributeLists = new WeakMap<Element, NodeList<Attribute>>();
+const attributeLists = new WeakMap<Element, NamedNodeMap>();
 
 export class Element extends ParentNode {
   readonly localName: string;
@@ -766,6 +780,9 @@ export class Element extends ParentNode {
     return list;
   }
 
+  // [PutForwards=value]
+  set classList(value: string) { this.classList.value = value; }
+
   get dataset(): Record<string, string> {
     let data = datasets.get(this);
     if (data === undefined) {
@@ -796,6 +813,7 @@ export class Element extends ParentNode {
             }
           }
           queueMutation(this, { type: "attributes", name: "style", namespace: null, oldValue });
+          customElementAttributeChanged(this, "style", oldValue, text, null);
         },
       });
       styles.set(this, style);
@@ -803,13 +821,13 @@ export class Element extends ParentNode {
     return style;
   }
 
-  get attributes(): NodeList<Attribute> {
-    let list = attributeLists.get(this);
-    if (list === undefined) {
-      list = new NodeList(() => [...(nodeState(this).attributes?.values() ?? [])].map((attribute) => ({ ...attribute })));
-      attributeLists.set(this, list);
-    }
-    return list;
+  // [PutForwards=cssText]
+  set style(value: string) { this.style.cssText = value; }
+
+  get attributes(): NamedNodeMap {
+    let map = attributeLists.get(this);
+    if (map === undefined) attributeLists.set(this, map = new NamedNodeMap(namedNodeMapToken, this));
+    return map;
   }
 
   getAttributeNames(): string[] { return [...this.attributes].map(({ name }) => name); }
@@ -854,6 +872,51 @@ export class Element extends ParentNode {
     if (attribute !== undefined) eraseAttribute(this, attribute);
   }
 
+  getAttributeNode(qualifiedName: string): Attr | null {
+    const attribute = this.#namedAttribute(qualifiedName);
+    return attribute === undefined ? null : attrNode(this, attribute);
+  }
+
+  getAttributeNodeNS(namespace: string | null, localName: string): Attr | null {
+    namespace = namespace == null || namespace === "" ? null : String(namespace);
+    const attribute = nodeState(this).attributes?.get(attributeKey(namespace, String(localName)));
+    return attribute === undefined ? null : attrNode(this, attribute);
+  }
+
+  setAttributeNode(attr: Attr): Attr | null {
+    if (!(attr instanceof Attr)) throw new TypeError("Expected an Attr");
+    const state = attrStates.get(attr)!;
+    if (state.element === this) return attr;
+    if (state.element !== null) fail("InUseAttributeError", "The attribute is in use by another element");
+    const attribute = { ...state.detached };
+    const key = attributeKey(attribute.namespaceURI, attribute.localName);
+    const previous = nodeState(this).attributes?.get(key);
+    const replaced = previous === undefined ? null : attrNode(this, previous);
+    if (previous !== undefined) {
+      detachAttr(this, key, previous);
+      const journal = journalFor(this);
+      if (journal !== null && previous.name !== attribute.name) {
+        journal.record(Opcode.RemoveAttr, nodeId(this), attributeAtomFor(journal, previous), 0);
+      }
+    }
+    writeAttribute(this, attribute);
+    state.element = this;
+    nodeState(attr).owner = this.ownerDocument;
+    attrCache(this).set(key, attr);
+    return replaced;
+  }
+
+  setAttributeNodeNS(attr: Attr): Attr | null { return this.setAttributeNode(attr); }
+
+  removeAttributeNode(attr: Attr): Attr {
+    if (!(attr instanceof Attr)) throw new TypeError("Expected an Attr");
+    const state = attrStates.get(attr)!;
+    const attribute = state.element === this ? nodeState(this).attributes?.get(state.key) : undefined;
+    if (attribute === undefined) fail("NotFoundError", "The attribute is not on this element");
+    eraseAttribute(this, attribute);
+    return attr;
+  }
+
   toggleAttribute(name: string, force?: boolean): boolean {
     if (arguments.length === 0) throw new TypeError("toggleAttribute requires a name");
     name = validateLocalName(this.#normalName(name), false);
@@ -866,6 +929,177 @@ export class Element extends ParentNode {
     return enabled;
   }
 }
+
+// Attr nodes are created on demand and stay the same object while their
+// attribute is on the element. A removed attribute's node keeps its last value.
+type AttrState = { element: Element | null; key: string; detached: Attribute };
+const attrStates = new WeakMap<Attr, AttrState>();
+const attrNodes = new WeakMap<Element, Map<string, Attr>>();
+const attrToken = Symbol("Attr constructor");
+
+function attrCache(element: Element): Map<string, Attr> {
+  let cache = attrNodes.get(element);
+  if (cache === undefined) attrNodes.set(element, cache = new Map());
+  return cache;
+}
+
+function attrNode(element: Element, attribute: Attribute): Attr {
+  const key = attributeKey(attribute.namespaceURI, attribute.localName);
+  const cache = attrCache(element);
+  let attr = cache.get(key);
+  if (attr === undefined) cache.set(key, attr = new Attr(attrToken, element.ownerDocument, attribute, element));
+  return attr;
+}
+
+function detachAttr(element: Element, key: string, attribute: Attribute): void {
+  const cache = attrNodes.get(element);
+  const attr = cache?.get(key);
+  if (attr === undefined) return;
+  cache!.delete(key);
+  const state = attrStates.get(attr)!;
+  state.element = null;
+  state.detached = { ...attribute };
+  nodeState(attr).owner = element.ownerDocument;
+}
+
+export class Attr extends Node {
+  constructor(token: symbol, owner: Document, attribute: Attribute, element: Element | null) {
+    if (token !== attrToken) throw new TypeError("Illegal constructor");
+    // Attr nodes stay out of the journal, so the node starts without an owner.
+    super(0, ATTRIBUTE, null);
+    nodeState(this).owner = owner;
+    attrStates.set(this, { element, key: attributeKey(attribute.namespaceURI, attribute.localName), detached: { ...attribute } });
+  }
+
+  #attribute(): Attribute {
+    const { element, key, detached } = attrStates.get(this)!;
+    return element === null ? detached : nodeState(element).attributes?.get(key) ?? detached;
+  }
+
+  override [listenerFlagsChanged](): void {}
+  override get ownerDocument(): Document {
+    const element = attrStates.get(this)!.element;
+    return element === null ? nodeState(this).owner! : element.ownerDocument;
+  }
+  override get nodeName(): string { return this.name; }
+  override get nodeValue(): string { return this.value; }
+  override set nodeValue(value: string | null) { this.value = value === null ? "" : value; }
+  get namespaceURI(): string | null { return this.#attribute().namespaceURI; }
+  get prefix(): string | null { return this.#attribute().prefix; }
+  get localName(): string { return this.#attribute().localName; }
+  get name(): string { return this.#attribute().name; }
+  get ownerElement(): Element | null { return attrStates.get(this)!.element; }
+  get specified(): boolean { return true; }
+
+  get value(): string { return this.#attribute().value; }
+  set value(value: string) {
+    const state = attrStates.get(this)!;
+    value = String(value);
+    if (state.element === null) state.detached = { ...state.detached, value };
+    else writeAttribute(state.element, { ...this.#attribute(), value });
+  }
+}
+
+function createAttr(document: Document, attribute: Attribute): Attr {
+  return new Attr(attrToken, document, attribute, null);
+}
+
+const namedNodeMapToken = Symbol("NamedNodeMap constructor");
+const namedNodeMapOwners = new WeakMap<NamedNodeMap, Element>();
+
+function attributeRecords(element: Element): Attribute[] {
+  return [...(nodeState(element).attributes?.values() ?? [])];
+}
+
+/** NamedNodeMap's supported property names leave out uppercase names of HTML elements in HTML documents. */
+function namedAttributeNames(element: Element): string[] {
+  const html = element.namespaceURI === HTML_NAMESPACE && documents.get(element.ownerDocument)!.html;
+  return [...new Set(attributeRecords(element).map(({ name }) => name).filter(name => !html || !/[A-Z]/.test(name)))];
+}
+
+function indexKey(key: PropertyKey): number {
+  if (typeof key !== "string") return -1;
+  const index = Number(key);
+  return Number.isInteger(index) && index >= 0 && String(index) === key ? index : -1;
+}
+
+export class NamedNodeMap implements Iterable<Attr> {
+  readonly [index: number]: Attr;
+
+  constructor(token: symbol, element: Element) {
+    if (token !== namedNodeMapToken) throw new TypeError("Illegal constructor");
+    const named = (key: PropertyKey): Attr | null =>
+      typeof key === "string" && namedAttributeNames(element).includes(key) ? proxy.getNamedItem(key) : null;
+    const proxy: NamedNodeMap = new Proxy(this, {
+      get(target, key, receiver) {
+        const index = indexKey(key);
+        if (index >= 0) return target.item.call(receiver, index) ?? undefined;
+        return Reflect.has(target, key) ? Reflect.get(target, key, receiver) : named(key) ?? undefined;
+      },
+      has(target, key) {
+        const index = indexKey(key);
+        return index >= 0 ? index < attributeRecords(element).length : Reflect.has(target, key) || named(key) !== null;
+      },
+      ownKeys(target) {
+        return [...attributeRecords(element).map((_, index) => String(index)), ...namedAttributeNames(element), ...Reflect.ownKeys(target)];
+      },
+      getOwnPropertyDescriptor(target, key) {
+        const index = indexKey(key);
+        const value = index >= 0 ? proxy.item(index) : Reflect.has(target, key) ? null : named(key);
+        if (value !== null) return { value, configurable: true, enumerable: index >= 0, writable: false };
+        return Reflect.getOwnPropertyDescriptor(target, key);
+      },
+      set(target, key, value, receiver) {
+        return indexKey(key) < 0 && named(key) === null && Reflect.set(target, key, value, receiver);
+      },
+      defineProperty(target, key, descriptor) {
+        return indexKey(key) < 0 && named(key) === null && Reflect.defineProperty(target, key, descriptor);
+      },
+    });
+    namedNodeMapOwners.set(proxy, element);
+    return proxy;
+  }
+
+  get length(): number { return attributeRecords(namedNodeMapOwners.get(this)!).length; }
+
+  item(index: number): Attr | null {
+    const element = namedNodeMapOwners.get(this)!;
+    const attribute = attributeRecords(element)[Number(index) >>> 0];
+    return attribute === undefined ? null : attrNode(element, attribute);
+  }
+
+  getNamedItem(qualifiedName: string): Attr | null {
+    if (arguments.length === 0) throw new TypeError("getNamedItem requires a name");
+    return namedNodeMapOwners.get(this)!.getAttributeNode(String(qualifiedName));
+  }
+
+  getNamedItemNS(namespace: string | null, localName: string): Attr | null {
+    if (arguments.length < 2) throw new TypeError("getNamedItemNS requires a namespace and a local name");
+    return namedNodeMapOwners.get(this)!.getAttributeNodeNS(namespace, localName);
+  }
+
+  setNamedItem(attr: Attr): Attr | null { return namedNodeMapOwners.get(this)!.setAttributeNode(attr); }
+  setNamedItemNS(attr: Attr): Attr | null { return namedNodeMapOwners.get(this)!.setAttributeNode(attr); }
+
+  removeNamedItem(qualifiedName: string): Attr {
+    const element = namedNodeMapOwners.get(this)!;
+    const attr = element.getAttributeNode(String(qualifiedName));
+    if (attr === null) fail("NotFoundError", "No attribute has this name");
+    return element.removeAttributeNode(attr);
+  }
+
+  removeNamedItemNS(namespace: string | null, localName: string): Attr {
+    const element = namedNodeMapOwners.get(this)!;
+    const attr = element.getAttributeNodeNS(namespace, localName);
+    if (attr === null) fail("NotFoundError", "No attribute has this namespace and local name");
+    return element.removeAttributeNode(attr);
+  }
+
+  *[Symbol.iterator](): IterableIterator<Attr> {
+    for (let index = 0; index < this.length; index++) yield this.item(index)!;
+  }
+}
+Object.defineProperty(NamedNodeMap.prototype, Symbol.toStringTag, { value: "NamedNodeMap", configurable: true });
 
 const attributeChanged = Symbol("attribute changed");
 
@@ -1105,14 +1339,14 @@ export function moveTabFocus(document: Document, backwards: boolean, time: numbe
   focus(document, next, false, time);
 }
 
-function reflect(prototype: object, fields: Record<string, string>, boolean = false): void {
+export function reflect(prototype: object, fields: Record<string, string>, boolean = false): void {
   for (const [property, attribute] of Object.entries(fields)) {
     Object.defineProperty(prototype, property, {
       configurable: true, enumerable: true,
       get(this: Element) { return boolean ? this.hasAttribute(attribute) : this.getAttribute(attribute) ?? ""; },
-      set(this: Element, value) {
+      set: ceWrap(function (this: Element, value: unknown) {
         reflectAttribute(this, attribute, boolean ? Boolean(value) : String(value));
-      },
+      }),
     });
   }
 }
@@ -1126,6 +1360,16 @@ function reflectAttribute(element: Element, name: string, value: string | boolea
   }
 }
 
+// Set while squark-dom itself constructs an element, so the HTML element
+// constructor steps apply only to script-defined custom element classes.
+let internalElement = false;
+let builtinInterfaces: Set<Function> | undefined;
+
+function isBuiltinInterface(constructor: Function): boolean {
+  builtinInterfaces ??= new Set<Function>([HTMLElement, HTMLUnknownElement, TemplateElement, ...htmlElementTypes.values()]);
+  return builtinInterfaces.has(constructor);
+}
+
 export class HTMLElement extends Element {
   declare onclick: Handler;
   declare oninput: Handler;
@@ -1133,6 +1377,24 @@ export class HTMLElement extends Element {
   declare hidden: boolean;
   declare lang: string;
   declare dir: string;
+
+  constructor(...args: ConstructorParameters<typeof Element>) {
+    if (internalElement) {
+      internalElement = false;
+      super(...args);
+      return;
+    }
+    const target = htmlElementConstructor(new.target, isBuiltinInterface, HTMLElement);
+    if (nodes.has(target as HTMLElement)) return target as HTMLElement;
+    const definition = target as CustomElementDefinition;
+    const document = definition.document;
+    const id = allocate(document);
+    recordElement(document, id, definition.localName, HTML_NAMESPACE);
+    super(definition.localName, HTML_NAMESPACE, id, document, null);
+    // A NewTarget whose prototype is not an object leaves the ordinary-object fallback.
+    if (Object.getPrototypeOf(this) === Object.prototype) Object.setPrototypeOf(this, HTMLElement.prototype);
+    markCustom(this, definition);
+  }
 
   get innerText(): string {
     const bindings = documents.get(this.ownerDocument)!.bindings;
@@ -1203,7 +1465,7 @@ for (const name of ["click", "dblclick", "input", "change", "focus", "blur", "er
   reflectedEvent(HTMLElement.prototype, name);
 }
 
-function formFor(element: HTMLElement): HTMLFormElement | null {
+export function formFor(element: HTMLElement): HTMLFormElement | null {
   const explicit = element.getAttribute("form");
   if (explicit !== null) {
     const form = element.isConnected && element.ownerDocument.getElementById(explicit);
@@ -2456,7 +2718,7 @@ export class HTMLUnknownElement extends HTMLElement {}
 export class HTMLBRElement extends HTMLElement { declare clear: string; }
 reflect(HTMLBRElement.prototype, { clear: "clear" });
 
-function resolvedURL(element: Element, attribute: string): string {
+export function resolvedURL(element: Element, attribute: string): string {
   const raw = element.getAttribute(attribute);
   if (raw === null) return "";
   const URL = (globalThis as { URL?: new (url: string, base: string) => { href: string } }).URL;
@@ -2626,6 +2888,15 @@ const htmlElementTypes = new Map<string, typeof HTMLElement>([
   ["select", HTMLSelectElement], ["button", HTMLButtonElement], ["form", HTMLFormElement], ["label", HTMLLabelElement], ["iframe", HTMLIFrameElement],
   ["a", HTMLAnchorElement], ["canvas", HTMLCanvasElement], ["img", HTMLImageElement], ["script", HTMLScriptElement], ["style", HTMLStyleElement], ["link", HTMLLinkElement],
 ]);
+const elementInterfaces = new Set<typeof HTMLElement>();
+
+/** Makes `type` the interface of HTML elements with these local names and exposes it on windows. */
+export function defineElementInterface(type: typeof HTMLElement, ...localNames: string[]): void {
+  for (const name of localNames) htmlElementTypes.set(name, type);
+  elementInterfaces.add(type);
+  Object.defineProperty(type.prototype, Symbol.toStringTag, { value: type.name, configurable: true });
+  builtinInterfaces = undefined;
+}
 
 function treeChanged(parent: Node, child: Node, inserted: boolean): void {
   for (let node: Node | null = parent; node !== null; node = node.parentNode) {
@@ -2635,12 +2906,14 @@ function treeChanged(parent: Node, child: Node, inserted: boolean): void {
     }
   }
   if (inserted) {
+    const connected = customElementsActive && child.isConnected;
     if (child instanceof HTMLInputElement) child.syncRadioGroup();
     if (child instanceof HTMLStyleElement) syncStyleText(child);
     if (child instanceof HTMLLinkElement) syncLinkSheet(child);
     if (child instanceof HTMLScriptElement && child.isConnected && !parserInsertedScripts.has(child)) {
       documents.get(child.ownerDocument)?.loadScript?.(child);
     }
+    customElementInserted(child, connected);
     for (const node of descendants(child)) {
       if (node instanceof HTMLInputElement && node.type === "radio") node.syncRadioGroup();
       if (node instanceof HTMLStyleElement) syncStyleText(node);
@@ -2648,10 +2921,16 @@ function treeChanged(parent: Node, child: Node, inserted: boolean): void {
       if (node instanceof HTMLScriptElement && node.isConnected && !parserInsertedScripts.has(node)) {
         documents.get(node.ownerDocument)?.loadScript?.(node);
       }
+      customElementInserted(node, connected);
     }
   } else {
+    const parentConnected = customElementsActive && parent.isConnected;
     if (isSheetOwner(child)) removeSheet(child);
-    for (const node of descendants(child)) if (isSheetOwner(node)) removeSheet(node);
+    customElementRemoved(child, parentConnected);
+    for (const node of descendants(child)) {
+      if (isSheetOwner(node)) removeSheet(node);
+      customElementRemoved(node, parentConnected);
+    }
     const document = ownerOf(parent);
     const state = documents.get(document)!;
     state.inputDetached?.(child);
@@ -2669,9 +2948,12 @@ function treeChanged(parent: Node, child: Node, inserted: boolean): void {
 
 const templateContents = new WeakMap<TemplateElement, DocumentFragment>();
 
-class TemplateElement extends HTMLElement {
+export class HTMLTemplateElement extends HTMLElement {
   get content(): DocumentFragment | undefined { return templateContents.get(this); }
 }
+Object.defineProperty(HTMLTemplateElement.prototype, Symbol.toStringTag, { value: "HTMLTemplateElement", configurable: true });
+type TemplateElement = HTMLTemplateElement;
+const TemplateElement = HTMLTemplateElement;
 
 export class SVGElement extends Element {}
 
@@ -2692,15 +2974,59 @@ export class SVGTextContentElement extends SVGGraphicsElement {
 const svgGraphics = new Set("a circle defs ellipse foreignObject g image line path polygon polyline rect marker pattern switch symbol use".split(" "));
 const svgText = new Set(["text", "textPath", "tspan"]);
 
-function createElementObject(name: string, namespace: string | null, id: number, owner: Document, prefix: string | null = null): Element {
+function createElementObject(name: string, namespace: string | null, id: number, owner: Document, prefix: string | null = null,
+                             override?: typeof HTMLElement): Element {
   if (namespace === SVG_NAMESPACE) {
     const type = name === "svg" ? SVGSVGElement : svgText.has(name) ? SVGTextContentElement :
       svgGraphics.has(name) ? SVGGraphicsElement : SVGElement;
     return new type(name, namespace, id, owner, prefix);
   }
-  const Type = namespace === HTML_NAMESPACE ? (name === "template" ? TemplateElement : htmlElementTypes.get(name) ??
-    (ordinaryHtmlElements.has(name) || name.includes("-") ? HTMLElement : HTMLUnknownElement)) : Element;
-  return new Type(name, namespace, id, owner, prefix);
+  const Type = override ?? (namespace === HTML_NAMESPACE ? (name === "template" ? TemplateElement : htmlElementTypes.get(name) ??
+    (ordinaryHtmlElements.has(name) || isValidCustomElementName(name) ? HTMLElement : HTMLUnknownElement)) : Element);
+  internalElement = true;
+  try {
+    return new Type(name, namespace, id, owner, prefix);
+  } finally {
+    internalElement = false;
+  }
+}
+
+function recordElement(document: Document, id: number, name: string, namespace: string | null): void {
+  const { journal } = documents.get(document)!;
+  if (journal === null) return;
+  const tag = journal.intern(AtomKind.Tag, name);
+  const ns = namespace === null ? 0 : journal.intern(AtomKind.Namespace, namespace);
+  journal.record(Opcode.CreateElement, id, tag, ns);
+}
+
+/** Template contents belong to an inert document in browsers, which has no custom element registry. */
+export function inTemplateContents(node: Node): boolean {
+  let root = node;
+  while (root.parentNode !== null) root = root.parentNode;
+  return nodeState(root).templateContent === true;
+}
+
+/** "Create an element" with the synchronous custom elements flag set, for a defined autonomous element. */
+function constructCustomElement(document: Document, definition: CustomElementDefinition, localName: string,
+                                prefix: string | null): Element {
+  try {
+    const result: unknown = Reflect.construct(definition.constructor, []);
+    if (!(result instanceof HTMLElement) || !nodes.has(result)) {
+      throw new TypeError("The custom element constructor did not return an HTMLElement");
+    }
+    if (result.hasAttributes()) fail("NotSupportedError", "A newly constructed custom element must not have attributes");
+    if (result.hasChildNodes()) fail("NotSupportedError", "A newly constructed custom element must not have children");
+    if (result.parentNode !== null) fail("NotSupportedError", "A newly constructed custom element must not have a parent");
+    if (result.ownerDocument !== document) fail("NotSupportedError", "A newly constructed custom element belongs to another document");
+    if (result.localName !== localName) fail("NotSupportedError", "A newly constructed custom element has another local name");
+    (result as { prefix: string | null }).prefix = prefix;
+    return result;
+  } catch (error) {
+    reportException(error);
+    const element = document[createElementInternal](localName, HTML_NAMESPACE, prefix, HTMLUnknownElement);
+    markFailed(element);
+    return element;
+  }
 }
 
 const createElementInternal = Symbol("create element");
@@ -2729,6 +3055,13 @@ export class Document extends ParentNode {
   get cookie(): string { return ""; }
   set cookie(_value: string) {}
   get readyState(): ReadyState { return documents.get(this)!.ready; }
+
+  // The host reports no window focus, occlusion or minimising to the
+  // document, so a document with a window counts as focused and visible, and
+  // visibilitychange never fires. Documents without a window are neither.
+  hasFocus(): boolean { return documents.get(this)!.view !== null; }
+  get visibilityState(): "visible" | "hidden" { return documents.get(this)!.view === null ? "hidden" : "visible"; }
+  get hidden(): boolean { return this.visibilityState === "hidden"; }
   getSelection(): Selection | null {
     return documents.get(this)!.view === null ? null : documentSelection(this);
   }
@@ -2781,29 +3114,29 @@ export class Document extends ParentNode {
     return [...root.children].find((child) => child.namespaceURI === HTML_NAMESPACE && child.localName === name) ?? null;
   }
 
-  createElement(name: string): Element {
+  createElement(name: string, _options?: unknown): Element {
     if (arguments.length === 0) throw new TypeError("createElement requires a name");
     const { html } = documents.get(this)!;
     const localName = validateLocalName(html ? lowerAscii(String(name)) : String(name), true);
-    return this[createElementInternal](localName, html ? HTML_NAMESPACE : null, null);
+    const namespace = html ? HTML_NAMESPACE : null;
+    const definition = lookupDefinition(this, namespace, localName);
+    if (definition !== null) return constructCustomElement(this, definition, localName, null);
+    return this[createElementInternal](localName, namespace, null);
   }
 
-  createElementNS(namespace: string | null, name: string): Element {
+  createElementNS(namespace: string | null, name: string, _options?: unknown): Element {
     if (arguments.length < 2) throw new TypeError("createElementNS requires namespace and name");
     namespace = namespace == null || namespace === "" ? null : String(namespace);
     const { prefix, localName } = qualifiedName(namespace, String(name));
+    const definition = lookupDefinition(this, namespace, localName);
+    if (definition !== null) return constructCustomElement(this, definition, localName, prefix);
     return this[createElementInternal](localName, namespace, prefix);
   }
 
-  [createElementInternal](name: string, namespace: string | null, prefix: string | null): Element {
+  [createElementInternal](name: string, namespace: string | null, prefix: string | null, override?: typeof HTMLElement): Element {
     const id = allocate(this);
-    const { journal } = documents.get(this)!;
-    if (journal !== null) {
-      const tag = journal.intern(AtomKind.Tag, name);
-      const ns = namespace === null ? 0 : journal.intern(AtomKind.Namespace, namespace);
-      journal.record(Opcode.CreateElement, id, tag, ns);
-    }
-    const element = createElementObject(name, namespace, id, this, prefix);
+    recordElement(this, id, name, namespace);
+    const element = createElementObject(name, namespace, id, this, prefix, override);
     if (element instanceof TemplateElement) {
       const contents = new DocumentFragment(this, undefined, id);
       templateContents.set(element, contents);
@@ -2817,6 +3150,21 @@ export class Document extends ParentNode {
     return new Text(String(data), this);
   }
 
+  createAttribute(localName: string): Attr {
+    if (arguments.length === 0) throw new TypeError("createAttribute requires a name");
+    const { html } = documents.get(this)!;
+    const name = validateLocalName(html ? lowerAscii(String(localName)) : String(localName), false);
+    return createAttr(this, { name, localName: name, prefix: null, namespaceURI: null, value: "" });
+  }
+
+  createAttributeNS(namespace: string | null, qualified: string): Attr {
+    if (arguments.length < 2) throw new TypeError("createAttributeNS requires a namespace and a name");
+    namespace = namespace == null || namespace === "" ? null : String(namespace);
+    const name = String(qualified);
+    const { prefix, localName } = qualifiedName(namespace, name);
+    return createAttr(this, { name, localName, prefix, namespaceURI: namespace, value: "" });
+  }
+
   createComment(data: string): Comment {
     if (arguments.length === 0) throw new TypeError("createComment requires data");
     return new Comment(String(data), this);
@@ -2826,6 +3174,15 @@ export class Document extends ParentNode {
   createRange(): Range { return createRange(this); }
   createTreeWalker(root: Node, whatToShow = NodeFilter.SHOW_ALL, filter: Parameters<typeof treeWalker>[2] = null): TreeWalker {
     return treeWalker(root, whatToShow, filter);
+  }
+  createNodeIterator(root: Node, whatToShow = NodeFilter.SHOW_ALL, filter: Parameters<typeof nodeIterator>[2] = null): NodeIterator {
+    if (arguments.length === 0) throw new TypeError("createNodeIterator requires a root");
+    return nodeIterator(root, whatToShow, filter);
+  }
+  get implementation(): DOMImplementation {
+    let implementation = implementations.get(this);
+    if (implementation === undefined) implementations.set(this, implementation = new DOMImplementation(implementationToken, this));
+    return implementation;
   }
   createEvent(interfaceName: string): Event { return createLegacyEvent(interfaceName); }
   getElementById(id: string): Element | null { return byId(this, String(id)); }
@@ -2842,6 +3199,11 @@ export class Document extends ParentNode {
   adoptNode<T extends Node>(node: T): T {
     expectNode(node);
     if (node instanceof Document) fail("NotSupportedError", "Cannot adopt a Document");
+    if (node instanceof Attr) {
+      node.ownerElement?.removeAttributeNode(node);
+      nodeState(node).owner = this;
+      return node;
+    }
     if (node.parentNode !== null) unlink(node.parentNode, node);
     adoptSubtree(this, node);
     return node;
@@ -2915,6 +3277,59 @@ export class DOMParser {
   }
 }
 
+const implementationToken = Symbol("DOMImplementation constructor");
+const implementations = new WeakMap<Document, DOMImplementation>();
+
+function documentType(owner: Document, name: string, publicId: string, systemId: string): DocumentType {
+  const id = allocate(owner);
+  journalFor(owner)?.record(Opcode.CreateNode, id, NodeType.DocumentType, name);
+  return new DocumentType(id, owner, name, publicId, systemId);
+}
+
+/** Creates documents without a browsing context, as DOMParser's are: inert and outside the journal. */
+export class DOMImplementation {
+  readonly #document: Document;
+
+  constructor(token: symbol, document: Document) {
+    if (token !== implementationToken) throw new TypeError("Illegal constructor");
+    this.#document = document;
+  }
+
+  createDocumentType(name: string, publicId: string, systemId: string): DocumentType {
+    if (arguments.length < 3) throw new TypeError("createDocumentType requires a name, a public ID and a system ID");
+    name = String(name);
+    if (/[\0\t\n\f\r >]/.test(name)) fail("InvalidCharacterError", "Invalid doctype name");
+    return documentType(this.#document, name, String(publicId), String(systemId));
+  }
+
+  createDocument(namespace: string | null, qualified: string | null, doctype: DocumentType | null = null): XMLDocument {
+    if (arguments.length < 2) throw new TypeError("createDocument requires a namespace and a qualified name");
+    namespace = namespace == null || namespace === "" ? null : String(namespace);
+    const name = qualified === null ? "" : String(qualified);
+    if (doctype !== null && !(doctype instanceof DocumentType)) throw new TypeError("Expected a DocumentType");
+    const contentType = namespace === HTML_NAMESPACE ? "application/xhtml+xml" :
+      namespace === SVG_NAMESPACE ? "image/svg+xml" : "application/xml";
+    const document = new XMLDocument(null, 0, 0, null, false, contentType);
+    const element = name === "" ? null : document.createElementNS(namespace, name);
+    if (doctype !== null) document.appendChild(doctype);
+    if (element !== null) document.appendChild(element);
+    return document;
+  }
+
+  createHTMLDocument(title?: string): Document {
+    const document = new Document(null, 0, 0, null, true, "text/html");
+    document.appendChild(documentType(document, "html", "", ""));
+    const root = document.appendChild(document.createElement("html"));
+    const head = root.appendChild(document.createElement("head"));
+    if (title !== undefined) head.appendChild(document.createElement("title")).appendChild(document.createTextNode(String(title)));
+    root.appendChild(document.createElement("body"));
+    return document;
+  }
+
+  hasFeature(): boolean { return true; }
+}
+Object.defineProperty(DOMImplementation.prototype, Symbol.toStringTag, { value: "DOMImplementation", configurable: true });
+
 const voidElements = new Set("area base br col embed hr img input link meta param source track wbr".split(" "));
 const rawText = new Set("iframe noembed noframes plaintext script style xmp".split(" "));
 function htmlEscape(value: string, attribute: boolean): string {
@@ -2969,7 +3384,23 @@ function serializeXML(node: Node): string {
   return children === "" ? xml + "/>" : xml + ">" + children + "</" + name + ">";
 }
 
-for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", "paste", "selectionchange"]) reflectedEvent(Document.prototype, name);
+for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", "paste", "selectionchange", "visibilitychange"]) {
+  reflectedEvent(Document.prototype, name);
+}
+
+ceReactions(Node.prototype, ["nodeValue", "textContent", "appendChild", "insertBefore", "removeChild", "replaceChild", "normalize", "cloneNode"]);
+ceReactions(ParentNode.prototype, ["append", "prepend", "replaceChildren"]);
+ceReactions(CharacterData.prototype, ["before", "after", "replaceWith", "remove"]);
+ceReactions(DocumentType.prototype, ["remove"]);
+ceReactions(Element.prototype, ["before", "after", "replaceWith", "remove", "innerHTML", "insertAdjacentElement", "insertAdjacentText",
+  "insertAdjacentHTML", "id", "className", "setAttribute", "setAttributeNS", "removeAttribute", "removeAttributeNS", "toggleAttribute"]);
+ceReactions(HTMLElement.prototype, ["innerText", "tabIndex"]);
+ceReactions(Document.prototype, ["createElement", "createElementNS", "importNode", "adoptNode", "title"]);
+ceReactions(CSSStyleDeclaration.prototype, ["cssText", "setProperty", "removeProperty"]);
+ceReactions(Element.prototype, ["setAttributeNode", "setAttributeNodeNS", "removeAttributeNode"]);
+ceReactions(Attr.prototype, ["value", "nodeValue"]);
+ceReactions(NamedNodeMap.prototype, ["setNamedItem", "setNamedItemNS", "removeNamedItem", "removeNamedItemNS"]);
+ceReactions(Range.prototype, ["deleteContents", "extractContents", "cloneContents", "insertNode", "surroundContents", "createContextualFragment"]);
 
 function attributeKey(namespace: string | null, localName: string): string { return `${namespace ?? ""}\0${localName}`; }
 
@@ -2989,17 +3420,23 @@ function writeAttribute(element: Element, attribute: Attribute, initial = false)
   if (journal !== null) {
     journal.record(Opcode.SetAttr, nodeId(element), attributeAtomFor(journal, attribute), attribute.value);
   }
-  if (!initial) queueMutation(element, { type: "attributes", name: attribute.localName, namespace: attribute.namespaceURI, oldValue });
+  if (!initial) {
+    queueMutation(element, { type: "attributes", name: attribute.localName, namespace: attribute.namespaceURI, oldValue });
+    customElementAttributeChanged(element, attribute.localName, oldValue, attribute.value, attribute.namespaceURI);
+  }
   if (attribute.namespaceURI === null && element instanceof HTMLElement) element[attributeChanged](attribute.name, oldValue);
 }
 
 function eraseAttribute(element: Element, attribute: Attribute): void {
-  nodeState(element).attributes!.delete(attributeKey(attribute.namespaceURI, attribute.localName));
+  const key = attributeKey(attribute.namespaceURI, attribute.localName);
+  detachAttr(element, key, attribute);
+  nodeState(element).attributes!.delete(key);
   const journal = journalFor(element);
   if (journal !== null) {
     journal.record(Opcode.RemoveAttr, nodeId(element), attributeAtomFor(journal, attribute), 0);
   }
   queueMutation(element, { type: "attributes", name: attribute.localName, namespace: attribute.namespaceURI, oldValue: attribute.value });
+  customElementAttributeChanged(element, attribute.localName, attribute.value, null, attribute.namespaceURI);
   if (attribute.namespaceURI === null && element instanceof HTMLElement) element[attributeChanged](attribute.name, attribute.value);
 }
 
@@ -3008,6 +3445,7 @@ function unlink(parent: Node, child: Node, suppressObserver = false, syncText = 
   const previous = suppressObserver ? null : child.previousSibling;
   const next = suppressObserver ? null : child.nextSibling;
   observeDetachedSubtree(child, parent);
+  nodeIteratorsBeforeRemove(child);
   detach(parent, child);
   journal?.record(Opcode.Remove, nodeId(parent), nodeId(child), 0);
   if (!suppressObserver) queueMutation(parent, { type: "childList", added: [], removed: [child], previous, next });
@@ -3015,10 +3453,16 @@ function unlink(parent: Node, child: Node, suppressObserver = false, syncText = 
   if (syncText && parent instanceof HTMLStyleElement && child instanceof Text) syncStyleText(parent, true);
 }
 
-function cloneNodeInto(source: Node, targetDoc: Document, deep: boolean): Node {
+function cloneNodeInto(source: Node, targetDoc: Document, deep: boolean, upgrade = true): Node {
   let clone: Node;
+  if (source instanceof Attr) {
+    const { name, localName, prefix, namespaceURI, value } = source;
+    return createAttr(targetDoc, { name, localName, prefix, namespaceURI, value });
+  }
   if (source instanceof Element) {
     clone = targetDoc[createElementInternal](source.localName, source.namespaceURI, source.prefix);
+    const definition = upgrade ? lookupDefinition(targetDoc, source.namespaceURI, source.localName) : null;
+    if (definition !== null) enqueueUpgrade(clone as Element, definition);
     for (const attribute of nodeState(source).attributes?.values() ?? []) writeAttribute(clone as Element, { ...attribute }, true);
     if (source instanceof HTMLInputElement && clone instanceof HTMLInputElement) source[cloneInput](clone);
   } else if (source instanceof Text) clone = targetDoc.createTextNode(source.data);
@@ -3034,9 +3478,9 @@ function cloneNodeInto(source: Node, targetDoc: Document, deep: boolean): Node {
       : new Document(journal, 0, quirks, allocator, html, contentType);
   } else clone = targetDoc.createDocumentFragment();
   if (deep) {
-    for (const child of source.childNodes) clone.appendChild(cloneNodeInto(child, targetDoc, true));
+    for (const child of source.childNodes) clone.appendChild(cloneNodeInto(child, targetDoc, true, upgrade));
     if (source instanceof TemplateElement && clone instanceof TemplateElement && source.content && clone.content) {
-      for (const child of source.content.childNodes) clone.content.appendChild(cloneNodeInto(child, targetDoc, true));
+      for (const child of source.content.childNodes) clone.content.appendChild(cloneNodeInto(child, targetDoc, true, false));
     }
   }
   return clone;
@@ -3139,7 +3583,8 @@ function demoteSubtree(sourceJournal: Journal, targetDoc: Document, root: Node):
 }
 
 function adoptSubtree(targetDoc: Document, root: Node): void {
-  if (ownerOf(root) === targetDoc) return;
+  const oldDocument = ownerOf(root);
+  if (oldDocument === targetDoc) return;
   const sourceJournal = journalFor(root);
   const targetJournal = journalFor(targetDoc);
   if (sourceJournal === null && targetJournal !== null) {
@@ -3157,6 +3602,10 @@ function adoptSubtree(targetDoc: Document, root: Node): void {
   } else {
     fail("WrongDocumentError", "Nodes use different journal sessions");
   }
+  if (customElementsActive) {
+    customElementAdopted(root, oldDocument, targetDoc);
+    for (const node of descendants(root)) customElementAdopted(node, oldDocument, targetDoc);
+  }
 }
 
 function mutate(parent: Node, incoming: readonly Node[], before: Node | null, removed: readonly Node[] = []): void {
@@ -3171,7 +3620,7 @@ function mutate(parent: Node, incoming: readonly Node[], before: Node | null, re
   for (const child of incoming) {
     expectNode(child);
     if (child.contains(parent) || child instanceof Document ||
-        child instanceof DocumentType && !(parent instanceof Document)) {
+        child instanceof DocumentType && !(parent instanceof Document) || child instanceof Attr) {
       fail("HierarchyRequestError", "Cannot insert an ancestor or this node kind into its descendant");
     }
     const childJournal = journalFor(child);
@@ -3469,18 +3918,21 @@ export function installDOM(global: Record<PropertyKey, unknown>, supplied?: Docu
   state.view = installWindowEventTarget(global);
   observeListenerFlags(state.view, flags => state.journal?.record(Opcode.Listeners, 0, flags, 0));
   if (options?.url !== undefined) state.url = options.url;
+  installCustomElements(global, document);
   Object.assign(global, {
     window: global, self: global, opener: null, Window, document, Node, Element, CharacterData, Text, Comment, DocumentFragment,
-    Document, XMLDocument, DOMParser, DocumentType, EventTarget, Event, CompositionEvent, CustomEvent, FocusEvent, MouseEvent, KeyboardEvent,
+    Document, XMLDocument, DOMParser, DocumentType, Attr, NamedNodeMap, EventTarget, Event, UIEvent, CompositionEvent, CustomEvent, FocusEvent, MouseEvent, KeyboardEvent,
     PointerEvent, WheelEvent, InputEvent, SubmitEvent, ErrorEvent, ProgressEvent,
     CSSStyleSheet, CSSRule, CSSRuleList, StyleSheetList, HTMLStyleElement, HTMLLinkElement,
-    SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement, NodeFilter, TreeWalker, Selection,
+    SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement, NodeFilter, TreeWalker, NodeIterator, DOMImplementation, Selection,
     AbstractRange, NodeRange, StaticRange, Range,
     getSelection: () => document.getSelection(),
     AbortController, AbortSignal, DOMException, NodeList, HTMLCollection, DOMTokenList, MutationObserver, MutationRecord, CSSStyleDeclaration,
     HTMLElement, HTMLInputElement, HTMLTextAreaElement, HTMLSelectElement, HTMLOptionElement, HTMLBRElement,
     HTMLButtonElement, HTMLFormElement, HTMLFormControlsCollection, RadioNodeList, HTMLLabelElement, HTMLIFrameElement, HTMLAnchorElement, HTMLCanvasElement, HTMLImageElement, HTMLUnknownElement, HTMLScriptElement,
+    HTMLTemplateElement,
   });
+  for (const type of elementInterfaces) global[type.name] = type;
   function Image(width?: number, height?: number): HTMLImageElement {
     if (new.target === undefined) throw new TypeError("Image requires new");
     const image = document.createElement("img") as HTMLImageElement;
@@ -3597,12 +4049,28 @@ function adjacentPosition(element: Element, position: string): { parent: Node; b
 export function parseMarkup(context: Element, html: string): Node[] {
   if (html === "") return [];
   const document = context.ownerDocument;
-  const bindings = documents.get(document)!.bindings;
-  if (bindings === undefined) fail("NotSupportedError", "HTML fragment parsing requires the document engine");
-  const id = nodeId(context);
+  const realm = realmDocument === undefined ? undefined : documents.get(realmDocument);
+  const bindings = documents.get(document)!.bindings ?? realm?.bindings;
+  if (bindings === undefined || realm === undefined) fail("NotSupportedError", "HTML fragment parsing requires the document engine");
   const journal = journalFor(document);
-  journal?.flush();
+  // The engine parses against a context element it mirrors. A context in a
+  // document outside the realm's journal, such as one DOMParser or
+  // DOMImplementation made, lends its name and attributes to a stand-in.
+  const id = nodeId(journal === realm.journal ? context : parsingContext(context, realmDocument!));
+  realm.journal?.flush();
   return bindings.parseFragment(html, id).map(node => materialize(document, journal, node, false));
+}
+
+function parsingContext(context: Element, realm: Document): Element {
+  const standIn = realm[createElementInternal](context.localName, context.namespaceURI, context.prefix);
+  for (const attribute of nodeState(context).attributes?.values() ?? []) writeAttribute(standIn, { ...attribute }, true);
+  for (let ancestor = context.parentElement; ancestor !== null; ancestor = ancestor.parentElement) {
+    if (ancestor.namespaceURI === HTML_NAMESPACE && ancestor.localName === "form") {
+      realm[createElementInternal]("form", HTML_NAMESPACE, null).appendChild(standIn);
+      break;
+    }
+  }
+  return standIn;
 }
 
 function materialize(document: Document, journal: Journal | null, node: ParsedNode, markScripts: boolean): Node {

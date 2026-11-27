@@ -66,6 +66,25 @@ export function seedFailures() {
   requestAnimationFrame(() => note("frame after error"));
 }
 
+const idleLog = (name) => (deadline) => {
+  note(`${name} ${deadline.timeRemaining()} ${deadline.didTimeout}`);
+  queueMicrotask(() => note(`${name} microtask`));
+};
+
+export function seedIdle() {
+  requestIdleCallback(idleLog("first"));
+  cancelIdleCallback(requestIdleCallback(idleLog("cancelled")));
+  requestIdleCallback((deadline) => {
+    idleLog("second")(deadline);
+    requestIdleCallback(idleLog("next period"));
+  });
+}
+
+export function seedIdleTimeout() {
+  requestIdleCallback(idleLog("timed out"), { timeout: 10 });
+  setTimeout(() => note("timer"), 4);
+}
+
 export function drain() {
   return events.splice(0).join("|");
 }

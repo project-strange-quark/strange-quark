@@ -4,8 +4,14 @@ export {
   bootstrapDocument, createDocument, dispatchImageResult, finishDocumentStartup, flushDocument, hasPendingRecords, installCSSOM, installDocumentBindings, installDOM, notifyWindowResize, Node, Element, CharacterData, Text, Comment,
   Document, XMLDocument, DOMParser, DocumentFragment, DocumentType, HTMLElement, HTMLInputElement, HTMLTextAreaElement, HTMLBRElement,
   HTMLSelectElement, HTMLOptionElement, HTMLButtonElement, HTMLFormElement, HTMLLabelElement, HTMLIFrameElement, HTMLAnchorElement, HTMLCanvasElement, HTMLImageElement, HTMLUnknownElement, HTMLScriptElement, HTMLStyleElement, HTMLLinkElement, SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement,
+  HTMLTemplateElement,
 } from "./document.js";
-export { Event, CompositionEvent, CustomEvent, EventTarget, DOMException, ErrorEvent, FocusEvent, InputEvent, KeyboardEvent, MouseEvent, PointerEvent, ProgressEvent, SubmitEvent, WheelEvent, Window } from "./events.js";
+// Registers per-tag element interfaces with document.js, so it loads after it.
+export * from "./html-elements.js";
+export {
+  Event, CompositionEvent, CustomEvent, EventTarget, DOMException, ErrorEvent, FocusEvent, InputEvent, KeyboardEvent, MouseEvent, PointerEvent,
+  ProgressEvent, SubmitEvent, UIEvent, WheelEvent, Window,
+} from "./events.js";
 export { DOMTokenList, HTMLCollection, NodeList } from "./collections.js";
 export { CSSStyleDeclaration } from "./style.js";
 export { MutationObserver, MutationRecord } from "./mutation.js";

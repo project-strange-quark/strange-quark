@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 
 import { DOMException, Event, EventTarget } from "./events.js";
+import { installPerformance } from "./performance.js";
 
 type Callback = (...args: unknown[]) => void;
 type FrameCallback = (timestamp: number) => void;
+type IdleCallback = (deadline: object) => void;
 type TimingHost = {
   now(): number;
   armTimer(deadline: number | null): void;
@@ -68,7 +70,11 @@ type TimingCallbacks = {
   beginFrame(): void;
   hasAnimationCallbacks(): boolean;
   nextAnimation(): FrameCallback | undefined;
+  idleWakeup(): number | null;
+  beginIdle(deadline: number): void;
+  nextIdle(): (() => void) | undefined;
 };
+
 
 /** Installs timing globals, returning the callbacks driven by squark-js. */
 export class MessageEvent extends Event {
@@ -80,7 +86,8 @@ export class MessageEvent extends Event {
 
   constructor(type: string, init: {
     data?: unknown; origin?: string; lastEventId?: string; source?: unknown; ports?: Iterable<unknown>;
-  } = {}) {
+  } | null = {}) {
+    init ??= {};
     super(type);
     this.data = "data" in init ? init.data : null;
     this.origin = String(init.origin ?? "");
@@ -137,6 +144,14 @@ export function installTiming(global: Record<PropertyKey, unknown>, host: Timing
     arm();
   }
 
+  // Internal timers take negative IDs, which clearTimeout cannot name.
+  let nextInternalTimer = -1;
+  function internalTimer(callback: () => void, delay: number): number {
+    const id = nextInternalTimer--;
+    schedule({ id, callback, delay, repeat: false, nesting: 0, deadline: 0, order: 0 });
+    return id;
+  }
+
   function fireTimer(): void {
     const timer = head();
     if (timer === undefined || timer.deadline > host.now()) {
@@ -174,6 +189,74 @@ export function installTiming(global: Record<PropertyKey, unknown>, host: Timing
     }
     frameHandles = [];
     frameIndex = 0;
+  }
+
+  // requestIdleCallback: callbacks requested during an idle period wait for
+  // the next one, which starts no earlier than the current one's deadline.
+  type IdleRequest = { callback: IdleCallback; timeout: number | null };
+  let nextIdle = 1;
+  const idleRequests = new Map<number, IdleRequest>();
+  const runnableIdle = new Map<number, IdleRequest>();
+  let idleDeadline = 0;
+  const deadlineToken = Symbol("IdleDeadline constructor");
+
+  class IdleDeadline {
+    readonly #deadline: number;
+    readonly #didTimeout: boolean;
+    constructor(token: symbol, deadline: number, didTimeout: boolean) {
+      if (token !== deadlineToken) throw new TypeError("Illegal constructor");
+      this.#deadline = deadline;
+      this.#didTimeout = didTimeout;
+    }
+    timeRemaining(): number { return Math.max(0, this.#deadline - host.now()); }
+    get didTimeout(): boolean { return this.#didTimeout; }
+  }
+  Object.defineProperty(IdleDeadline.prototype, Symbol.toStringTag, { value: "IdleDeadline", configurable: true });
+
+  function takeIdle(id: number): IdleRequest | undefined {
+    const request = idleRequests.get(id) ?? runnableIdle.get(id);
+    idleRequests.delete(id);
+    runnableIdle.delete(id);
+    if (request?.timeout != null) {
+      timers.delete(request.timeout);
+      arm();
+    }
+    return request;
+  }
+
+  function requestIdleCallback(callback: IdleCallback, options?: { timeout?: number } | null): number {
+    if (typeof callback !== "function") throw new TypeError("requestIdleCallback requires a callback");
+    const id = nextIdle++;
+    const timeout = Number(options?.timeout ?? 0) >>> 0;
+    const request: IdleRequest = { callback, timeout: null };
+    idleRequests.set(id, request);
+    if (timeout > 0) {
+      request.timeout = internalTimer(() => {
+        if (takeIdle(id) !== undefined) callback.call(global, new IdleDeadline(deadlineToken, host.now(), true));
+      }, timeout);
+    }
+    return id;
+  }
+
+  function cancelIdleCallback(id: number): void { takeIdle(id >>> 0); }
+
+  function idleWakeup(): number | null {
+    return idleRequests.size === 0 && runnableIdle.size === 0 ? null : idleDeadline;
+  }
+
+  // Start an idle period: callbacks left from the last one keep their place.
+  function beginIdle(deadline: number): void {
+    idleDeadline = deadline;
+    for (const [id, request] of idleRequests) runnableIdle.set(id, request);
+    idleRequests.clear();
+  }
+
+  function nextIdleCallback(): (() => void) | undefined {
+    const first = runnableIdle.keys().next();
+    if (first.done || host.now() >= idleDeadline) return undefined;
+    const request = takeIdle(first.value)!;
+    const deadline = new IdleDeadline(deadlineToken, idleDeadline, false);
+    return () => request.callback.call(global, deadline);
   }
 
   type MessageHandler = ((event: MessageEvent) => void) | null;
@@ -251,8 +334,8 @@ export function installTiming(global: Record<PropertyKey, unknown>, host: Timing
     constructor() { [this.port1, this.port2] = MessagePort.pair(); }
   }
 
+  installPerformance(global, host);
   Object.assign(global, {
-    performance: { now: () => host.now() },
     setTimeout(handler: Callback | string, delay = 0, ...args: unknown[]) {
       if (arguments.length === 0) throw new TypeError("setTimeout requires a handler");
       return createTimer(handler, delay, false, args);
@@ -271,6 +354,7 @@ export function installTiming(global: Record<PropertyKey, unknown>, host: Timing
       return id;
     },
     cancelAnimationFrame(id: number) { frames.delete(id >>> 0); },
+    requestIdleCallback, cancelIdleCallback, IdleDeadline,
     structuredClone(value: unknown, options?: { transfer?: Iterable<unknown> }) {
       if (arguments.length === 0) throw new TypeError("structuredClone requires a value");
       const transfers = options?.transfer === undefined ? undefined : [...options.transfer];
@@ -291,5 +375,8 @@ export function installTiming(global: Record<PropertyKey, unknown>, host: Timing
       frameIndex = 0;
     },
     nextAnimation,
+    idleWakeup,
+    beginIdle,
+    nextIdle: nextIdleCallback,
   };
 }

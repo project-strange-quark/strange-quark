@@ -94,3 +94,73 @@ fn fake_clock_drives_task_turns_microtasks_and_frames() {
         "throwing task microtask|timer after error|frame after error"
     );
 }
+
+#[test]
+fn idle_periods_wait_for_ready_tasks_and_end_at_timers_budgets_and_timeouts() {
+    initialize_v8();
+    let isolate = &mut v8::Isolate::new(Default::default());
+    v8::scope!(let scope, isolate);
+    let context = v8::Context::new(scope, Default::default());
+    let scope = &mut v8::ContextScope::new(scope, context);
+    let time = Rc::new(Cell::new(10.0));
+    let host = install_task_host(scope, {
+        let time = time.clone();
+        move || time.get()
+    })
+    .unwrap();
+    let fixture = load_dom_fixture(scope, "timing.mjs", include_str!("fixtures/timing.mjs"));
+    let receiver = v8::undefined(scope);
+    let installed = export(scope, fixture, "install")
+        .call(scope, receiver.into(), &[host.into()])
+        .unwrap();
+    let installed = v8::Local::<v8::Object>::try_from(installed).unwrap();
+    let runtime = TaskLoop::new(scope, installed).unwrap();
+
+    assert_eq!(runtime.idle_wakeup(scope), None);
+    read_fixture(scope, fixture, "seedIdle");
+    assert_eq!(runtime.idle_wakeup(scope), Some(0.0));
+    runtime.run_idle(scope, 50.0).unwrap();
+    assert_eq!(
+        read_fixture(scope, fixture, "drain"),
+        "first 50 false|first microtask|second 50 false|second microtask",
+        "callbacks run in order with the period's deadline, each followed by its microtasks"
+    );
+    assert_eq!(
+        runtime.idle_wakeup(scope),
+        Some(60.0),
+        "a callback requested during a period waits for its deadline"
+    );
+    time.set(30.0);
+    runtime.run_idle(scope, 50.0).unwrap();
+    assert_eq!(read_fixture(scope, fixture, "drain"), "");
+    time.set(60.0);
+    read_fixture(scope, fixture, "seedIdleTimeout");
+    assert_eq!(runtime.next_timer_deadline(scope), Some(64.0));
+    runtime.run_idle(scope, 2.0).unwrap();
+    assert_eq!(
+        read_fixture(scope, fixture, "drain"),
+        "next period 2 false|next period microtask|timed out 2 false|timed out microtask",
+        "the budget bounds the period and a timeout timer is cancelled by the run"
+    );
+    assert_eq!(runtime.next_timer_deadline(scope), Some(64.0));
+
+    read_fixture(scope, fixture, "seedIdleTimeout");
+    time.set(64.0);
+    runtime.run_idle(scope, 50.0).unwrap();
+    assert_eq!(
+        read_fixture(scope, fixture, "drain"),
+        "",
+        "a ready timer means the loop is not idle"
+    );
+    assert_eq!(runtime.run_ready(scope, 65.0, 10).unwrap(), 2);
+    assert_eq!(read_fixture(scope, fixture, "drain"), "timer|timer");
+    time.set(70.0);
+    assert_eq!(runtime.next_timer_deadline(scope), Some(70.0));
+    assert_eq!(runtime.run_ready(scope, 71.0, 10).unwrap(), 1);
+    assert_eq!(
+        read_fixture(scope, fixture, "drain"),
+        "timed out 0 true|timed out microtask",
+        "an expired timeout runs the callback as a task with didTimeout"
+    );
+    assert_eq!(runtime.idle_wakeup(scope), None);
+}

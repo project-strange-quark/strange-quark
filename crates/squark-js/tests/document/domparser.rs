@@ -4,13 +4,13 @@ use std::process::Command;
 
 use super::*;
 
-fn open_basic_pack() -> Arc<Pack> {
+pub(super) fn open_basic_pack() -> Arc<Pack> {
     Arc::new(
         Pack::open(&File::open(key("tests/fixtures/pack/basic.appended.bin")).unwrap()).unwrap(),
     )
 }
 
-fn real_engine_runner<'pack>(
+pub(super) fn real_engine_runner<'pack>(
     pack: &'pack Arc<Pack>,
     script: &str,
 ) -> (

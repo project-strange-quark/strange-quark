@@ -262,3 +262,37 @@ test("active listener removal, duplicates and stopImmediatePropagation follow di
   target.dispatchEvent(new Event("x"));
   assert.deepEqual(log, ["action", "last"]);
 });
+
+test("nodeType is a Node.prototype accessor, so getters cached from the prototype read every node", () => {
+  const document = createDocument(new Journal());
+  const descriptor = Object.getOwnPropertyDescriptor(Node.prototype, "nodeType");
+  assert.equal(typeof descriptor.get, "function");
+  const element = document.createElement("form");
+  const nodes = [element, document.createTextNode("t"), document.createComment("c"), document, document.createDocumentFragment()];
+  assert.deepEqual(nodes.map(node => descriptor.get.call(node)), [1, 3, 8, 9, 11]);
+  assert.deepEqual(nodes.map(node => node.nodeType), [1, 3, 8, 9, 11]);
+  assert.equal(Object.hasOwn(element, "nodeType"), false);
+  assert.throws(() => descriptor.get.call({}), TypeError);
+});
+
+test("assigning to style and classList forwards to cssText and value", () => {
+  const document = createDocument(new Journal());
+  const element = document.createElement("div");
+  element.style = "color: red; background-color: green";
+  assert.equal(element.style.color, "red");
+  assert.equal(element.style.backgroundColor, "green");
+  element.classList = "a b";
+  assert.equal(element.className, "a b");
+  assert.equal(element.toggleAttribute("style"), false);
+});
+
+test("Node.prototype's nodeName getter answers for every kind of node", () => {
+  const document = installDOM({});
+  const nodeName = Object.getOwnPropertyDescriptor(Node.prototype, "nodeName").get;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg:rect");
+  const nodes = [document.createElement("div"), svg, document.createAttribute("title"), document.createTextNode("t"),
+    document.createComment("c"), document, document.doctype, document.createDocumentFragment()];
+  const names = ["DIV", "svg:rect", "title", "#text", "#comment", "#document", "html", "#document-fragment"];
+  assert.deepEqual(nodes.map(node => nodeName.call(node)), names);
+  assert.deepEqual(nodes.map(node => node.nodeName), names);
+});
