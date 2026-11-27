@@ -384,7 +384,6 @@ p { clear: none; writing-mode: horizontal-tb; }
                 ("scrollbar-width", "thin", 13, 34, Consumer::Style),
                 ("scrollbar-color", "red blue", 13, 57, Consumer::Style),
                 ("mask-image", "url(fade.svg)", 14, 3, Consumer::Style),
-                ("overscroll-behavior", "contain", 14, 30, Consumer::Style),
                 (
                     ".list, .list::-webkit-scrollbar-thumb",
                     "",

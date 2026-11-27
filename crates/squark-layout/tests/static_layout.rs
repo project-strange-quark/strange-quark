@@ -1399,6 +1399,30 @@ fn shapes_text_with_font_variation_settings_and_optical_sizing() {
 }
 
 #[test]
+fn projects_overscroll_behavior_from_css() {
+    use squark_types::fragment::OverscrollBehavior;
+    let mut fixture = Fixture::new(
+        "div { overflow: auto; height: 20px }
+         #contain { overscroll-behavior: contain none }
+         #block { overscroll-behavior-y: contain }",
+    );
+    let contain = fixture.element(BODY, "div", &[("id", "contain")]);
+    let block = fixture.element(BODY, "div", &[("id", "block")]);
+    let plain = fixture.element(BODY, "div", &[]);
+    let tree = layout(&fixture.pack());
+    let overscroll = |id| find(&tree, id).style.box_paint.overscroll;
+    assert_eq!(
+        overscroll(contain),
+        [OverscrollBehavior::Contain, OverscrollBehavior::None]
+    );
+    assert_eq!(
+        overscroll(block),
+        [OverscrollBehavior::Auto, OverscrollBehavior::Contain]
+    );
+    assert_eq!(overscroll(plain), [OverscrollBehavior::Auto; 2]);
+}
+
+#[test]
 fn projects_backdrop_filters_from_css() {
     use squark_types::fragment::Filter;
     let mut fixture = Fixture::new(
