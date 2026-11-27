@@ -33,8 +33,10 @@ import {
 import type { CustomElementDefinition } from "./custom-elements.js";
 
 import {
-  createSheet, CSSRule, CSSRuleList, CSSStyleSheet, detachSheet, styleSheetList, StyleSheetList,
+  createSheet, CSSRule, CSSRuleList, CSSStyleSheet, detachSheet, installConstructedSheets, isConstructed, styleSheetList,
+  StyleSheetList,
 } from "./stylesheet.js";
+import type { Constructed } from "./stylesheet.js";
 
 const HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -757,6 +759,7 @@ type ShadowRootState = ShadowRootInit & {
   declarative: boolean;
   /** The shadow tree's slots in tree order, until a slot is inserted or removed. */
   slots?: HTMLSlotElement[];
+  adopted: AdoptedSheets;
   styleSheets?: StyleSheetList;
 };
 const shadowStates = new WeakMap<ShadowRoot, ShadowRootState>();
@@ -778,7 +781,7 @@ export class ShadowRoot extends DocumentFragment {
     journalFor(this)?.record(Opcode.AttachShadow, id, nodeId(host), 0);
     // A shadow root and its host are released together.
     if (state.tracked !== undefined) state.tracked.parent = nodeState(host).id;
-    shadowStates.set(this, { ...init, host, declarative: false });
+    shadowStates.set(this, { ...init, host, declarative: false, adopted: adoptedSheets(this) });
   }
 
   get host(): Element { return shadowState(this).host; }
@@ -821,6 +824,9 @@ export class ShadowRoot extends DocumentFragment {
       return list;
     });
   }
+
+  get adoptedStyleSheets(): CSSStyleSheet[] { return shadowState(this).adopted.array; }
+  set adoptedStyleSheets(value: Iterable<CSSStyleSheet>) { shadowState(this).adopted.replace(value); }
 
   getSelection(): Selection | null {
     const document = ownerOf(this);
@@ -3664,6 +3670,8 @@ export class Document extends ParentNode {
     return rootOf(candidate) === this ? candidate : null;
   }
 
+  get adoptedStyleSheets(): CSSStyleSheet[] { return documentAdopted(this).array; }
+  set adoptedStyleSheets(value: Iterable<CSSStyleSheet>) { documentAdopted(this).replace(value); }
   get defaultView(): EventTarget | null { return documents.get(this)!.view; }
   get styleSheets(): StyleSheetList {
     const state = documents.get(this)!;
@@ -3990,6 +3998,182 @@ for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", 
 }
 reflectedEvent(ShadowRoot.prototype, "slotchange");
 
+// Constructed stylesheets and the adoptedStyleSheets of documents and shadow roots.
+
+type ConstructedState = {
+  id: number;
+  document: Document;
+  count: number;
+  raw: boolean;
+  rules?: readonly string[];
+  adopters: Set<Document | ShadowRoot>;
+};
+const constructedStates = new WeakMap<CSSStyleSheet, ConstructedState>();
+const releasedSheets = new FinalizationRegistry<{ journal: Journal; id: number }>(({ journal, id }) => journal.release(id));
+
+installConstructedSheets((sheet, media) => {
+  const document = realmDocument ?? defaultDocument();
+  const journal = journalFor(document);
+  const id = allocate(document);
+  if (journal !== null && id !== 0) {
+    journal.record(Opcode.CreateSheet, id, media === "" ? NO_STRING : media, 0);
+    releasedSheets.register(sheet, { journal, id });
+  }
+  const state: ConstructedState = { id, document, count: 0, raw: false, adopters: new Set() };
+  constructedStates.set(sheet, state);
+  const insert = (index: number, rule: string) => {
+    if (id !== 0) journal?.record(Opcode.SheetInsert, id, index, rule);
+    state.count++;
+  };
+  const remove = (index: number) => {
+    if (id !== 0) journal?.record(Opcode.SheetDelete, id, index, 0);
+    state.count--;
+  };
+  const engine = () => {
+    const host = documents.get(document)!.cssom;
+    if (host === undefined) fail("NotSupportedError", "Stylesheet rules require the document engine");
+    return host;
+  };
+  const constructed: Constructed = {
+    replacing: false,
+    replace(text) {
+      while (state.count !== 0) remove(state.count - 1);
+      state.raw = text !== "";
+      state.rules = state.raw ? undefined : [];
+      if (state.raw) insert(0, text);
+    },
+    disabledChanged() {
+      for (const scope of state.adopters) adoptedOf(scope).sync();
+    },
+    queue: task => queueDocumentTask(document, task),
+  };
+  return {
+    constructed,
+    source: {
+      read() {
+        if (!state.raw) return state.rules ?? [];
+        const host = engine();
+        flushDocument(document);
+        const serialized = host.query(10, id) as string[];
+        while (state.count !== 0) remove(state.count - 1);
+        for (const [index, rule] of serialized.entries()) insert(index, rule);
+        state.raw = false;
+        return state.rules = serialized;
+      },
+      parse: rule => engine().cssParseRule(rule),
+      insert,
+      remove,
+    },
+  };
+});
+
+type AdoptedSheets = {
+  /** The ObservableArray that adoptedStyleSheets returns. */
+  readonly array: CSSStyleSheet[];
+  replace(value: Iterable<CSSStyleSheet>): void;
+  /** Sends the enabled sheets to the engine. */
+  sync(): void;
+};
+const adoptedLists = new WeakMap<Document | ShadowRoot, AdoptedSheets>();
+
+function adoptedOf(scope: Document | ShadowRoot): AdoptedSheets {
+  return scope instanceof ShadowRoot ? shadowState(scope).adopted : documentAdopted(scope);
+}
+
+function documentAdopted(document: Document): AdoptedSheets {
+  let adopted = adoptedLists.get(document);
+  if (adopted === undefined) adoptedLists.set(document, adopted = adoptedSheets(document));
+  return adopted;
+}
+
+function arrayIndex(key: PropertyKey): number | null {
+  if (typeof key !== "string") return null;
+  const index = Number(key);
+  return Number.isInteger(index) && index >= 0 && index < 0xffff_ffff && String(index) === key ? index : null;
+}
+
+function adoptedSheets(scope: Document | ShadowRoot): AdoptedSheets {
+  const backing: CSSStyleSheet[] = [];
+  let adopters = new Set<CSSStyleSheet>();
+  const check = (value: unknown): CSSStyleSheet => {
+    if (!(value instanceof CSSStyleSheet)) {
+      throw new TypeError("Failed to convert value to 'CSSStyleSheet'.");
+    }
+    const state = constructedStates.get(value);
+    if (state === undefined || !isConstructed(value)) {
+      throw new DOMException("Can't adopt non-constructed stylesheets.", "NotAllowedError");
+    }
+    if (state.document !== ownerOf(scope)) {
+      throw new DOMException("Sharing constructed stylesheets in multiple documents is not allowed", "NotAllowedError");
+    }
+    return value;
+  };
+  const adopted: AdoptedSheets = {
+    array: new Proxy(backing, {
+      set(target, key, value, receiver) {
+        const index = arrayIndex(key);
+        if (index !== null) {
+          if (index > target.length) return false;
+          target[index] = check(value);
+          adopted.sync();
+          return true;
+        }
+        if (key === "length") {
+          const length = Number(value);
+          if (!Number.isInteger(length) || length < 0 || length > target.length) {
+            if (length === target.length) return true;
+            throw new RangeError("adoptedStyleSheets can only be shortened by setting length");
+          }
+          target.length = length;
+          adopted.sync();
+          return true;
+        }
+        return Reflect.set(target, key, value, receiver);
+      },
+      defineProperty(target, key, descriptor) {
+        const index = arrayIndex(key);
+        if (index === null) return Reflect.defineProperty(target, key, descriptor);
+        if (index > target.length || !("value" in descriptor)) return false;
+        target[index] = check(descriptor.value);
+        adopted.sync();
+        return true;
+      },
+      deleteProperty(target, key) {
+        const index = arrayIndex(key);
+        if (index === null) return Reflect.deleteProperty(target, key);
+        if (index !== target.length - 1) return false;
+        target.length = index;
+        adopted.sync();
+        return true;
+      },
+    }),
+    replace(value) {
+      if (value === null || typeof value !== "object" || typeof (value as Iterable<unknown>)[Symbol.iterator] !== "function") {
+        throw new TypeError("The provided value cannot be converted to a sequence.");
+      }
+      const sheets = Array.from(value as Iterable<unknown>, check);
+      backing.length = 0;
+      backing.push(...sheets);
+      adopted.sync();
+    },
+    sync() {
+      const current = new Set(backing);
+      for (const sheet of adopters) if (!current.has(sheet)) constructedStates.get(sheet)?.adopters.delete(scope);
+      for (const sheet of current) constructedStates.get(sheet)?.adopters.add(scope);
+      adopters = current;
+      const journal = journalFor(scope);
+      if (journal === null) return;
+      const id = nodeId(scope);
+      journal.record(Opcode.AdoptSheet, id, 0, 0);
+      for (const sheet of backing) {
+        const state = constructedStates.get(sheet)!;
+        if (!sheet.disabled && state.id !== 0) journal.record(Opcode.AdoptSheet, id, state.id, 0);
+      }
+    },
+  };
+  return adopted;
+}
+
 installShadowTrees({
   root: target => nodes.has(target as Node) ? rootOf(target as Node) : null,
   host: node => nodes.has(node as Node) ? nodeState(node as Node).host ?? null : null,
@@ -4240,8 +4424,10 @@ function adoptSubtree(targetDoc: Document, root: Node): void {
   } else {
     fail("WrongDocumentError", "Nodes use different journal sessions");
   }
-  if (customElementsActive) {
-    for (const node of [root, ...shadowIncludingDescendants(root)]) customElementAdopted(node, oldDocument, targetDoc);
+  for (const node of [root, ...shadowIncludingDescendants(root)]) {
+    // Adopted stylesheets belong to their document, so a moved shadow root drops them.
+    if (node instanceof ShadowRoot) shadowState(node).adopted.replace([]);
+    if (customElementsActive) customElementAdopted(node, oldDocument, targetDoc);
   }
 }
 

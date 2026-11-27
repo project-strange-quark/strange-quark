@@ -105,6 +105,31 @@ fn shadow_trees_style_lay_out_and_hit_test_through_the_engine() {
         "slotted nodes inherit through their slot"
     );
 
+    runner
+        .eval(
+            r#"
+            globalThis.sheet = new CSSStyleSheet();
+            sheet.replaceSync("@import url(other.css); .item { font-size: 30px; height: 31px }");
+            root.adoptedStyleSheets = [sheet];
+            "#,
+        )
+        .unwrap();
+    assert_eq!(
+        runner
+            .eval("[getComputedStyle(items[0]).fontSize, rect(items[2]), sheet.cssRules.length, sheet.cssRules[0].cssText]")
+            .unwrap(),
+        r#"["30px",[40,92,120,31],1,".item { font-size: 30px; height: 31px; }"]"#
+    );
+    runner
+        .eval("sheet.insertRule('.context-view { left: 7px }', 1); sheet.disabled = false;")
+        .unwrap();
+    assert_eq!(runner.eval("rect(view)[0]").unwrap(), "7");
+    runner.eval("sheet.disabled = true;").unwrap();
+    assert_eq!(
+        runner.eval("[rect(view)[0], rect(items[0])[3]]").unwrap(),
+        "[40,20]"
+    );
+
     // Web components commonly fill a shadow root through innerHTML.
     runner
         .eval(

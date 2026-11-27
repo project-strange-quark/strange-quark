@@ -2,8 +2,8 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bootstrapDocument, installDOM, installInput } from "@strange-quark/dom";
-import { Journal, Opcode, RECORD_BYTES } from "@strange-quark/dom/journal";
+import { bootstrapDocument, CSSStyleSheet, installDOM, installInput } from "@strange-quark/dom";
+import { Journal, NO_STRING, Opcode, RECORD_BYTES } from "@strange-quark/dom/journal";
 import { nodeId } from "../dist/document.js";
 
 function records(journal) {
@@ -353,16 +353,55 @@ test("mutation observers see a shadow tree only when they observe inside it", as
   assert.deepEqual(inside.map(record => record.target), [root, root.firstChild]);
 });
 
-test("the journal carries shadow roots and slot assignment", () => {
+test("the journal carries shadow roots, slot assignment and adopted constructed sheets", () => {
   const journal = new Journal();
   const document = bootstrapDocument(journal, 1, 0, []);
+  installDOM({}, document);
   const body = document.appendChild(document.createElement("html")).appendChild(document.createElement("body"));
   const host = body.appendChild(document.createElement("div"));
   const light = host.appendChild(document.createElement("p"));
   const root = host.attachShadow({ mode: "open" });
   const slot = root.appendChild(document.createElement("slot"));
+  const sheet = new CSSStyleSheet({ media: "screen" });
+  sheet.replaceSync("p { color: red }");
+  root.adoptedStyleSheets = [sheet];
+  document.adoptedStyleSheets.push(sheet);
   const written = records(journal);
   const find = opcode => written.filter(([op]) => op === opcode).map(([, a, b, c]) => [a, b, c]);
   assert.deepEqual(find(Opcode.AttachShadow), [[nodeId(root), nodeId(host), 0]]);
   assert.deepEqual(find(Opcode.AssignSlot), [[nodeId(slot), 0, 0], [nodeId(slot), nodeId(light), 0]]);
+  const [[sheetId, media]] = find(Opcode.CreateSheet);
+  assert.notEqual(media, NO_STRING);
+  assert.deepEqual(find(Opcode.AdoptSheet), [
+    [nodeId(root), 0, 0], [nodeId(root), sheetId, 0],
+    [1, 0, 0], [1, sheetId, 0], [1, 0, 0], [1, sheetId, 0],
+  ]);
+  assert.deepEqual(find(Opcode.SheetInsert).map(([a, b]) => [a, b]), [[sheetId, 0]]);
+  sheet.disabled = true;
+  assert.deepEqual(records(journal).slice(-2), [[Opcode.AdoptSheet, nodeId(root), 0, 0], [Opcode.AdoptSheet, 1, 0, 0]],
+    "a disabled sheet leaves its adopters");
+});
+
+test("adoptedStyleSheets is an observable array of the document's constructed sheets", async () => {
+  const global = {};
+  const document = installDOM(global);
+  const sheet = new global.CSSStyleSheet();
+  assert.equal(sheet.ownerNode, null);
+  const root = document.createElement("div").attachShadow({ mode: "open" });
+  assert.deepEqual(root.adoptedStyleSheets, []);
+  root.adoptedStyleSheets = [sheet, sheet];
+  assert.equal(root.adoptedStyleSheets.length, 2);
+  root.adoptedStyleSheets.pop();
+  assert.deepEqual([...root.adoptedStyleSheets], [sheet]);
+  assert.throws(() => { root.adoptedStyleSheets = [{}]; }, TypeError);
+  const style = document.head.appendChild(document.createElement("style"));
+  assert.throws(() => { document.adoptedStyleSheets = [style.sheet]; }, { name: "NotAllowedError" });
+  assert.throws(() => root.adoptedStyleSheets.push(style.sheet), { name: "NotAllowedError" });
+  assert.deepEqual([...root.adoptedStyleSheets], [sheet]);
+  assert.throws(() => style.sheet.replaceSync(""), { name: "NotAllowedError" });
+  await assert.rejects(style.sheet.replace(""), { name: "NotAllowedError" });
+  const replaced = sheet.replace("p {}");
+  assert.throws(() => sheet.replaceSync("a {}"), { name: "NotAllowedError" }, "replace() holds the sheet");
+  assert.equal(await replaced, sheet);
+  sheet.replaceSync("b {}");
 });
