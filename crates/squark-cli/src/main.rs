@@ -59,6 +59,9 @@ struct PackArgs {
     /// Override the app name written to /__squark/manifest.json
     #[arg(long)]
     name: Option<String>,
+    /// Enable a native module of the runtime the pack will run on (repeatable)
+    #[arg(long = "native-module", value_name = "NAME")]
+    native_modules: Vec<String>,
 }
 
 #[derive(Debug, Args)]
@@ -194,7 +197,7 @@ fn run(cli: Cli) -> Result<(), CliError> {
                 window: None,
                 network_allow: Vec::new(),
                 extra_assets: Vec::new(),
-                native_modules: Vec::new(),
+                native_modules: args.native_modules,
                 prelude: None,
             })?;
             println!(
