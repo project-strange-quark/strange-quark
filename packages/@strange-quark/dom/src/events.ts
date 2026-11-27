@@ -5,7 +5,7 @@ import { ListenerFlags } from "./journal.js";
 const legacyCodes: Record<string, number> = {
   IndexSizeError: 1, HierarchyRequestError: 3, WrongDocumentError: 4, NoModificationAllowedError: 7,
   InvalidCharacterError: 5, NotFoundError: 8, NotSupportedError: 9,
-  InvalidStateError: 11, SyntaxError: 12, NamespaceError: 14,
+  InvalidStateError: 11, SyntaxError: 12, NamespaceError: 14, InvalidNodeTypeError: 24,
   AbortError: 20, TimeoutError: 23, DataCloneError: 25,
 };
 

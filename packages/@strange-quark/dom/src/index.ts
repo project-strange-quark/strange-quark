@@ -20,6 +20,7 @@ export { installObservers } from "./observers.js";
 export { dispatchAnimationEvent, installMedia } from "./media.js";
 
 export { NodeFilter, TreeWalker } from "./tree-walker.js";
+export { AbstractRange, NodeRange, Range, StaticRange } from "./range.js";
 
 export { installScroll } from "./scroll.js";
 
