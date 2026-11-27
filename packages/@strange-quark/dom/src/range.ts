@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
-// DOM Standard ranges: AbstractRange, NodeRange, StaticRange and live Range.
+// DOM Standard ranges: AbstractRange, NodeRange, StaticRange and live Range,
+// plus the CSSOM View geometry and caret-position APIs that read the engine.
 
 import {
-  CharacterData, childrenOf, Comment, defaultDocument, Document, DocumentFragment, DocumentType, Element, expectNode, Node,
-  parseMarkup, Text,
+  CharacterData, childrenOf, Comment, connectedInputTarget, defaultDocument, Document, DocumentFragment, DocumentType,
+  DOMRect, Element, expectNode, HTMLInputElement, HTMLTextAreaElement, nativeRead, Node, parseMarkup, Text,
 } from "./document.js";
 import { DOMException } from "./events.js";
 
+type Rect = { x: number; y: number; width: number; height: number };
 type Points = { startNode: Node; startOffset: number; endNode: Node; endOffset: number; watch?: () => void };
 type StaticRangeInit = { startContainer: Node; startOffset: number; endContainer: Node; endOffset: number };
 
@@ -726,3 +728,129 @@ export function rangesMergeText(node: Text, merged: Text, length: number, parent
   });
 }
 
+function textControl(node: Node): node is HTMLInputElement | HTMLTextAreaElement {
+  return node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement;
+}
+
+function rendered(node: Node): Document | null {
+  const root = nodeRoot(node);
+  return root instanceof Document && root.defaultView !== null ? root : null;
+}
+
+/** CSSOM View range client rects, ordered like Chromium: top-most contained elements and every selected Text. */
+function clientRects(points: Points): Rect[] {
+  if (rendered(points.startNode) === null) return [];
+  const endAncestors = new Set<Node>();
+  for (let node: Node | null = points.endNode; node !== null; node = node.parentNode) endAncestors.add(node);
+  const selected = new Set<Node>();
+  const rects: Rect[] = [];
+  for (const node of rangeNodes(points)) {
+    if (node instanceof Element) {
+      if (endAncestors.has(node)) continue;
+      selected.add(node);
+      if (node.parentNode === null || !selected.has(node.parentNode)) rects.push(...(nativeRead(node, 2) as Rect[]));
+    } else if (node instanceof Text) {
+      const start = node === points.startNode ? points.startOffset : 0;
+      const end = node === points.endNode ? points.endOffset : node.length;
+      rects.push(...((nativeRead(node, 14, [start, end]) as Rect[] | null) ?? []));
+    }
+  }
+  return rects;
+}
+
+function boundingRect(rects: readonly Rect[]): Rect {
+  let union: Rect | null = null;
+  for (const rect of rects) {
+    if (!(rect.width > 0 && rect.height > 0)) continue;
+    if (union === null) {
+      union = { ...rect };
+      continue;
+    }
+    const left = Math.min(union.x, rect.x);
+    const top = Math.min(union.y, rect.y);
+    const right = Math.max(union.x + union.width, rect.x + rect.width);
+    const bottom = Math.max(union.y + union.height, rect.y + rect.height);
+    union = { x: left, y: top, width: right - left, height: bottom - top };
+  }
+  return union ?? rects[0] ?? { x: 0, y: 0, width: 0, height: 0 };
+}
+
+function domRect({ x, y, width, height }: Rect): DOMRect { return new DOMRect(x, y, width, height); }
+
+const caretToken = Symbol("CaretPosition constructor");
+
+export class CaretPosition {
+  #node: Node;
+  #offset: number;
+
+  constructor(token: symbol, node: Node, offset: number) {
+    if (token !== caretToken) throw new TypeError("Illegal constructor");
+    this.#node = node;
+    this.#offset = offset;
+  }
+
+  get offsetNode(): Node { return this.#node; }
+  get offset(): number { return this.#offset; }
+
+  getClientRect(): DOMRect | null {
+    const node = this.#node;
+    const offset = this.#offset;
+    if (textControl(node) && rendered(node) !== null) {
+      try {
+        return domRect(nativeRead(node, 11, offset) as Rect);
+      } catch {
+        // A control without laid-out text has no caret geometry.
+        return domRect({ x: 0, y: 0, width: 0, height: 0 });
+      }
+    }
+    if (offset > nodeLength(node)) return domRect({ x: 0, y: 0, width: 0, height: 0 });
+    return domRect(boundingRect(clientRects({ startNode: node, startOffset: offset, endNode: node, endOffset: offset })));
+  }
+}
+
+function caretAt(document: Document, x: number, y: number): [Node, number] | null {
+  if (document.defaultView === null) return null;
+  const hit = nativeRead(document, 15, [x, y]) as [number, number] | null;
+  if (hit == null) return null;
+  const node = connectedInputTarget(document, hit[0]);
+  if (node === null) return null;
+  const offset = hit[1] >>> 0;
+  return [node, textControl(node) ? offset : Math.min(offset, nodeLength(node))];
+}
+
+function method(prototype: object, name: string, value: Function): void {
+  Object.defineProperty(prototype, name, { value, configurable: true, writable: true });
+}
+
+/** Adds the range geometry and caret APIs that the engine backs. */
+export function installRangeGeometry(global: Record<PropertyKey, unknown>): void {
+  global.CaretPosition = CaretPosition;
+  method(Range.prototype, "getClientRects", function getClientRects(this: Range) {
+    const rects = clientRects(pointsOf(this)).map(domRect);
+    return Object.assign(rects, { item: (index: number) => rects[index] ?? null });
+  });
+  method(Range.prototype, "getBoundingClientRect", function getBoundingClientRect(this: Range) {
+    return domRect(boundingRect(clientRects(pointsOf(this))));
+  });
+  method(Document.prototype, "caretPositionFromPoint", function caretPositionFromPoint(this: Document, x: number, y: number) {
+    if (arguments.length < 2) throw new TypeError("caretPositionFromPoint requires x and y");
+    x = Number(x);
+    y = Number(y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) throw new TypeError("The coordinates must be finite numbers");
+    const caret = caretAt(this, x, y);
+    return caret === null ? null : new CaretPosition(caretToken, caret[0], caret[1]);
+  });
+  method(Document.prototype, "caretRangeFromPoint", function caretRangeFromPoint(this: Document, x = 0, y = 0) {
+    const caret = caretAt(this, x | 0, y | 0);
+    if (caret === null) return null;
+    let [node, offset] = caret;
+    if (textControl(node)) {
+      // The caret inside a control's text is outside the document tree, so it maps to the control's position.
+      const parent = node.parentNode;
+      if (parent === null) return null;
+      offset = nodeIndex(node);
+      node = parent;
+    }
+    return newRange(this, node, offset, node, offset);
+  });
+}

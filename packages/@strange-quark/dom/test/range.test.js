@@ -43,6 +43,12 @@ test("ranges expose the DOM interfaces, constants and constructors Chromium has"
   assert.notEqual(created, document.createRange());
   assert.deepEqual(points(created), [document, 0, document, 0]);
   assert.throws(() => Object.getOwnPropertyDescriptor(AbstractRange.prototype, "startOffset").get.call({}), TypeError);
+  // Geometry and caret APIs need the engine, so a realm without its bindings lacks them.
+  assert.equal("getClientRects" in Range.prototype, false);
+  assert.equal("getBoundingClientRect" in Range.prototype, false);
+  assert.equal("caretPositionFromPoint" in document, false);
+  assert.equal("caretRangeFromPoint" in document, false);
+  assert.equal("CaretPosition" in window, false);
 });
 
 test("setStart and setEnd keep the start before the end and validate the boundary point", () => {

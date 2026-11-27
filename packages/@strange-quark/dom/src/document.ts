@@ -19,8 +19,8 @@ import { computedStyle, CSSStyleDeclaration } from "./style.js";
 import { NodeFilter, TreeWalker, treeWalker } from "./tree-walker.js";
 import { MutationObserver, MutationRecord, observeDetachedSubtree, queueMutation } from "./mutation.js";
 import {
-  AbstractRange, createRange, NodeRange, Range, rangesAfterInsert, rangesBeforeRemove, rangesMergeText, rangesReplaceData,
-  rangesSplitText, StaticRange,
+  AbstractRange, createRange, installRangeGeometry, NodeRange, Range, rangesAfterInsert, rangesBeforeRemove, rangesMergeText,
+  rangesReplaceData, rangesSplitText, StaticRange,
 } from "./range.js";
 
 import {
@@ -3658,7 +3658,7 @@ function readFromEngine<T>(node: Node, read: (bindings: DocumentBindings, id: nu
   return read(bindings, id);
 }
 
-function nativeRead(node: Node, kind: number, argument?: unknown): unknown {
+export function nativeRead(node: Node, kind: number, argument?: unknown): unknown {
   return readFromEngine(node, (bindings, id) => bindings.query(kind, kind === 6 ? 0 : id, argument));
 }
 
@@ -3725,7 +3725,7 @@ function lookupElement(scope: Node, id: number | null, detachedNodes?: Map<numbe
   return node instanceof Element ? node : null;
 }
 
-class DOMRect {
+export class DOMRect {
   constructor(public x = 0, public y = 0, public width = 0, public height = 0) {}
   get top(): number { return Math.min(this.y, this.y + this.height); }
   get left(): number { return Math.min(this.x, this.x + this.width); }
@@ -3749,6 +3749,7 @@ function method(prototype: object, name: string, value: Function): void {
 export function installDocumentBindings(global: Record<PropertyKey, unknown>, document: Document, bindings: DocumentBindings): void {
   documents.get(document)!.bindings = bindings;
   global.DOMRect = DOMRect;
+  installRangeGeometry(global);
   global.getComputedStyle = function getComputedStyle(element: Element, pseudo: string | null = null): CSSStyleDeclaration {
     if (!(element instanceof Element)) throw new TypeError("Expected an Element");
     const selector = pseudo === null || pseudo === "" ? null : String(pseudo);
