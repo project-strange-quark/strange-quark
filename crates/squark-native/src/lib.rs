@@ -15,8 +15,7 @@
 //!
 //! #[export]
 //! async fn watch(app: App, path: String) -> Result<(), String> {
-//!     app.emit("watching", &path);
-//!     Ok(())
+//!     app.emit("watching", &path).map_err(|error| error.to_string())
 //! }
 //!
 //! pub fn module() -> Module {
@@ -198,26 +197,39 @@ impl App {
         }))
     }
 
-    /// Send an event to JavaScript listeners. Events before the page starts
-    /// or after it closes are dropped.
-    pub fn emit<P: Serialize + ?Sized>(&self, event: &str, payload: &P) {
+    /// Send an event to JavaScript listeners, with Tauri's `Emitter::emit`
+    /// signature so ported code compiles unchanged. Events before the page
+    /// starts or after it closes are dropped, which is not an error.
+    pub fn emit<P: Serialize>(&self, event: &str, payload: P) -> Result<(), Error> {
+        let json = serde_json::to_string(&payload).map_err(|error| Error(error.to_string()))?;
         let events = self
             .0
             .events
             .read()
             .unwrap_or_else(|poison| poison.into_inner())
             .clone();
-        let Some(events) = events else {
-            return;
-        };
-        match serde_json::to_string(payload) {
-            Ok(json) => events.emit(event, json),
-            Err(error) => eprintln!("squark-native: event {event:?} payload: {error}"),
+        if let Some(events) = events {
+            events.emit(event, json);
         }
+        Ok(())
     }
 
     /// State registered with `Module::manage` or `App::manage`.
-    pub fn state<T: Send + Sync + 'static>(&self) -> Option<State<T>> {
+    ///
+    /// # Panics
+    /// If no module manages a `T`, as Tauri's `Manager::state` does; use
+    /// [`App::try_state`] when the state is optional.
+    pub fn state<T: Send + Sync + 'static>(&self) -> State<T> {
+        self.try_state().unwrap_or_else(|| {
+            panic!(
+                "state {} is not managed; add it with Module::manage",
+                std::any::type_name::<T>()
+            )
+        })
+    }
+
+    /// State registered with `Module::manage` or `App::manage`, if any.
+    pub fn try_state<T: Send + Sync + 'static>(&self) -> Option<State<T>> {
         let states = self
             .0
             .states
@@ -271,6 +283,18 @@ impl App {
         }
     }
 }
+
+/// An event payload that could not be serialized.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Error(String);
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for Error {}
 
 /// The app window, for module code.
 #[derive(Clone)]

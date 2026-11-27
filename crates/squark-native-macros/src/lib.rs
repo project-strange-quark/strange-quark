@@ -179,7 +179,7 @@ fn expand(attr: TokenStream2, function: ItemFn) -> syn::Result<TokenStream2> {
             Param::State(inner) => {
                 let local = format_ident!("__state{}", index);
                 bindings.push(quote! {
-                    let #local = app.state::<#inner>().ok_or_else(|| {
+                    let #local = app.try_state::<#inner>().ok_or_else(|| {
                         ::squark_native::__private::missing_state(#command, ::core::any::type_name::<#inner>())
                     })?;
                 });

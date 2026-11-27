@@ -38,7 +38,8 @@ fn bump(counter: State<Counter>) -> usize {
 #[export]
 async fn list(app: App, session_id: String) -> Result<Vec<Entry>, String> {
     tokio::time::sleep(Duration::from_millis(5)).await;
-    app.emit("listed", &serde_json::json!({ "session_id": session_id }));
+    app.emit("listed", serde_json::json!({ "session_id": session_id }))
+        .map_err(|error| error.to_string())?;
     Ok(vec![Entry {
         name: "src".into(),
         is_dir: true,
@@ -121,7 +122,7 @@ fn modules() -> Vec<Module> {
             .manage(Counter::default())
             .commands(handlers![greet, bump, list, fail, boom, pick, quit, nested::echo])
             .on_close_requested(|app| {
-                app.emit("close-requested", &());
+                let _ = app.emit("close-requested", ());
                 CloseRequest::Prevent
             }),
         Module::new("disabled").commands(handlers![greet]),
@@ -186,10 +187,10 @@ fn commands_run_with_camel_case_args_state_events_and_errors() {
 #[test]
 fn events_before_a_document_attaches_are_dropped_and_state_can_be_added_later() {
     let dispatcher = dispatcher([Module::new("demo")]);
-    dispatcher.app().emit("early", &1);
+    dispatcher.app().emit("early", 1).unwrap();
     assert!(dispatcher.app().manage(5_u8));
     assert!(!dispatcher.app().manage(6_u8));
-    assert_eq!(*dispatcher.app().state::<u8>().unwrap(), 5);
-    assert!(dispatcher.app().state::<u16>().is_none());
+    assert_eq!(*dispatcher.app().state::<u8>(), 5);
+    assert!(dispatcher.app().try_state::<u16>().is_none());
     assert_eq!(dispatcher.close_requested(), CloseRequest::Allow);
 }
