@@ -8,7 +8,8 @@ import type { JournalAtom } from "./journal.js";
 import {
   aliasEventTarget, CompositionEvent, createLegacyEvent, CustomEvent, defaultPassive, dispatchTrustedEvent, DOMException,
   ErrorEvent, Event, eventActivation, EventTarget, eventParent, FocusEvent, InputEvent, installWindowEventTarget,
-  KeyboardEvent, listenerFlagsChanged, MouseEvent, observeListenerFlags, PointerEvent, ProgressEvent, SubmitEvent, WheelEvent, Window,
+  KeyboardEvent, listenerFlagsChanged, MouseEvent, observeListenerFlags, PointerEvent, ProgressEvent, SubmitEvent, UIEvent, WheelEvent,
+  Window,
 } from "./events.js";
 import { dataset, DOMTokenList, HTMLCollection, NodeList } from "./collections.js";
 import { FileList, fileList } from "./file-list.js";
@@ -3521,7 +3522,7 @@ export function installDOM(global: Record<PropertyKey, unknown>, supplied?: Docu
   installCustomElements(global, document);
   Object.assign(global, {
     window: global, self: global, opener: null, Window, document, Node, Element, CharacterData, Text, Comment, DocumentFragment,
-    Document, XMLDocument, DOMParser, DocumentType, EventTarget, Event, CompositionEvent, CustomEvent, FocusEvent, MouseEvent, KeyboardEvent,
+    Document, XMLDocument, DOMParser, DocumentType, EventTarget, Event, UIEvent, CompositionEvent, CustomEvent, FocusEvent, MouseEvent, KeyboardEvent,
     PointerEvent, WheelEvent, InputEvent, SubmitEvent, ErrorEvent, ProgressEvent,
     CSSStyleSheet, CSSRule, CSSRuleList, StyleSheetList, HTMLStyleElement, HTMLLinkElement,
     SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement, NodeFilter, TreeWalker, Selection,

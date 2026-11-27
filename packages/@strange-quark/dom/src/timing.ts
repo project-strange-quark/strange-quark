@@ -80,7 +80,8 @@ export class MessageEvent extends Event {
 
   constructor(type: string, init: {
     data?: unknown; origin?: string; lastEventId?: string; source?: unknown; ports?: Iterable<unknown>;
-  } = {}) {
+  } | null = {}) {
+    init ??= {};
     super(type);
     this.data = "data" in init ? init.data : null;
     this.origin = String(init.origin ?? "");

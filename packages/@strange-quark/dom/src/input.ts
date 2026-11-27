@@ -38,6 +38,8 @@ type Pointer = {
   suppressMouse: boolean;
   capture: Element | null;
   pendingCapture: Element | null;
+  /** The last position this pointer reported, for movementX and movementY. */
+  last: { x: number; y: number } | null;
 };
 
 const controllers = new WeakMap<Document, InputController>();
@@ -161,7 +163,7 @@ class InputController {
     if (pointer === undefined) {
       if (stale || type === "pointercancel" || type === "pointerup") return false;
       pointer = { hover: [], active: [], down: null, clickPress: null, selection: null, buttons: 0,
-        suppressMouse: false, capture: null, pendingCapture: null };
+        suppressMouse: false, capture: null, pendingCapture: null, last: null };
       this.pointers.set(id, pointer);
     }
     if (stale && type !== "pointerup" && type !== "pointercancel") return false;
@@ -183,6 +185,9 @@ class InputController {
     if (type !== "pointercancel") this.hover(pointer, captured ?? hit, fields, time, related);
     const target = captured?.isConnected ? captured : hit?.isConnected ? hit : null;
     const init = mouseInit(fields, this.document);
+    const origin = pointer.last ?? { x: fields.x, y: fields.y };
+    const movement = type === "pointermove" ? { movementX: fields.x - origin.x, movementY: fields.y - origin.y } : {};
+    if (type !== "pointercancel") pointer.last = { x: fields.x, y: fields.y };
     if (pressed && fields.isPrimary && fields.pointerType === "mouse") {
       pointer.clickPress = this.beginClick(target, fields, time);
     }
@@ -197,11 +202,19 @@ class InputController {
 
     let canceled = false;
     if (target !== null) {
-      const event = new PointerEvent(type, { ...init, ...pointerEvents, cancelable: type !== "pointercancel", button: fields.button });
+      const event = new PointerEvent(type, {
+        ...init, ...pointerEvents, ...movement, cancelable: type !== "pointercancel", button: fields.button,
+      });
       if (type === "pointermove") {
-        setPointerSamples(event, fields.samples.map(sample => new PointerEvent(type, {
-          ...init, clientX: sample.x, clientY: sample.y, pressure: sample.pressure, button: fields.button,
-        })), fields.samples.map(sample => sample.time), target);
+        let previous = origin;
+        setPointerSamples(event, fields.samples.map(sample => {
+          const coalesced = new PointerEvent(type, {
+            ...init, clientX: sample.x, clientY: sample.y, screenX: sample.x, screenY: sample.y, pressure: sample.pressure,
+            movementX: sample.x - previous.x, movementY: sample.y - previous.y, button: fields.button,
+          });
+          previous = sample;
+          return coalesced;
+        }), fields.samples.map(sample => sample.time), target);
       }
       canceled = !dispatchTrustedEvent(target, event, time);
     }
@@ -209,7 +222,7 @@ class InputController {
     const mouse = fields.isPrimary && !pointer.suppressMouse;
     const disabled = target !== null && elementChain(target).some(disabledControl);
     if (target !== null && mouse && type === "pointermove" && !touch) {
-      canceled = !dispatchTrustedEvent(target, new MouseEvent("mousemove", { ...init, ...pointerEvents, button: 0 }), time) || canceled;
+      canceled = !dispatchTrustedEvent(target, new MouseEvent("mousemove", { ...init, ...pointerEvents, ...movement, button: 0 }), time) || canceled;
     }
     if (target !== null && !disabled && mouse && (pressed && !touch || type === "pointerup" && touch && pointer.down !== null)) {
       const allowed = dispatchTrustedEvent(target, new MouseEvent("mousedown", { ...init, ...pointerEvents, detail,
@@ -269,7 +282,7 @@ class InputController {
         if (target === null) return false;
         const { x, y, ...init } = message.fields;
         return !dispatchTrustedEvent(target, new WheelEvent("wheel", {
-          ...init, clientX: x, clientY: y, bubbles: true, composed: true, cancelable: message.cancelable,
+          ...init, clientX: x, clientY: y, screenX: x, screenY: y, bubbles: true, composed: true, cancelable: message.cancelable,
           view: this.document.defaultView,
         }), time);
       }
@@ -311,10 +324,12 @@ class InputController {
   }
 }
 
+// The host reports no window position, so screen coordinates equal client
+// coordinates, as Chromium reports them on Wayland.
 function mouseInit(fields: PointerFields, document: Document) {
   return {
     pointerId: fields.pointerId, pointerType: fields.pointerType, isPrimary: fields.isPrimary,
-    clientX: fields.x, clientY: fields.y, pressure: fields.pressure, buttons: fields.buttons,
+    clientX: fields.x, clientY: fields.y, screenX: fields.x, screenY: fields.y, pressure: fields.pressure, buttons: fields.buttons,
     altKey: fields.altKey, ctrlKey: fields.ctrlKey, metaKey: fields.metaKey, shiftKey: fields.shiftKey,
     view: document.defaultView,
   } satisfies MouseInit & { pointerId: number; pointerType: string; isPrimary: boolean; pressure: number };

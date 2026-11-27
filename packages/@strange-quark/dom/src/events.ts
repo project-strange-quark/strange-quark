@@ -387,64 +387,180 @@ export function installWindowEventTarget(global: object): EventTarget {
   return target;
 }
 
-type FocusInit = EventInit & { relatedTarget?: EventTarget | null };
-export type MouseInit = FocusInit & {
-  detail?: number; button?: number; buttons?: number; clientX?: number; clientY?: number;
-  screenX?: number; screenY?: number; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean; metaKey?: boolean;
-  view?: EventTarget | null;
+type UIInit = EventInit & { view?: EventTarget | null; detail?: number };
+type FocusInit = UIInit & { relatedTarget?: EventTarget | null };
+export type MouseInit = FocusInit & ModifierInit & {
+  button?: number; buttons?: number; clientX?: number; clientY?: number; screenX?: number; screenY?: number;
+  movementX?: number; movementY?: number; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean; metaKey?: boolean;
 };
 
-export class FocusEvent extends Event {
+function windowView(view: unknown): EventTarget | null {
+  if (view == null) return null;
+  if (!(view instanceof Window)) throw new TypeError("The event view is not a Window");
+  return view;
+}
+
+export class UIEvent extends Event {
+  #view: EventTarget | null;
+  #detail: number;
+
+  constructor(type: string, init?: UIInit | null) {
+    if (arguments.length === 0) throw new TypeError("UIEvent requires a type");
+    super(type, init);
+    this.#view = windowView(init?.view);
+    this.#detail = Number(init?.detail ?? 0) | 0;
+  }
+
+  get view(): EventTarget | null { return this.#view; }
+  get detail(): number { return this.#detail; }
+  get which(): number { return 0; }
+
+  initUIEvent(type: string, bubbles = false, cancelable = false, view: EventTarget | null = null, detail = 0): void {
+    if (arguments.length === 0) throw new TypeError("initUIEvent requires a type");
+    if (events.get(this)!.dispatching) return;
+    this.initEvent(type, bubbles, cancelable);
+    this.#view = windowView(view);
+    this.#detail = Number(detail) | 0;
+  }
+}
+
+export class FocusEvent extends UIEvent {
   readonly relatedTarget: EventTarget | null;
   constructor(type: string, init?: FocusInit) {
+    if (arguments.length === 0) throw new TypeError("FocusEvent requires a type");
     super(type, init);
     this.relatedTarget = init?.relatedTarget ?? null;
   }
 }
 
-export class MouseEvent extends Event {
-  detail: number;
-  button: number;
-  buttons: number;
-  clientX: number;
-  clientY: number;
-  screenX: number;
-  screenY: number;
-  ctrlKey: boolean;
-  altKey: boolean;
-  shiftKey: boolean;
-  metaKey: boolean;
+type MouseState = {
+  button: number; buttons: number; clientX: number; clientY: number; screenX: number; screenY: number;
+  movementX: number; movementY: number; ctrlKey: boolean; altKey: boolean; shiftKey: boolean; metaKey: boolean;
   relatedTarget: EventTarget | null;
-  view: EventTarget | null;
+};
+type RelativePosition = { target: EventTarget | null; offsetX: number; offsetY: number; layerX: number; layerY: number };
+type Box = { left: number; top: number };
+type LaidOut = EventTarget & {
+  nodeType: number; parentElement: LaidOut | null; clientLeft?: number; clientTop?: number; getBoundingClientRect?(): Box;
+};
+type View = EventTarget & {
+  scrollX?: number; scrollY?: number;
+  getComputedStyle?(element: LaidOut): { getPropertyValue(name: string): string };
+};
 
-  constructor(type: string, init: MouseInit = {}) {
+function laidOutElement(target: EventTarget | null): target is LaidOut {
+  return (target as Partial<LaidOut> | null)?.nodeType === 1 &&
+    typeof (target as LaidOut).getBoundingClientRect === "function";
+}
+
+// The nearest box that paints into its own layer, as Chromium's layerX/layerY
+// measure from: positioned, transformed, translucent, filtered or clipping.
+function enclosingLayer(element: LaidOut, view: View | null): LaidOut | null {
+  const style = view?.getComputedStyle;
+  if (style === undefined) return null;
+  for (let node: LaidOut | null = element; node !== null; node = node.parentElement) {
+    const computed = style.call(view, node);
+    if (computed.getPropertyValue("position") !== "static" || computed.getPropertyValue("transform") !== "none" ||
+        computed.getPropertyValue("filter") !== "none" || computed.getPropertyValue("overflow-x") !== "visible" ||
+        Number(computed.getPropertyValue("opacity") || 1) < 1) return node;
+  }
+  return null;
+}
+
+export class MouseEvent extends UIEvent {
+  #state: MouseState;
+  #page: readonly [number, number] | undefined;
+  #relative: RelativePosition | undefined;
+
+  constructor(type: string, init: MouseInit | null = {}) {
+    init ??= {};
+    if (arguments.length === 0) throw new TypeError("MouseEvent requires a type");
     super(type, init);
-    this.detail = Number(init.detail) | 0;
-    this.button = Number(init.button) | 0;
-    this.buttons = Number(init.buttons) | 0;
-    this.clientX = Number(init.clientX) || 0;
-    this.clientY = Number(init.clientY) || 0;
-    this.screenX = Number(init.screenX) || 0;
-    this.screenY = Number(init.screenY) || 0;
-    this.ctrlKey = Boolean(init.ctrlKey);
-    this.altKey = Boolean(init.altKey);
-    this.shiftKey = Boolean(init.shiftKey);
-    this.metaKey = Boolean(init.metaKey);
-    this.relatedTarget = init.relatedTarget ?? null;
-    this.view = init.view ?? null;
+    this.#state = {
+      button: Number(init.button) << 16 >> 16, buttons: Number(init.buttons) & 0xffff,
+      clientX: Number(init.clientX) || 0, clientY: Number(init.clientY) || 0,
+      screenX: Number(init.screenX) || 0, screenY: Number(init.screenY) || 0,
+      movementX: Number(init.movementX) || 0, movementY: Number(init.movementY) || 0,
+      ctrlKey: Boolean(init.ctrlKey), altKey: Boolean(init.altKey), shiftKey: Boolean(init.shiftKey), metaKey: Boolean(init.metaKey),
+      relatedTarget: init.relatedTarget ?? null,
+    };
+    noteModifiers(this, init);
   }
 
+  get button(): number { return this.#state.button; }
+  get buttons(): number { return this.#state.buttons; }
+  get clientX(): number { return this.#state.clientX; }
+  get clientY(): number { return this.#state.clientY; }
+  get screenX(): number { return this.#state.screenX; }
+  get screenY(): number { return this.#state.screenY; }
+  get movementX(): number { return this.#state.movementX; }
+  get movementY(): number { return this.#state.movementY; }
+  get ctrlKey(): boolean { return this.#state.ctrlKey; }
+  get altKey(): boolean { return this.#state.altKey; }
+  get shiftKey(): boolean { return this.#state.shiftKey; }
+  get metaKey(): boolean { return this.#state.metaKey; }
+  get relatedTarget(): EventTarget | null { return this.#state.relatedTarget; }
   get x(): number { return this.clientX; }
   get y(): number { return this.clientY; }
-  get which(): number { return this.button + 1; }
+  override get which(): number { return this.button + 1; }
+
+  /** Viewport coordinates plus the view's scroll offset, read once like Chromium's page location. */
+  get pageX(): number { return this.#pageLocation()[0]; }
+  get pageY(): number { return this.#pageLocation()[1]; }
+  /** Coordinates relative to the target's padding edge. */
+  get offsetX(): number { return this.#relativePosition().offsetX; }
+  get offsetY(): number { return this.#relativePosition().offsetY; }
+  get layerX(): number { return this.#relativePosition().layerX; }
+  get layerY(): number { return this.#relativePosition().layerY; }
+
   getModifierState(key: string): boolean { return modifier(this, key); }
+
+  #pageLocation(): readonly [number, number] {
+    if (this.#page === undefined) {
+      const view = this.view as View | null;
+      const scrollX = Number(view?.scrollX ?? 0);
+      const scrollY = Number(view?.scrollY ?? 0);
+      this.#page = [this.clientX + (Number.isFinite(scrollX) ? scrollX : 0), this.clientY + (Number.isFinite(scrollY) ? scrollY : 0)];
+    }
+    return this.#page;
+  }
+
+  #relativePosition(): RelativePosition {
+    const target = this.target;
+    if (this.#relative?.target === target) return this.#relative;
+    const [pageX, pageY] = this.#pageLocation();
+    const position = { target, offsetX: pageX, offsetY: pageY, layerX: Math.trunc(pageX), layerY: Math.trunc(pageY) };
+    if (laidOutElement(target)) {
+      try {
+        const box = target.getBoundingClientRect!();
+        position.offsetX = this.clientX - box.left - (target.clientLeft ?? 0);
+        position.offsetY = this.clientY - box.top - (target.clientTop ?? 0);
+        const layer = enclosingLayer(target, this.view as View | null);
+        if (layer !== null) {
+          const origin = layer === target ? box : layer.getBoundingClientRect!();
+          position.layerX = Math.trunc(this.clientX - origin.left);
+          position.layerY = Math.trunc(this.clientY - origin.top);
+        }
+      } catch {
+        // A target without layout keeps page coordinates, as Chromium does.
+      }
+    }
+    return this.#relative = position;
+  }
 
   initMouseEvent(type: string, bubbles = false, cancelable = false, view: EventTarget | null = null,
     detail = 0, screenX = 0, screenY = 0, clientX = 0, clientY = 0, ctrlKey = false,
     altKey = false, shiftKey = false, metaKey = false, button = 0, relatedTarget: EventTarget | null = null): void {
+    if (arguments.length === 0) throw new TypeError("initMouseEvent requires a type");
     if (events.get(this)!.dispatching) return;
-    this.initEvent(type, bubbles, cancelable);
-    Object.assign(this, { view, detail, screenX, screenY, clientX, clientY, ctrlKey, altKey, shiftKey, metaKey, button, relatedTarget });
+    this.initUIEvent(type, bubbles, cancelable, view, detail);
+    Object.assign(this.#state, {
+      screenX: Number(screenX) || 0, screenY: Number(screenY) || 0, clientX: Number(clientX) || 0, clientY: Number(clientY) || 0,
+      ctrlKey: Boolean(ctrlKey), altKey: Boolean(altKey), shiftKey: Boolean(shiftKey), metaKey: Boolean(metaKey),
+      button: Number(button) | 0, relatedTarget,
+    });
+    this.#page = undefined;
+    this.#relative = undefined;
   }
 }
 
@@ -461,7 +577,9 @@ export class PointerEvent extends MouseEvent {
   readonly pointerType: string;
   readonly isPrimary: boolean;
 
-  constructor(type: string, init: PointerInit = {}) {
+  constructor(type: string, init: PointerInit | null = {}) {
+    init ??= {};
+    if (arguments.length === 0) throw new TypeError("PointerEvent requires a type");
     super(type, init);
     this.pointerId = Number(init.pointerId) | 0;
     this.width = Number(init.width ?? 1);
@@ -494,7 +612,9 @@ export class WheelEvent extends MouseEvent {
   readonly deltaZ: number;
   readonly deltaMode: number;
 
-  constructor(type: string, init: MouseInit & { deltaX?: number; deltaY?: number; deltaZ?: number; deltaMode?: number } = {}) {
+  constructor(type: string, init: MouseInit & { deltaX?: number; deltaY?: number; deltaZ?: number; deltaMode?: number } | null = {}) {
+    init ??= {};
+    if (arguments.length === 0) throw new TypeError("WheelEvent requires a type");
     super(type, init);
     this.deltaX = Number(init.deltaX ?? 0);
     this.deltaY = Number(init.deltaY ?? 0);
@@ -503,22 +623,47 @@ export class WheelEvent extends MouseEvent {
   }
 }
 
+function interfaceConstants(constructor: object, prefix: string): void {
+  for (const key of Object.keys(constructor).filter(name => name.startsWith(prefix))) {
+    Object.defineProperty((constructor as { prototype: object }).prototype, key, {
+      value: (constructor as Record<string, number>)[key], enumerable: true,
+    });
+  }
+}
+interfaceConstants(WheelEvent, "DOM_DELTA_");
+
+// EventModifierInit members beyond the four key flags, as Chromium accepts them.
+const modifierNames = ["AltGraph", "CapsLock", "Fn", "FnLock", "Hyper", "NumLock", "ScrollLock", "Super", "Symbol", "SymbolLock"];
+const lockedModifiers = new WeakMap<UIEvent, ReadonlySet<string>>();
+
+export type ModifierInit = { [key: `modifier${string}`]: boolean | undefined };
+
+function noteModifiers(event: UIEvent, init: ModifierInit): void {
+  const active = modifierNames.filter(name => Boolean(init[`modifier${name}`]));
+  if (active.length !== 0) lockedModifiers.set(event, new Set(active));
+}
+
 function modifier(event: MouseEvent | KeyboardEvent, key: string): boolean {
   switch (key) {
     case "Alt": return event.altKey;
     case "Control": return event.ctrlKey;
     case "Meta": return event.metaKey;
     case "Shift": return event.shiftKey;
-    default: return false;
+    default: return lockedModifiers.get(event)?.has(key) ?? false;
   }
 }
 
-export type KeyboardInit = EventInit & {
+export type KeyboardInit = UIInit & ModifierInit & {
   key?: string; code?: string; location?: number; repeat?: boolean; isComposing?: boolean;
   ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean; metaKey?: boolean; keyCode?: number; charCode?: number;
 };
 
-export class KeyboardEvent extends Event {
+export class KeyboardEvent extends UIEvent {
+  static readonly DOM_KEY_LOCATION_STANDARD = 0;
+  static readonly DOM_KEY_LOCATION_LEFT = 1;
+  static readonly DOM_KEY_LOCATION_RIGHT = 2;
+  static readonly DOM_KEY_LOCATION_NUMPAD = 3;
+
   readonly key: string;
   readonly code: string;
   readonly location: number;
@@ -530,7 +675,9 @@ export class KeyboardEvent extends Event {
   readonly metaKey: boolean;
   readonly keyCode: number;
   readonly charCode: number;
-  constructor(type: string, init: KeyboardInit = {}) {
+  constructor(type: string, init: KeyboardInit | null = {}) {
+    init ??= {};
+    if (arguments.length === 0) throw new TypeError("KeyboardEvent requires a type");
     super(type, init);
     this.key = String(init.key ?? "");
     this.code = String(init.code ?? "");
@@ -543,18 +690,23 @@ export class KeyboardEvent extends Event {
     this.metaKey = Boolean(init.metaKey);
     this.keyCode = Number(init.keyCode) >>> 0;
     this.charCode = Number(init.charCode) >>> 0;
+    noteModifiers(this, init);
   }
 
-  get which(): number { return this.type === "keypress" ? this.charCode : this.keyCode; }
+  override get which(): number { return this.type === "keypress" ? this.charCode : this.keyCode; }
   getModifierState(key: string): boolean { return modifier(this, key); }
 }
 
-export class InputEvent extends Event {
+interfaceConstants(KeyboardEvent, "DOM_KEY_LOCATION_");
+
+export class InputEvent extends UIEvent {
   readonly data: string | null;
   readonly inputType: string;
   readonly isComposing: boolean;
 
-  constructor(type: string, init: EventInit & { data?: string | null; inputType?: string; isComposing?: boolean } = {}) {
+  constructor(type: string, init: UIInit & { data?: string | null; inputType?: string; isComposing?: boolean } | null = {}) {
+    init ??= {};
+    if (arguments.length === 0) throw new TypeError("InputEvent requires a type");
     super(type, init);
     this.data = init.data == null ? null : String(init.data);
     this.inputType = String(init.inputType ?? "");
@@ -565,7 +717,8 @@ export class InputEvent extends Event {
 export class SubmitEvent extends Event {
   readonly submitter: EventTarget | null;
 
-  constructor(type: string, init: EventInit & { submitter?: EventTarget | null } = {}) {
+  constructor(type: string, init: EventInit & { submitter?: EventTarget | null } | null = {}) {
+    init ??= {};
     super(type, init);
     this.submitter = init.submitter ?? null;
   }
@@ -579,7 +732,8 @@ export class ErrorEvent extends Event {
   readonly colno: number;
   constructor(type: string, init: EventInit & {
     error?: unknown; message?: string; filename?: string; lineno?: number; colno?: number;
-  } = {}) {
+  } | null = {}) {
+    init ??= {};
     super(type, init);
     this.error = init.error ?? null;
     this.message = String(init.message ?? "");
@@ -593,7 +747,8 @@ export class ProgressEvent extends Event {
   readonly lengthComputable: boolean;
   readonly loaded: number;
   readonly total: number;
-  constructor(type: string, init: EventInit & { lengthComputable?: boolean; loaded?: number; total?: number } = {}) {
+  constructor(type: string, init: EventInit & { lengthComputable?: boolean; loaded?: number; total?: number } | null = {}) {
+    init ??= {};
     super(type, init);
     this.lengthComputable = Boolean(init.lengthComputable);
     this.loaded = Number(init.loaded ?? 0);
@@ -601,21 +756,22 @@ export class ProgressEvent extends Event {
   }
 }
 
-export class CompositionEvent extends Event {
+export class CompositionEvent extends UIEvent {
   readonly data: string;
-  readonly view: EventTarget | null;
-  constructor(type: string, init: EventInit & { data?: string; view?: EventTarget | null } = {}) {
+  constructor(type: string, init: UIInit & { data?: string } | null = {}) {
+    init ??= {};
+    if (arguments.length === 0) throw new TypeError("CompositionEvent requires a type");
     super(type, init);
     this.data = String(init.data ?? "");
-    this.view = init.view ?? null;
   }
 }
 
 export function createLegacyEvent(interfaceName: string): Event {
   const name = String(interfaceName).toLowerCase();
   const constructors: Record<string, typeof Event> = {
-    event: Event, events: Event, htmlevents: Event, mouseevent: MouseEvent, mouseevents: MouseEvent,
-    customevent: CustomEvent, focusevent: FocusEvent, keyboardevent: KeyboardEvent, compositionevent: CompositionEvent,
+    event: Event, events: Event, htmlevents: Event, svgevents: Event, uievent: UIEvent, uievents: UIEvent,
+    mouseevent: MouseEvent, mouseevents: MouseEvent, customevent: CustomEvent, focusevent: FocusEvent,
+    keyboardevent: KeyboardEvent, compositionevent: CompositionEvent,
   };
   if (!Object.hasOwn(constructors, name)) throw new DOMException("Unknown event interface", "NotSupportedError");
   const event = new constructors[name]("");
