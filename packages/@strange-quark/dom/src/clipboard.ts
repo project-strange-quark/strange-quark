@@ -36,7 +36,14 @@ export class DataTransferItem {
   }
 }
 
-type Store = { entries: TransferEntry[]; readonly: boolean; schedule: (callback: () => void) => void };
+// `protected` is the drag data store's protected mode: types are visible but
+// data is not (dragenter, dragover, dragleave, drag, dragend).
+type Store = {
+  entries: TransferEntry[];
+  readonly: boolean;
+  protected?: boolean;
+  schedule: (callback: () => void) => void;
+};
 const listStores = new WeakMap<DataTransferItemList, Store>();
 const scheduleTransfers = new WeakMap<DataTransferItem, Store["schedule"]>();
 const updateItems = Symbol("update items");
@@ -98,6 +105,34 @@ export class DataTransferItemList {
 }
 
 const transferStores = new WeakMap<DataTransfer, Store>();
+const emptyFiles = fileList();
+
+const DROP_EFFECTS = ["none", "copy", "link", "move"] as const;
+const EFFECTS_ALLOWED = ["none", "copy", "copyLink", "copyMove", "link", "linkMove", "move", "all", "uninitialized"] as const;
+export type DropEffect = typeof DROP_EFFECTS[number];
+export type EffectAllowed = typeof EFFECTS_ALLOWED[number];
+export type DragImage = { element: Element; x: number; y: number };
+type DragState = { dropEffect: DropEffect; effectAllowed: EffectAllowed; image: DragImage | null; dragging: boolean };
+const dragStates = new WeakMap<DataTransfer, DragState>();
+type Element = object;
+
+/** Internal: the drag-and-drop controller's handle on a DataTransfer. */
+export const dragTransfer = {
+  create(schedule: (callback: () => void) => void): DataTransfer {
+    const transfer = new DataTransfer();
+    transferStores.get(transfer)!.schedule = schedule;
+    dragStates.get(transfer)!.dragging = true;
+    return transfer;
+  },
+  mode(transfer: DataTransfer, mode: "readwrite" | "protected" | "readonly"): void {
+    const store = transferStores.get(transfer)!;
+    store.readonly = mode !== "readwrite";
+    store.protected = mode === "protected";
+  },
+  state(transfer: DataTransfer): DragState {
+    return dragStates.get(transfer)!;
+  },
+};
 
 export class DataTransfer {
   #items: DataTransferItemList;
@@ -105,18 +140,43 @@ export class DataTransfer {
   constructor() {
     const store: Store = { entries: [], readonly: false, schedule: callback => void Promise.resolve().then(callback) };
     transferStores.set(this, store);
+    dragStates.set(this, { dropEffect: "none", effectAllowed: "none", image: null, dragging: false });
     this.#items = new DataTransferItemList(transferToken, store);
     this.#files = this.#items[updateItems]();
   }
+  get dropEffect(): DropEffect { return dragStates.get(this)!.dropEffect; }
+  set dropEffect(value: string) {
+    if ((DROP_EFFECTS as readonly string[]).includes(value)) dragStates.get(this)!.dropEffect = value as DropEffect;
+  }
+  get effectAllowed(): EffectAllowed { return dragStates.get(this)!.effectAllowed; }
+  set effectAllowed(value: string) {
+    const state = dragStates.get(this)!;
+    // Only dragstart (the read/write mode of a drag) may change it.
+    if (!state.dragging || transferStores.get(this)!.readonly) return;
+    if ((EFFECTS_ALLOWED as readonly string[]).includes(value)) state.effectAllowed = value as EffectAllowed;
+  }
+  setDragImage(image: Element, x: number, y: number): void {
+    const state = dragStates.get(this)!;
+    if (!state.dragging || transferStores.get(this)!.readonly) return;
+    if (typeof image !== "object" || image === null || !("nodeType" in image) || (image as { nodeType: number }).nodeType !== 1) {
+      throw new TypeError("setDragImage expects an Element");
+    }
+    state.image = { element: image, x: Number(x) || 0, y: Number(y) || 0 };
+  }
   get items(): DataTransferItemList { return this.#items; }
-  get files(): ReturnType<typeof fileList> { return this.#files; }
+  get files(): ReturnType<typeof fileList> {
+    // In protected mode (dragenter, dragover) the files are hidden; "Files"
+    // stays in `types`.
+    return transferStores.get(this)!.protected ? emptyFiles : this.#files;
+  }
   get types(): readonly string[] {
     const entries = transferStores.get(this)!.entries;
     const types = entries.flatMap(({ type, value }) => typeof value === "string" ? [type] : []);
-    if (this.files.length !== 0) types.push("Files");
+    if (this.#files.length !== 0) types.push("Files");
     return Object.freeze(types);
   }
   getData(type: string): string {
+    if (transferStores.get(this)!.protected) return "";
     const original = String(type).toLowerCase();
     const entry = transferStores.get(this)!.entries.find(entry => typeof entry.value === "string" && entry.type === format(original));
     const value = (entry?.value as string | undefined) ?? "";
