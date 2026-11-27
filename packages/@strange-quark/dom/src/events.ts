@@ -374,9 +374,9 @@ export class Window extends EventTarget {
 }
 
 /** Applies EventTarget behavior to the realm's existing global object. */
-export function installWindowEventTarget(global: object): EventTarget {
+export function installWindowEventTarget(global: object, prototype: object = Window.prototype): EventTarget {
   const target = global as EventTarget;
-  Object.setPrototypeOf(target, Window.prototype);
+  Object.setPrototypeOf(target, prototype);
   listeners.set(target, emptyListeners);
   listenerFlags.delete(target);
   for (const key of ["addEventListener", "removeEventListener", "dispatchEvent"] as const) {

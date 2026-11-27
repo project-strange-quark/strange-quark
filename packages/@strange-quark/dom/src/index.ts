@@ -41,3 +41,4 @@ export { dispatchFullscreenChange } from "./fullscreen.js";
 export { installFormData } from "./form-data.js";
 export { installWasm } from "./wasm.js";
 export { installCSSNamespace } from "./css-namespace.js";
+export { installWorkers } from "./worker.js";
