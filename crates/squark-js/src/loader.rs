@@ -5,6 +5,7 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     path::PathBuf,
+    sync::Arc,
 };
 
 use percent_encoding::percent_decode_str;
@@ -16,16 +17,19 @@ use crate::module_cache;
 
 pub(crate) const RUNTIME_ENTRY: &str = "squark-runtime:///index.js";
 pub(crate) const RUNTIME_JOURNAL: &str = "squark-runtime:///journal.js";
+pub(crate) const RUNTIME_WORKER: &str = "squark-runtime:///worker-global.js";
 
-type PackLookup = dyn Fn(&str) -> Option<(String, Vec<u8>)>;
-type RuntimeLookup = dyn Fn(&str) -> Option<String>;
+type PackLookup = dyn Fn(&str) -> Option<(String, Vec<u8>)> + Send + Sync;
+type RuntimeLookup = dyn Fn(&str) -> Option<String> + Send + Sync;
 
 /// The composition root adapts Pack::entry and the embedded, compiled DOM
-/// modules to these lookups. Keys are absolute canonical paths.
+/// modules to these lookups. Keys are absolute canonical paths. Workers read
+/// the same lookups from their own threads.
 pub struct ScriptSources {
-    pack: Box<PackLookup>,
-    runtime: Box<RuntimeLookup>,
+    pack: Arc<PackLookup>,
+    runtime: Arc<RuntimeLookup>,
     pub(crate) dev: bool,
+    module_cache: bool,
     pub(crate) blobs: crate::BlobRegistry,
     pub(crate) canvas: Option<Box<dyn crate::CanvasBackend>>,
     pub(crate) host_requests: Option<std::sync::mpsc::Sender<squark_types::host::HostRequest>>,
@@ -36,13 +40,14 @@ pub struct ScriptSources {
 
 impl ScriptSources {
     pub fn new(
-        pack: impl Fn(&str) -> Option<(String, Vec<u8>)> + 'static,
-        runtime: impl Fn(&str) -> Option<String> + 'static,
+        pack: impl Fn(&str) -> Option<(String, Vec<u8>)> + Send + Sync + 'static,
+        runtime: impl Fn(&str) -> Option<String> + Send + Sync + 'static,
     ) -> Self {
         Self {
-            pack: Box::new(pack),
-            runtime: Box::new(runtime),
+            pack: Arc::new(pack),
+            runtime: Arc::new(runtime),
             dev: false,
+            module_cache: true,
             blobs: Default::default(),
             canvas: None,
             host_requests: None,
@@ -103,6 +108,44 @@ impl ScriptSources {
     pub(crate) fn entry(&self, path: &str) -> Option<(String, Vec<u8>)> {
         (self.pack)(path)
     }
+
+    /// The sources a worker thread loads its scripts from: the pack, the
+    /// runtime modules, the dev server and the document's object URLs.
+    pub(crate) fn share(&self) -> SharedSources {
+        SharedSources {
+            pack: Arc::clone(&self.pack),
+            runtime: Arc::clone(&self.runtime),
+            dev: self.dev,
+            blobs: self.blobs.clone(),
+        }
+    }
+}
+
+/// The thread-safe part of a document's ScriptSources.
+#[derive(Clone)]
+pub(crate) struct SharedSources {
+    pack: Arc<PackLookup>,
+    runtime: Arc<RuntimeLookup>,
+    dev: bool,
+    blobs: crate::BlobRegistry,
+}
+
+impl From<SharedSources> for ScriptSources {
+    /// A worker compiles its modules without the document's code cache.
+    fn from(shared: SharedSources) -> Self {
+        Self {
+            pack: shared.pack,
+            runtime: shared.runtime,
+            dev: shared.dev,
+            module_cache: false,
+            blobs: shared.blobs,
+            canvas: None,
+            host_requests: None,
+            storage_root: None,
+            shutdown: Default::default(),
+            native: None,
+        }
+    }
 }
 
 impl std::fmt::Debug for ScriptSources {
@@ -142,7 +185,7 @@ pub(crate) struct Loader {
 }
 
 pub(crate) fn install(scope: &mut PinScope<'_, '_>, document: Url, sources: ScriptSources) {
-    let cache_root = if sources.dev {
+    let cache_root = if sources.dev || !sources.module_cache {
         None
     } else {
         module_cache::root(sources.storage_root.as_deref())
@@ -234,7 +277,7 @@ pub(crate) fn stylesheet_url(scope: &PinScope<'_, '_>, path: &str) -> Option<Str
         .then(|| url.into())
 }
 
-fn is_javascript(mime: &str) -> bool {
+pub(crate) fn is_javascript(mime: &str) -> bool {
     let essence = mime.split(';').next().unwrap_or_default().trim();
     matches!(
         essence.to_ascii_lowercase().as_str(),
@@ -243,6 +286,26 @@ fn is_javascript(mime: &str) -> bool {
 }
 
 fn source_text(loader: &Loader, url: &Url) -> Result<Option<String>, String> {
+    // Worker entries can be object URLs or data: URLs. A module's imports
+    // still resolve only to its own origin's HTTP(S) URLs.
+    match url.scheme() {
+        "blob" => {
+            return loader
+                .sources
+                .blobs
+                .resolve(url.as_str())
+                .map(|blob| Some(String::from_utf8_lossy(&blob.bytes).into_owned()))
+                .ok_or_else(|| format!("missing blob script {url}"));
+        }
+        "data" => {
+            return data_url::DataUrl::process(url.as_str())
+                .ok()
+                .and_then(|data| data.decode_to_vec().ok())
+                .map(|(bytes, _)| Some(String::from_utf8_lossy(&bytes).into_owned()))
+                .ok_or_else(|| format!("invalid data script {url}"));
+        }
+        _ => {}
+    }
     let path = pack_path(url)?;
     if url.scheme() == "squark-runtime" {
         return (loader.sources.runtime)(&path)
@@ -734,7 +797,19 @@ pub(crate) fn can_fetch_dev_script(scope: &PinScope<'_, '_>, payload: &[u16]) ->
         && resolve_url(&loader.document, &String::from_utf16_lossy(payload)).is_ok()
 }
 
-fn evaluate_entry<'s>(scope: &mut PinScope<'s, '_>, url: Url) -> Option<Local<'s, v8::Promise>> {
+/// Whether the module at `url` started evaluating, which tells a module
+/// worker's evaluation errors from its fetch, parse and link failures.
+pub(crate) fn module_evaluated(scope: &PinScope<'_, '_>, url: &Url) -> bool {
+    registry(scope)
+        .modules
+        .get(url.as_str())
+        .is_some_and(|entry| entry.evaluation.is_some())
+}
+
+pub(crate) fn evaluate_entry<'s>(
+    scope: &mut PinScope<'s, '_>,
+    url: Url,
+) -> Option<Local<'s, v8::Promise>> {
     if registry(scope).dev.is_some() {
         let resolver = v8::PromiseResolver::new(scope)?;
         let promise = resolver.get_promise(scope);

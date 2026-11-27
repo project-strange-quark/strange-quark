@@ -26,9 +26,20 @@ mod scroll;
 mod shutdown;
 mod storage;
 mod wasm;
+mod worker;
 mod xml;
 
 pub mod task_loop;
+
+/// Initializes V8 once for every unit test in this crate.
+#[cfg(test)]
+pub(crate) fn initialize_test_v8() {
+    static V8: std::sync::Once = std::sync::Once::new();
+    V8.call_once(|| {
+        v8::V8::initialize_platform(v8::new_default_platform(0, false).make_shared());
+        v8::V8::initialize();
+    });
+}
 
 pub use canvas::CanvasBackend;
 pub use data::{BlobAsset, BlobRegistry};

@@ -296,3 +296,9 @@ test("Node.prototype's nodeName getter answers for every kind of node", () => {
   assert.deepEqual(nodes.map(node => nodeName.call(node)), names);
   assert.deepEqual(nodes.map(node => node.nodeName), names);
 });
+
+test("DOMException reports the legacy codes of named errors", () => {
+  for (const [name, code] of [["SyntaxError", 12], ["SecurityError", 18], ["NetworkError", 19], ["AbortError", 20], ["DataCloneError", 25], ["OperationError", 0]]) {
+    assert.equal(new DOMException("", name).code, code, name);
+  }
+});

@@ -12,6 +12,8 @@ import { dispatchTrustedEvent, DOMException, EventTarget } from "./events.js";
 import { FileList } from "./file-list.js";
 import { installFullscreen } from "./fullscreen.js";
 import { registerWindowRequests } from "./native.js";
+import { navigatorIdentity } from "./navigator-identity.js";
+import type { HostArch, HostOS } from "./navigator-identity.js";
 import type { DOMFile } from "./file-list.js";
 import { blobBytes } from "./fetch.js";
 import type { BodyInit, NetworkBlob } from "./fetch.js";
@@ -19,8 +21,6 @@ import type { BodyInit, NetworkBlob } from "./fetch.js";
 type Bytes = Uint8Array<ArrayBuffer>;
 type ClipboardData = [mime: string, bytes: Bytes][];
 type FileData = [name: string, mime: string, modified: number, bytes: Bytes][];
-type HostOS = "linux" | "macos" | "windows";
-type HostArch = "x86_64" | "aarch64";
 type Host = {
   os?: HostOS;
   arch?: HostArch;
@@ -36,26 +36,6 @@ type Host = {
   postTask(callback: () => void): void;
 };
 const navigatorToken = Symbol("Navigator constructor");
-
-function navigatorIdentity(os: HostOS | undefined, arch: HostArch | undefined): { userAgent: string; platform: string } {
-  if (os === "macos") {
-    return {
-      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) StrangeQuark",
-      platform: "MacIntel",
-    };
-  }
-  if (os === "windows") {
-    return {
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) StrangeQuark",
-      platform: "Win32",
-    };
-  }
-  const architecture = arch === "aarch64" ? "aarch64" : "x86_64";
-  return {
-    userAgent: `Mozilla/5.0 (X11; Linux ${architecture}) StrangeQuark`,
-    platform: `Linux ${architecture}`,
-  };
-}
 
 export class Navigator {
   readonly userAgent: string;

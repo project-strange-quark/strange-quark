@@ -448,3 +448,46 @@ fn concurrent_bodies_finish_through_an_idle_document_queue() {
         .unwrap();
     assert_eq!(driver.join().unwrap(), "200");
 }
+
+#[test]
+fn workers_load_modules_and_imported_scripts_from_the_dev_server() {
+    let vite = Vite::start();
+    let origin = vite.origin();
+    let mut runner = runner(
+        sources(|_| None).with_dev_server(),
+        &format!("{origin}/index.html"),
+        &[],
+    );
+    runner
+        .eval(
+            r#"
+        globalThis.log = [];
+        const record = worker => {
+          worker.onmessage = event => log.push(event.data);
+          worker.onerror = event => log.push(["error", event.message ?? event.type]);
+        };
+        record(new Worker("/dev-worker.js?worker_file&type=module", { type: "module" }));
+        record(new Worker("/dev-classic-worker.js"));
+        globalThis.done = () => log.length === 2 ? JSON.stringify([...log].sort()) : null;
+    "#,
+        )
+        .unwrap();
+    assert_eq!(
+        await_result(&mut runner, "done()"),
+        serde_json::to_string(
+            &serde_json::to_string(&serde_json::json!([
+                [
+                    "classic over HTTP",
+                    format!("{origin}/dev-classic-worker.js")
+                ],
+                [
+                    "from the dev server",
+                    "from the dev server",
+                    format!("{origin}/dev-worker.js?worker_file&type=module")
+                ],
+            ]))
+            .unwrap()
+        )
+        .unwrap()
+    );
+}

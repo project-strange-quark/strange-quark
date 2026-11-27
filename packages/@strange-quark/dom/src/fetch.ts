@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 import { AbortController, AbortSignal } from "./abort.js";
-import type { ParsedURL } from "./navigation.js";
+import type { ParsedURL } from "./url.js";
 
 export type HeaderPairs = [string, string][];
 type HeadersInit = Headers | Iterable<Iterable<string>> | Record<string, string>;

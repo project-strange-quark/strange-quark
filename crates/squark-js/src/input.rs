@@ -368,24 +368,13 @@ fn string(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Once;
-
     use squark_types::{NodeId, Point, host::Modifiers};
 
     use super::*;
 
-    static V8: Once = Once::new();
-
-    fn initialize_v8() {
-        V8.call_once(|| {
-            v8::V8::initialize_platform(v8::new_default_platform(0, false).make_shared());
-            v8::V8::initialize();
-        });
-    }
-
     #[test]
     fn click_count_reaches_v8_input_fields_as_an_optional_number() {
-        initialize_v8();
+        crate::initialize_test_v8();
         let origin = Instant::now();
         let task = |click_count| InputTask {
             request: 1,

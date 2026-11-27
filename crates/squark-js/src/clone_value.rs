@@ -211,21 +211,106 @@ fn encode(
     Some(writer.release())
 }
 
+/// Reads a value, giving transfer `index` the buffer at `received[index]`.
 fn decode<'s>(
     scope: &mut PinScope<'s, '_>,
     data: &[u8],
-    transfers: &[Local<'_, ArrayBuffer>],
+    received: &[Local<'_, ArrayBuffer>],
 ) -> Option<Local<'s, Value>> {
     let context = scope.get_current_context();
     let reader = v8::ValueDeserializer::new(scope, Box::new(Deserializer), data);
     if reader.read_header(context) != Some(true) {
         return None;
     }
-    for (index, buffer) in transfers.iter().enumerate() {
-        let receiving = ArrayBuffer::with_backing_store(scope, &buffer.get_backing_store());
-        reader.transfer_array_buffer(index as u32, receiving);
+    for (index, buffer) in received.iter().enumerate() {
+        reader.transfer_array_buffer(index as u32, *buffer);
     }
     reader.read_value(context)
+}
+
+/// A value serialized in one isolate for another, with the contents of the
+/// ArrayBuffers it transferred. The sender's buffers are detached.
+#[derive(Debug)]
+pub(crate) struct Message {
+    data: Vec<u8>,
+    buffers: Vec<Vec<u8>>,
+}
+
+#[cfg(test)]
+impl Message {
+    /// Bytes no serializer wrote, as a damaged message would carry.
+    pub(crate) fn unreadable() -> Self {
+        Self {
+            data: vec![0xff, 0x0f, 0x01],
+            buffers: Vec::new(),
+        }
+    }
+}
+
+/// Serializes `value` for another isolate, transferring the ArrayBuffers in
+/// the `transfer` array. Throws DataCloneError and returns None on failure.
+pub(crate) fn serialize_message(
+    scope: &mut PinScope<'_, '_>,
+    value: Local<'_, Value>,
+    transfer: Local<'_, Value>,
+) -> Option<Message> {
+    let transfers = transferables(scope, transfer)?;
+    let data = encode(scope, value, &transfers)?;
+    let buffers = transfers
+        .into_iter()
+        .map(|buffer| {
+            let length = buffer.byte_length();
+            let mut contents = vec![0; length];
+            if length != 0 {
+                v8::Uint8Array::new(scope, buffer, 0, length)?.copy_contents(&mut contents);
+            }
+            buffer.detach(None);
+            Some(contents)
+        })
+        .collect::<Option<_>>()?;
+    Some(Message { data, buffers })
+}
+
+/// Reads a message from another isolate. None means it cannot be read here,
+/// which the receiver reports as `messageerror`.
+pub(crate) fn deserialize_message<'s>(
+    scope: &mut PinScope<'s, '_>,
+    message: Message,
+) -> Option<Local<'s, Value>> {
+    let received: Vec<_> = message
+        .buffers
+        .into_iter()
+        .map(|contents| {
+            let store = ArrayBuffer::new_backing_store_from_vec(contents).make_shared();
+            ArrayBuffer::with_backing_store(scope, &store)
+        })
+        .collect();
+    v8::tc_scope!(let scope, scope);
+    decode(scope, &message.data, &received)
+}
+
+fn transferables<'s>(
+    scope: &mut PinScope<'s, '_>,
+    list: Local<'_, Value>,
+) -> Option<Vec<Local<'s, ArrayBuffer>>> {
+    let mut transfers = Vec::new();
+    if let Ok(list) = Local::<v8::Array>::try_from(list) {
+        for index in 0..list.length() {
+            let Some(buffer) = list
+                .get_index(scope, index)
+                .and_then(|value| Local::<ArrayBuffer>::try_from(value).ok())
+            else {
+                clone_error(scope, "Only ArrayBuffers can be transferred");
+                return None;
+            };
+            if buffer.was_detached() || !buffer.is_detachable() || transfers.contains(&buffer) {
+                clone_error(scope, "Invalid or duplicate transferable");
+                return None;
+            }
+            transfers.push(buffer);
+        }
+    }
+    Some(transfers)
 }
 
 pub(crate) fn install(scope: &mut PinScope<'_, '_>, host: Local<'_, Object>) -> Option<()> {
@@ -295,25 +380,15 @@ pub(crate) fn clone_message(
     args: FunctionCallbackArguments<'_>,
     mut result: ReturnValue<'_>,
 ) {
-    let mut transfers = Vec::new();
-    if let Ok(list) = Local::<v8::Array>::try_from(args.get(1)) {
-        for index in 0..list.length() {
-            let Some(buffer) = list
-                .get_index(scope, index)
-                .and_then(|value| Local::<ArrayBuffer>::try_from(value).ok())
-            else {
-                clone_error(scope, "Only ArrayBuffers can be transferred");
-                return;
-            };
-            if buffer.was_detached() || !buffer.is_detachable() || transfers.contains(&buffer) {
-                clone_error(scope, "Invalid or duplicate transferable");
-                return;
-            }
-            transfers.push(buffer);
-        }
-    }
+    let Some(transfers) = transferables(scope, args.get(1)) else {
+        return;
+    };
+    let received: Vec<_> = transfers
+        .iter()
+        .map(|buffer| ArrayBuffer::with_backing_store(scope, &buffer.get_backing_store()))
+        .collect();
     if let Some(data) = encode(scope, args.get(0), &transfers)
-        && let Some(value) = decode(scope, &data, &transfers)
+        && let Some(value) = decode(scope, &data, &received)
     {
         for buffer in transfers {
             buffer.detach(None);
