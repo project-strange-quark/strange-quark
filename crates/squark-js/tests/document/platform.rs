@@ -957,3 +957,34 @@ fn window_focus_and_visibility_reach_the_page() {
         r#""[\"blur:false\",\"hidden\",\"visible\",\"focus:true\"]""#
     );
 }
+
+#[test]
+fn text_decoder_streams_rejects_unknown_labels_and_honours_fatal() {
+    let mut h = Harness::new();
+    assert_eq!(
+        h.eval(
+            r#"
+      const out = [];
+      const utf8 = new TextDecoder();
+      // "é€" split inside both characters, after a BOM.
+      out.push(utf8.decode(new Uint8Array([0xef, 0xbb, 0xbf, 0xc3]), { stream: true }));
+      out.push(utf8.decode(new Uint8Array([0xa9, 0xe2, 0x82]), { stream: true }));
+      out.push(utf8.decode(new Uint8Array([0xac])));
+      out.push(utf8.decode(new Uint8Array([0x61, 0xe2])));
+      const fatal = new TextDecoder("utf-8", { fatal: true });
+      try { fatal.decode(new Uint8Array([0xff])); } catch (error) { out.push(error.constructor.name); }
+      out.push(fatal.decode(new Uint8Array([0x62]).buffer));
+      try { new TextDecoder("klingon"); } catch (error) { out.push(error.constructor.name); }
+      try { new TextDecoder("replacement"); } catch (error) { out.push(error.constructor.name); }
+      const names = ["latin1", " UTF8 ", "sjis", "utf-16"].map(label => new TextDecoder(label).encoding);
+      const bom = new TextDecoder("utf-8", { ignoreBOM: true }).decode(new Uint8Array([0xef, 0xbb, 0xbf, 0x61]));
+      const utf16 = new TextDecoder("utf-16le");
+      const emoji = utf16.decode(new Uint8Array([0x3d]), { stream: true })
+        + utf16.decode(new Uint8Array([0xd8, 0x00]), { stream: true })
+        + utf16.decode(new Uint8Array([0xde]));
+      JSON.stringify([out, names, bom.length, emoji, utf8.fatal, fatal.fatal, utf8.ignoreBOM])
+    "#
+        ),
+        r#""[[\"\",\"é\",\"€\",\"a�\",\"TypeError\",\"b\",\"RangeError\",\"RangeError\"],[\"windows-1252\",\"utf-8\",\"shift_jis\",\"utf-16le\"],2,\"😀\",false,true,false]""#
+    );
+}

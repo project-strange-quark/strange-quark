@@ -13,6 +13,13 @@ type Host = {
   base64Decode(text: string, url: boolean): Uint8Array | null;
   decodeText(data: Uint8Array, encoding: string): string;
   utf8Encode(text: string): Uint8Array<ArrayBuffer>;
+  /** The canonical lowercase name for an encoding label, if supported. */
+  encodingName(label: string): string | undefined;
+  /** A streaming decoder; returns its id. */
+  textDecoderOpen(encoding: string, ignoreBOM: boolean): number;
+  /** Decoded text, or null when `fatal` and the input is malformed. */
+  textDecoderDecode(id: number, data: Uint8Array, flush: boolean, fatal: boolean): string | null;
+  textDecoderClose(id: number): void;
 };
 
 export function installFiles(global: Record<PropertyKey, unknown>, host: Host): void {
@@ -131,25 +138,46 @@ export function installFiles(global: Record<PropertyKey, unknown>, host: Host): 
     }
   }
 
+  // Each TextDecoder keeps a host decoder, opened on first use, so a stream
+  // may end mid-character and continue in the next decode({ stream: true }).
+  const decoders = new FinalizationRegistry<number>(id => host.textDecoderClose(id));
+
   class TextDecoder {
-    readonly encoding: string;
-    readonly fatal: boolean;
-    readonly ignoreBOM: boolean;
+    readonly #encoding: string;
+    readonly #fatal: boolean;
+    readonly #ignoreBOM: boolean;
+    #id = 0;
     constructor(label = "utf-8", options?: { fatal?: boolean; ignoreBOM?: boolean }) {
-      const normalized = String(label).trim().toLowerCase();
-      this.encoding = normalized === "" || normalized === "utf8" ? "utf-8" : normalized;
-      this.fatal = Boolean(options?.fatal);
-      this.ignoreBOM = Boolean(options?.ignoreBOM);
+      const encoding = host.encodingName(String(label));
+      if (encoding === undefined) throw new RangeError(`The encoding label provided ('${String(label)}') is invalid.`);
+      this.#encoding = encoding;
+      this.#fatal = Boolean(options?.fatal);
+      this.#ignoreBOM = Boolean(options?.ignoreBOM);
     }
-    decode(input?: ArrayBufferView | ArrayBuffer): string {
-      if (input === undefined) return "";
-      const bytes = ArrayBuffer.isView(input)
-        ? new Uint8Array(input.buffer, input.byteOffset, input.byteLength)
-        : input instanceof ArrayBuffer
-          ? new Uint8Array(input)
-          : (() => { throw new TypeError("Expected an ArrayBuffer or ArrayBufferView"); })();
-      const decoded = host.decodeText(bytes, this.encoding);
-      return this.ignoreBOM ? decoded : decoded.replace(/^\ufeff/, "");
+    get encoding(): string {
+      return this.#encoding;
+    }
+    get fatal(): boolean {
+      return this.#fatal;
+    }
+    get ignoreBOM(): boolean {
+      return this.#ignoreBOM;
+    }
+    decode(input?: ArrayBufferView | ArrayBuffer, options?: { stream?: boolean }): string {
+      const bytes = input === undefined
+        ? new Uint8Array(0)
+        : ArrayBuffer.isView(input)
+          ? new Uint8Array(input.buffer, input.byteOffset, input.byteLength)
+          : input instanceof ArrayBuffer || Object.prototype.toString.call(input) === "[object SharedArrayBuffer]"
+            ? new Uint8Array(input as ArrayBuffer)
+            : (() => { throw new TypeError("Expected an ArrayBuffer or ArrayBufferView"); })();
+      if (this.#id === 0) {
+        this.#id = host.textDecoderOpen(this.#encoding, this.#ignoreBOM);
+        decoders.register(this, this.#id);
+      }
+      const text = host.textDecoderDecode(this.#id, bytes, !options?.stream, this.#fatal);
+      if (text === null) throw new TypeError(`The encoded data was not valid for encoding ${this.#encoding}`);
+      return text;
     }
   }
 
