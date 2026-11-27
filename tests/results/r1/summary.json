@@ -2,11 +2,11 @@
   "suite": "r1",
   "mode": "compare",
   "gpuAdapter": "software",
-  "total": 155,
-  "passed": 154,
+  "total": 161,
+  "passed": 160,
   "failed": 1,
   "renderErrors": 0,
-  "passRate": 0.9935483870967742,
+  "passRate": 0.9937888198757764,
   "cases": [
     {
       "id": "01-inline/01-whitespace-across-spans",
@@ -319,6 +319,36 @@
       "reason": null
     },
     {
+      "id": "01-inline/22-font-relative-units",
+      "pass": true,
+      "diffRatio": 0.0018833333333333334,
+      "maxDelta": 75,
+      "diffPixels": 226,
+      "meanChannelError": 0.044116666666666665,
+      "diffBounds": {
+        "x": 35,
+        "y": 207,
+        "width": 207,
+        "height": 25
+      },
+      "reason": null
+    },
+    {
+      "id": "01-inline/23-synthetic-bold-italic",
+      "pass": true,
+      "diffRatio": 0.010375,
+      "maxDelta": 86,
+      "diffPixels": 1245,
+      "meanChannelError": 0.24660625,
+      "diffBounds": {
+        "x": 12,
+        "y": 12,
+        "width": 212,
+        "height": 229
+      },
+      "reason": null
+    },
+    {
       "id": "02-block/01-block-stacking-basic",
       "pass": true,
       "diffRatio": 0,
@@ -510,6 +540,66 @@
         "y": 92,
         "width": 288,
         "height": 68
+      },
+      "reason": null
+    },
+    {
+      "id": "02-block/19-table-cell-vertical-align",
+      "pass": true,
+      "diffRatio": 0.0030092592592592593,
+      "maxDelta": 67,
+      "diffPixels": 520,
+      "meanChannelError": 0.0789699074074074,
+      "diffBounds": {
+        "x": 23,
+        "y": 28,
+        "width": 280,
+        "height": 223
+      },
+      "reason": null
+    },
+    {
+      "id": "02-block/20-inline-table-baseline",
+      "pass": true,
+      "diffRatio": 0.004752604166666666,
+      "maxDelta": 63,
+      "diffPixels": 730,
+      "meanChannelError": 0.12394205729166667,
+      "diffBounds": {
+        "x": 17,
+        "y": 30,
+        "width": 397,
+        "height": 279
+      },
+      "reason": null
+    },
+    {
+      "id": "02-block/21-table-anonymous-boxes",
+      "pass": true,
+      "diffRatio": 0.0020833333333333333,
+      "maxDelta": 62,
+      "diffPixels": 300,
+      "meanChannelError": 0.05381597222222222,
+      "diffBounds": {
+        "x": 12,
+        "y": 24,
+        "width": 327,
+        "height": 269
+      },
+      "reason": null
+    },
+    {
+      "id": "02-block/22-math-vertical-lists",
+      "pass": true,
+      "diffRatio": 0.0016550925925925926,
+      "maxDelta": 60,
+      "diffPixels": 286,
+      "meanChannelError": 0.04945457175925926,
+      "diffBounds": {
+        "x": 15,
+        "y": 14,
+        "width": 179,
+        "height": 320
       },
       "reason": null
     },
@@ -1876,10 +1966,10 @@
     {
       "id": "10-excalidraw/09-popover-modal-backdrop-stacking",
       "pass": true,
-      "diffRatio": 0.006908333333333333,
-      "maxDelta": 123,
-      "diffPixels": 829,
-      "meanChannelError": 0.3576375,
+      "diffRatio": 0.001925,
+      "maxDelta": 50,
+      "diffPixels": 231,
+      "meanChannelError": 0.13263125,
       "diffBounds": {
         "x": 70,
         "y": 109,

@@ -81,19 +81,21 @@ impl<'pack> StaticDocument<'pack> {
         document_url: Url,
         resources: ResourceSender,
     ) -> Result<Self, EngineError> {
-        let (document, _, cascade) = Cascade::from_pack(pack, document_url, screen(0., 0., 1.))
+        let (document, _, mut cascade) = Cascade::from_pack(pack, document_url, screen(0., 0., 1.))
             .map_err(|error| EngineError::Resource(error.to_string()))?;
         let image_loads = ImageLoads::new(pack, cascade.resources().document_url);
         let font_loads = FontLoads::new(pack, cascade.resources().document_url);
         let measure_timings =
             std::env::var_os("SQUARK_ENGINE_TIMINGS").is_some_and(|value| value == "1");
+        let layout = LayoutEngine {
+            measure_timings,
+            ..LayoutEngine::default()
+        };
+        cascade.set_font_metrics(&document, layout.fonts.metrics_source());
         Ok(Self {
             document,
             cascade,
-            layout: LayoutEngine {
-                measure_timings,
-                ..LayoutEngine::default()
-            },
+            layout,
             uploads: Uploads::new(resources),
             image_loads,
             font_loads,
@@ -361,6 +363,20 @@ impl<'pack> StaticDocument<'pack> {
         Ok(())
     }
 
+    /// Recomputes every style when the web fonts in effect change the
+    /// primary fonts that font-relative units resolved against, as when a
+    /// web font loads after the first frame.
+    fn restyle_for_font_metrics(&mut self) -> Result<(), EngineError> {
+        self.layout.sync_fonts(&self.document, &self.cascade);
+        if self.layout.fonts.metrics_source().revalidate() {
+            self.cascade.invalidate_font_metrics();
+            self.cascade
+                .restyle(&mut self.document)
+                .map_err(|error| EngineError::Resource(error.to_string()))?;
+        }
+        Ok(())
+    }
+
     fn field_client_rect(&self, field: &crate::editing::Field, rect: Rect) -> Rect {
         self.content_client_rect(field.fragment, rect)
     }
@@ -545,6 +561,7 @@ impl DocumentEngine for StaticDocument<'_> {
                 .map_err(|error| EngineError::Resource(error.to_string()))?;
         }
         self.cascade_dirty = false;
+        self.restyle_for_font_metrics()?;
         self.font_loads
             .start_used(&self.document, self.cascade.resources())?;
         let layout_start = self.measure_timings.then(Instant::now);

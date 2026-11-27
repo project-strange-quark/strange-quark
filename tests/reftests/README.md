@@ -9,7 +9,7 @@ The suites, named by their directories under `cases/`:
 | Suite | Cases | What it covers |
 | --- | --- | --- |
 | `smoke` | 1 | Proves the harness: one page rendered by Chromium and compared with its committed baseline. |
-| `r1` | 159 | **R1**: static HTML and CSS, no JavaScript, with bundled fonts. See [cases/r1/README.md](cases/r1/README.md). |
+| `r1` | 161 | **R1**: static HTML and CSS, no JavaScript, with bundled fonts. See [cases/r1/README.md](cases/r1/README.md). |
 | `r2-forms` | 5 | **R2**: form controls, text fields, buttons, selects and focus. |
 | `r3-canvas` | 15 | **R3**: Canvas 2D as Excalidraw uses it: rough.js shapes, freehand strokes, text, dashes, transforms, clips, `drawImage` and the dark-mode filter. |
 | `shadow-dom` | 4 | Shadow trees built by script: named and default slots with fallback, scoped and adopted styles, `:host` and `::slotted()`, and a context menu built like Monaco's context view. |

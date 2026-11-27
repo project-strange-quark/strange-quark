@@ -817,6 +817,12 @@ impl<'a, 'b> Emitter<'a, 'b> {
                         }
                         let style_owner = inline.style_owner(item.style().brush.0, owner);
                         let text_owner = ranges.first().map_or(style_owner, |range| range.node);
+                        let css = first_byte.and_then(|byte| inline.style_at(byte));
+                        let synthesis = css.map_or_else(Default::default, |css| {
+                            self.tree
+                                .fonts
+                                .synthesis(run.font(), run.synthesis(), css.get_font())
+                        });
                         let font = self.tree.fonts.intern(
                             run.font(),
                             run.font_size(),
@@ -824,6 +830,7 @@ impl<'a, 'b> Emitter<'a, 'b> {
                                 .iter()
                                 .map(|coord| coord.to_bits())
                                 .collect::<Vec<_>>(),
+                            synthesis,
                         );
                         let baseline = origin.y + item.baseline();
                         let text_box = Rect::new(
@@ -833,7 +840,6 @@ impl<'a, 'b> Emitter<'a, 'b> {
                             item.span_metrics().ascent + item.span_metrics().descent,
                         );
                         slices.text(self.document, style_owner, owner, text_box);
-                        let css = first_byte.and_then(|byte| inline.style_at(byte));
                         let paint = match css {
                             Some(css) => {
                                 if let Some((cached, paint)) = &last_paint
@@ -950,6 +956,17 @@ impl<'a, 'b> Emitter<'a, 'b> {
                         continue;
                     };
                     let run = part.run();
+                    let synthesis =
+                        self.tree[node]
+                            .css
+                            .as_ref()
+                            .map_or_else(Default::default, |css| {
+                                self.tree.fonts.synthesis(
+                                    run.font(),
+                                    run.synthesis(),
+                                    css.get_font(),
+                                )
+                            });
                     let font = self.tree.fonts.intern(
                         run.font(),
                         run.font_size(),
@@ -957,6 +974,7 @@ impl<'a, 'b> Emitter<'a, 'b> {
                             .iter()
                             .map(|coord| coord.to_bits())
                             .collect::<Vec<_>>(),
+                        synthesis,
                     );
                     let glyphs = part
                         .positioned_glyphs()

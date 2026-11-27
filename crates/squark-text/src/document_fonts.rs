@@ -359,18 +359,16 @@ impl DocumentFont {
         format!("StrangeQuark FontFace {}", self.id)
     }
 
+    /// Registers the face and returns the ID of the font it registered.
     pub(crate) fn register(
         &self,
         context: &mut parley::FontContext,
         coverage: &[RangeInclusive<u32>],
-    ) {
+    ) -> u64 {
         let blob = fontique::Blob::new(Arc::new(self.bytes.clone()));
-        crate::web_fonts::register(
-            context,
-            crate::web_fonts::restricted(blob, coverage),
-            &self.alias(),
-            &self.attributes,
-        );
+        let blob = crate::web_fonts::restricted(blob, coverage);
+        crate::web_fonts::register(context, blob.clone(), &self.alias(), &self.attributes);
+        blob.id()
     }
 }
 
@@ -384,7 +382,7 @@ pub(crate) enum Face {
 
 /// The faces of each family, by its ASCII-lowercased name, rules first and
 /// each in definition order, so matching a run reads only its own family.
-pub(crate) fn family_index(
+fn family_index(
     rules: &[crate::WebFont],
     documents: &[DocumentFont],
 ) -> HashMap<String, Vec<Face>> {
@@ -406,6 +404,83 @@ pub(crate) fn family_index(
             .push(face);
     }
     index
+}
+
+/// The web font faces in effect: the `@font-face` rules with their fetched
+/// sources, and the loaded `document.fonts` faces. Text layout and the font
+/// metrics provider share one set and match against it alike.
+#[derive(Default)]
+pub(crate) struct FaceSet {
+    pub(crate) rules: Vec<crate::WebFont>,
+    pub(crate) rule_coverage: Vec<Coverage>,
+    pub(crate) fetched: HashMap<url::Url, crate::web_fonts::Fetched>,
+    pub(crate) documents: Vec<DocumentFont>,
+    pub(crate) document_coverage: Vec<Coverage>,
+    families: HashMap<String, Vec<Face>>,
+}
+
+impl FaceSet {
+    /// Fetches the rules' sources, reusing what `previous` fetched.
+    pub(crate) fn new(
+        resources: squark_assets::Resources<'_>,
+        rules: Vec<crate::WebFont>,
+        documents: &[DocumentFont],
+        previous: &FaceSet,
+    ) -> Self {
+        let mut rule_coverage = exclusive_coverage(
+            &rules
+                .iter()
+                .map(|face| (face.family.as_str(), &face.attributes))
+                .chain(
+                    documents
+                        .iter()
+                        .map(|face| (face.family.as_str(), &face.attributes)),
+                )
+                .collect::<Vec<_>>(),
+        );
+        let document_coverage = rule_coverage.split_off(rules.len());
+        Self {
+            fetched: crate::web_fonts::fetch(resources, &rules, &previous.fetched),
+            families: family_index(&rules, documents),
+            rules,
+            rule_coverage,
+            documents: documents.to_vec(),
+            document_coverage,
+        }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.rules.is_empty() && self.documents.is_empty()
+    }
+
+    /// The faces of the composite face matching picks for the family, best
+    /// first, and whether the name still reaches installed fonts: a name an
+    /// `@font-face` rule defines does not, as in browsers.
+    pub(crate) fn match_family(&self, family: &str, request: FontRequest) -> (Vec<Face>, bool) {
+        let Some(faces) = self.families.get(&family.to_ascii_lowercase()) else {
+            return (Vec::new(), true);
+        };
+        let candidates: Vec<(Face, &FaceAttributes)> = faces
+            .iter()
+            .map(|&face| (face, self.attributes(face)))
+            .collect();
+        let installed = !faces.iter().any(|face| matches!(face, Face::Rule(_)));
+        (matching_faces(&candidates, request), installed)
+    }
+
+    pub(crate) fn attributes(&self, face: Face) -> &FaceAttributes {
+        match face {
+            Face::Rule(index) => &self.rules[index].attributes,
+            Face::Document(index) => &self.documents[index].attributes,
+        }
+    }
+
+    pub(crate) fn coverage(&self, face: Face) -> &[RangeInclusive<u32>] {
+        match face {
+            Face::Rule(index) => &self.rule_coverage[index],
+            Face::Document(index) => &self.document_coverage[index],
+        }
+    }
 }
 
 impl Fonts {
@@ -431,13 +506,14 @@ impl Fonts {
         text: &str,
         style: TextStyle<'static, 'static, TextBrush>,
     ) -> TextStyle<'static, 'static, TextBrush> {
-        if self.faces.is_empty() && self.document_fonts.is_empty() {
+        if self.set.is_empty() {
             return style;
         }
         let FontFamily::List(families) = &style.font_family else {
             return style;
         };
         let request = FontRequest::from_text_style(&style);
+        let set = self.set.clone();
         let mut names = Vec::with_capacity(families.len());
         let mut changed = false;
         for family in families.iter() {
@@ -445,16 +521,16 @@ impl Fonts {
                 names.push(family.clone().into_owned());
                 continue;
             };
-            let (faces, installed) = self.match_family(name, request);
+            let (faces, installed) = set.match_family(name, request);
             changed |= !faces.is_empty() || !installed;
             let primary = faces
                 .iter()
-                .position(|&face| covers(self.coverage(face), u32::from(' ')));
+                .position(|&face| covers(set.coverage(face), u32::from(' ')));
             let used = primary.into_iter().chain(
                 (0..faces.len())
                     .filter(|&index| Some(index) != primary)
                     .filter(|&index| {
-                        let coverage = self.coverage(faces[index]);
+                        let coverage = set.coverage(faces[index]);
                         is_full(coverage) || text.chars().any(|ch| covers(coverage, ch.into()))
                     }),
             );
@@ -476,39 +552,10 @@ impl Fonts {
         }
     }
 
-    /// The faces of the composite face matching picks for the family, best
-    /// first, and whether the name still reaches installed fonts: a name an
-    /// `@font-face` rule defines does not, as in browsers.
-    fn match_family(&self, family: &str, request: FontRequest) -> (Vec<Face>, bool) {
-        let Some(faces) = self.families.get(&family.to_ascii_lowercase()) else {
-            return (Vec::new(), true);
-        };
-        let candidates: Vec<(Face, &FaceAttributes)> = faces
-            .iter()
-            .map(|&face| (face, self.attributes(face)))
-            .collect();
-        let installed = !faces.iter().any(|face| matches!(face, Face::Rule(_)));
-        (matching_faces(&candidates, request), installed)
-    }
-
-    fn attributes(&self, face: Face) -> &FaceAttributes {
-        match face {
-            Face::Rule(index) => &self.faces[index].attributes,
-            Face::Document(index) => &self.document_fonts[index].attributes,
-        }
-    }
-
-    fn coverage(&self, face: Face) -> &[RangeInclusive<u32>] {
-        match face {
-            Face::Rule(index) => self.web.coverage(index),
-            Face::Document(index) => &self.document_coverage[index],
-        }
-    }
-
     fn alias(&self, face: Face) -> String {
         match face {
             Face::Rule(index) => crate::web_fonts::alias(index),
-            Face::Document(index) => self.document_fonts[index].alias(),
+            Face::Document(index) => self.set.documents[index].alias(),
         }
     }
 
@@ -516,8 +563,66 @@ impl Fonts {
     /// arrive loaded.
     fn load(&mut self, face: Face) -> bool {
         match face {
-            Face::Rule(index) => self.web.load(index, &self.faces, &mut self.context),
+            Face::Rule(index) => self.web.load(index, &self.set, &mut self.context),
             Face::Document(_) => true,
+        }
+    }
+
+    /// The faux bold and italic for a run in `font`, shaped for a style
+    /// with the computed font `style`, as Chromium decides them. A web font
+    /// face is emboldened for a weight of 600 or more when none of its
+    /// weights reaches 600, and slanted for `italic` or an oblique of 14deg
+    /// or more when it is upright, as Blink's segmented font faces do. An
+    /// installed font is emboldened when the weight asked for exceeds its
+    /// own by more than 200, and slanted for `italic` and the default
+    /// `oblique` when it is upright, as Blink's font cache does; fontique's
+    /// suggestion follows the same rules. `font-synthesis` turns either off.
+    pub fn synthesis(
+        &self,
+        font: &parley::FontData,
+        suggested: fontique::Synthesis,
+        style: &style::properties::style_structs::Font,
+    ) -> crate::Synthesis {
+        use style::values::computed::font::{FontSynthesis, FontSynthesisStyle, SingleFontFamily};
+        let request = FontRequest::from_font(style);
+        let bold = style.font_synthesis_weight == FontSynthesis::Auto;
+        let italic = match style.font_synthesis_style {
+            FontSynthesisStyle::Auto => true,
+            FontSynthesisStyle::None => false,
+            FontSynthesisStyle::ObliqueOnly => request.style != FontStyle::ITALIC,
+        };
+        let blob = font.data.id();
+        for family in style.font_family.families.iter() {
+            let SingleFontFamily::FamilyName(family) = family else {
+                continue;
+            };
+            let (faces, _) = self.set.match_family(family.name.as_str(), request);
+            if let Some(&face) = faces
+                .iter()
+                .find(|&&face| self.registered(face) == Some(blob))
+            {
+                let face = self.set.attributes(face);
+                return crate::Synthesis {
+                    bold: bold && request.weight >= 600.0 && face.weight[1] < 600.0,
+                    italic: italic
+                        && slope(request.style) >= 14.0
+                        && face.slopes().into_iter().fold(f32::MIN, f32::max) == 0.0,
+                };
+            }
+        }
+        let default_slant =
+            request.style == FontStyle::ITALIC || request.style == FontStyle::oblique(14.0);
+        crate::Synthesis {
+            bold: bold && suggested.embolden(),
+            italic: italic && default_slant && suggested.skew().is_some(),
+        }
+    }
+
+    /// The ID of the font a face registered, once it has loaded.
+    fn registered(&self, face: Face) -> Option<u64> {
+        match face {
+            Face::Rule(index) => self.web.registered(index),
+            Face::Document(index) => self.document_blobs.get(index).copied(),
         }
     }
 }

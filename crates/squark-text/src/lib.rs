@@ -5,6 +5,7 @@ mod css;
 mod document_fonts;
 mod editing;
 mod measure;
+mod metrics;
 mod outline;
 mod raster;
 mod web_fonts;
@@ -14,11 +15,12 @@ pub use css::{
 pub use document_fonts::{DocumentFont, FaceAttributes, FontRequest, decode_font, matching_faces};
 pub use editing::{EditText, TextPositions};
 pub use measure::{CanvasAlign, CanvasBaseline, CanvasRun, CanvasText, ControlMetrics};
+pub use metrics::FontMetricsSource;
 pub use raster::GlyphRasterizer;
 pub use web_fonts::{FaceSource, WebFont};
 
 use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use parley::{FontContext, FontData, LayoutContext, fontique};
 use squark_assets::Resources;
@@ -38,6 +40,17 @@ pub struct FontInstance {
     pub font: FontData,
     pub size: f32,
     pub coords: Vec<i16>,
+    pub synthesis: Synthesis,
+}
+
+/// The faux bold and italic a run's glyphs are drawn with when its font
+/// lacks the weight or style asked for.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct Synthesis {
+    /// Embolden the outlines, as Skia's fake bold does.
+    pub bold: bool,
+    /// Slant the outlines, as Skia's fake italic does.
+    pub italic: bool,
 }
 
 #[derive(Eq, Hash, PartialEq)]
@@ -46,39 +59,50 @@ struct InstanceKey {
     index: u32,
     size: u32,
     coords: Vec<i16>,
+    synthesis: Synthesis,
 }
 
 pub struct Fonts {
     pub context: FontContext,
     pub layout: LayoutContext<TextBrush>,
-    faces: Vec<WebFont>,
+    set: Arc<document_fonts::FaceSet>,
     web: web_fonts::WebFaces,
-    document_fonts: Vec<DocumentFont>,
-    document_coverage: Vec<document_fonts::Coverage>,
-    families: HashMap<String, Vec<document_fonts::Face>>,
+    /// The ID of the font each document face registered, in `set` order.
+    document_blobs: Vec<u64>,
+    metrics: Arc<FontMetricsSource>,
     keys: HashMap<InstanceKey, FontInstanceId>,
     instances: Vec<FontInstance>,
     measured_sources: HashMap<u64, fontique::Blob<u8>>,
     canvas_ink: outline::CanvasInkBounds,
 }
 
+/// A font context for installed fonts. Parley prunes its local source
+/// cache during shaping; contexts share one cache, so fontique can still
+/// recover a font's mapping while a font instance holds its blob.
+fn font_context() -> FontContext {
+    static SOURCES: OnceLock<fontique::SourceCache> = OnceLock::new();
+    let mut context = FontContext::new();
+    context.source_cache = SOURCES
+        .get_or_init(fontique::SourceCache::new_shared)
+        .clone();
+    context
+}
+
 impl Default for Fonts {
     fn default() -> Self {
-        static SOURCES: OnceLock<fontique::SourceCache> = OnceLock::new();
-        let mut context = FontContext::new();
-        // Parley prunes its local cache during shaping. Fontique can still
-        // recover the original mapping while a font instance holds its blob.
-        context.source_cache = SOURCES
-            .get_or_init(fontique::SourceCache::new_shared)
-            .clone();
+        let context = font_context();
+        // The metrics provider shares the system font list.
+        let metrics = Arc::new(FontMetricsSource::new(FontContext {
+            collection: context.collection.clone(),
+            source_cache: context.source_cache.clone(),
+        }));
         Self {
             context,
             layout: LayoutContext::new(),
-            faces: Vec::new(),
+            set: Arc::default(),
             web: Default::default(),
-            document_fonts: Vec::new(),
-            document_coverage: Vec::new(),
-            families: HashMap::new(),
+            document_blobs: Vec::new(),
+            metrics,
             keys: HashMap::new(),
             instances: Vec::new(),
             measured_sources: HashMap::new(),
@@ -90,7 +114,7 @@ impl Default for Fonts {
 impl std::fmt::Debug for Fonts {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Fonts")
-            .field("faces", &self.faces)
+            .field("faces", &self.set.rules)
             .field("instances", &self.instances.len())
             .finish_non_exhaustive()
     }
@@ -107,46 +131,51 @@ impl Fonts {
         faces: Vec<WebFont>,
         document_fonts: &[DocumentFont],
     ) -> bool {
-        if self.faces == faces && self.document_fonts == document_fonts {
+        if self.set.rules == faces && self.set.documents == document_fonts {
             return false;
         }
         // Rebuild registrations when active faces change. Keep the source
         // cache and its backing mappings across the collection replacement.
         self.context.collection = FontContext::new().collection;
-        let mut coverage = document_fonts::exclusive_coverage(
-            &faces
-                .iter()
-                .map(|face| (face.family.as_str(), &face.attributes))
-                .chain(
-                    document_fonts
-                        .iter()
-                        .map(|face| (face.family.as_str(), &face.attributes)),
-                )
-                .collect::<Vec<_>>(),
-        );
-        self.document_coverage = coverage.split_off(faces.len());
-        self.families = document_fonts::family_index(&faces, document_fonts);
-        self.web.sync(resources, &faces, coverage);
-        for (face, coverage) in document_fonts.iter().zip(&self.document_coverage) {
-            face.register(&mut self.context, coverage);
-        }
-        self.document_fonts = document_fonts.to_vec();
-        self.faces = faces;
+        let set = document_fonts::FaceSet::new(resources, faces, document_fonts, &self.set);
+        self.web.sync(&set);
+        self.document_blobs = set
+            .documents
+            .iter()
+            .zip(&set.document_coverage)
+            .map(|(face, coverage)| face.register(&mut self.context, coverage))
+            .collect();
+        self.set = Arc::new(set);
+        self.metrics.set_faces(self.set.clone());
         true
     }
 
-    pub fn intern(&mut self, font: &FontData, size: f32, coords: &[i16]) -> FontInstanceId {
+    /// The provider of the metrics that font-relative CSS units resolve
+    /// against. It follows the web fonts this context syncs.
+    pub fn metrics_source(&self) -> Arc<FontMetricsSource> {
+        self.metrics.clone()
+    }
+
+    pub fn intern(
+        &mut self,
+        font: &FontData,
+        size: f32,
+        coords: &[i16],
+        synthesis: Synthesis,
+    ) -> FontInstanceId {
         let key = InstanceKey {
             blob: font.data.id(),
             index: font.index,
             size: size.to_bits(),
             coords: coords.to_vec(),
+            synthesis,
         };
         *self.keys.entry(key).or_insert_with(|| {
             self.instances.push(FontInstance {
                 font: font.clone(),
                 size,
                 coords: coords.to_vec(),
+                synthesis,
             });
             FontInstanceId(self.instances.len() as u64)
         })
@@ -359,7 +388,7 @@ fn shares_one_font_mapping_across_relayouts_and_contexts() {
     let mut fonts = Fonts::default();
     let blob = fonts.context.source_cache.get(&source).unwrap();
     let blob_id = blob.id();
-    fonts.intern(&FontData::new(blob, 0), 16.0, &[]);
+    fonts.intern(&FontData::new(blob, 0), 16.0, &[], Synthesis::default());
     assert_eq!(count(), 1);
     let mut other = Fonts::default();
     for _ in 0..3 {

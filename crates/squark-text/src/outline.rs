@@ -20,7 +20,7 @@ use swash::{
     zeno::{Command, Mask, Origin, Scratch, Vector},
 };
 
-use crate::FontInstance;
+use crate::{FontInstance, Synthesis};
 
 fn light_hint(
     outlines: &OutlineGlyphCollection<'_>,
@@ -54,6 +54,32 @@ pub(crate) struct GrayOutlines {
 }
 
 impl GrayOutlines {
+    /// The light hinting instance for the font instance at the key's
+    /// raster scale, kept while consecutive glyphs share them.
+    fn hint<'a>(
+        slot: &'a mut Option<((FontInstanceId, u32), HintingInstance)>,
+        key: GlyphKey,
+        instance: &FontInstance,
+        outlines: &OutlineGlyphCollection<'_>,
+    ) -> Option<&'a HintingInstance> {
+        let raster = (key.font, key.scale);
+        if !slot.as_ref().is_some_and(|(prior, _)| *prior == raster) {
+            let coords: Vec<_> = instance
+                .coords
+                .iter()
+                .copied()
+                .map(NormalizedCoord::from_bits)
+                .collect();
+            let hint = light_hint(
+                outlines,
+                Size::new(instance.size * key.raster_scale()),
+                &coords,
+            )?;
+            *slot = Some((raster, hint));
+        }
+        slot.as_ref().map(|(_, hint)| hint)
+    }
+
     pub(crate) fn render(
         &mut self,
         key: GlyphKey,
@@ -63,31 +89,51 @@ impl GrayOutlines {
         let font = FontRef::from_index(instance.font.data.as_ref(), instance.font.index).ok()?;
         let outlines = font.outline_glyphs();
         let glyph = outlines.get(GlyphId::new(key.glyph_id))?;
-        let raster = (key.font, key.scale);
-        if !self
-            .hint
-            .as_ref()
-            .is_some_and(|(prior, _)| *prior == raster)
-        {
+        let glyf = outlines.format() == Some(OutlineGlyphFormat::Glyf);
+        let synthesis = instance.synthesis;
+        let synthesized = synthesis != Synthesis::default();
+        self.path.commands.clear();
+        // Emboldening offsets a polygon and moves points off the coverage
+        // grid, so a synthesized outline snaps to it afterwards.
+        self.path.flatten = glyf || synthesis.bold;
+        self.path.snap_coverage = glyf && !synthesized;
+        if synthesis.italic {
+            // Chromium draws slanted glyphs unhinted.
             let coords: Vec<_> = instance
                 .coords
                 .iter()
                 .copied()
                 .map(NormalizedCoord::from_bits)
                 .collect();
-            let hint = light_hint(
-                &outlines,
-                Size::new(instance.size * key.raster_scale()),
-                &coords,
-            )?;
-            self.hint = Some((raster, hint));
+            let size = Size::new(instance.size * key.raster_scale());
+            glyph
+                .draw(
+                    DrawSettings::unhinted(size, coords.as_slice()),
+                    &mut self.path,
+                )
+                .ok()?;
+            skew(&mut self.path.commands);
+        } else {
+            let hint = Self::hint(&mut self.hint, key, instance, &outlines)?;
+            glyph
+                .draw(DrawSettings::hinted(hint, false), &mut self.path)
+                .ok()?;
         }
-        let (_, hint) = self.hint.as_ref()?;
-        self.path.commands.clear();
-        self.path.snap_coverage = outlines.format() == Some(OutlineGlyphFormat::Glyf);
-        glyph
-            .draw(DrawSettings::hinted(hint, false), &mut self.path)
-            .ok()?;
+        // Chromium strokes the slanted outline: a bold italic stem widens by
+        // the same amount horizontally as an upright one.
+        if synthesis.bold {
+            embolden(
+                &mut self.path.commands,
+                fake_bold_width(instance.size) * key.raster_scale(),
+            );
+        }
+        if glyf && synthesized {
+            for command in &mut self.path.commands {
+                if let Command::MoveTo(point) | Command::LineTo(point) = command {
+                    *point = snap(*point);
+                }
+            }
+        }
 
         let mut data = Vec::new();
         let placement = Mask::with_scratch(self.path.commands.as_slice(), &mut self.scratch)
@@ -159,21 +205,134 @@ impl CanvasInkBounds {
     }
 }
 
+/// The width of the stroke Skia's fake bold outlines glyphs with, in CSS
+/// pixels: 1/24 of the font size at 9px and below, 1/32 at 36px and above,
+/// interpolated between (`kStdFakeBoldInterpKeys`). Half of it widens each
+/// side of a stem; the advances stay as they are.
+pub(crate) fn fake_bold_width(size: f32) -> f32 {
+    const KEYS: [f32; 2] = [9.0, 36.0];
+    const SCALES: [f32; 2] = [1.0 / 24.0, 1.0 / 32.0];
+    let t = ((size - KEYS[0]) / (KEYS[1] - KEYS[0])).clamp(0.0, 1.0);
+    size * (SCALES[0] + (SCALES[1] - SCALES[0]) * t)
+}
+
+/// Skia's fake italic: a horizontal skew of a quarter of the height.
+pub(crate) const FAKE_ITALIC_SKEW: f32 = 0.25;
+
+/// Match the quarter-pixel vertical grid used by Skia's analytic
+/// rasterizer. Glyph outline coordinates increase upwards.
+fn snap(mut point: Vector) -> Vector {
+    point.y = (point.y * 4.0 - 0.5).ceil() * 0.25;
+    point
+}
+
+/// Slants the outline about the baseline, its top to the right.
+fn skew(commands: &mut [Command]) {
+    let slant = |point: &mut Vector| point.x += FAKE_ITALIC_SKEW * point.y;
+    for command in commands {
+        match command {
+            Command::MoveTo(point) | Command::LineTo(point) => slant(point),
+            Command::QuadTo(control, point) => {
+                slant(control);
+                slant(point);
+            }
+            Command::CurveTo(first, second, point) => {
+                slant(first);
+                slant(second);
+                slant(point);
+            }
+            Command::Close => {}
+        }
+    }
+}
+
+/// Outsets a flattened outline by half of `width` on every side, as Skia's
+/// stroke-and-fill of the glyph path does: each vertex moves to where the
+/// offsets of its edges meet, beveled past a miter limit of 4. Holes, wound
+/// the other way, shrink.
+fn embolden(commands: &mut Vec<Command>, width: f32) {
+    const EPSILON: f32 = 1.0 / 4096.0;
+    let mut contours: Vec<Vec<Vector>> = Vec::new();
+    for command in commands.iter() {
+        match *command {
+            Command::MoveTo(point) => contours.push(vec![point]),
+            Command::LineTo(point) => match contours.last_mut() {
+                Some(contour) => contour.push(point),
+                None => contours.push(vec![point]),
+            },
+            Command::QuadTo(..) | Command::CurveTo(..) => return,
+            Command::Close => {}
+        }
+    }
+    for contour in &mut contours {
+        contour.dedup_by(|point, previous| (*point - *previous).length() < EPSILON);
+        while contour.len() > 1 && (contour[contour.len() - 1] - contour[0]).length() < EPSILON {
+            contour.pop();
+        }
+    }
+    contours.retain(|contour| contour.len() >= 3);
+    let area: f32 = contours
+        .iter()
+        .flat_map(|contour| {
+            let next = contour.iter().cycle().skip(1);
+            contour.iter().zip(next).map(|(a, b)| a.x * b.y - b.x * a.y)
+        })
+        .sum();
+    if area == 0.0 {
+        return;
+    }
+    // The outward normal of an edge: to the right of an outer contour wound
+    // counterclockwise in y-up coordinates, to the left of a clockwise one.
+    let outward = |direction: Vector| {
+        if area > 0.0 {
+            Vector::new(direction.y, -direction.x)
+        } else {
+            Vector::new(-direction.y, direction.x)
+        }
+    };
+    let half = width * 0.5;
+    commands.clear();
+    for contour in &contours {
+        let count = contour.len();
+        let start = commands.len();
+        for index in 0..count {
+            let previous = contour[(index + count - 1) % count];
+            let point = contour[index];
+            let next = contour[(index + 1) % count];
+            let incoming = (point - previous).normalize();
+            let outgoing = (next - point).normalize();
+            let [a, b] = [outward(incoming), outward(outgoing)];
+            let cosine = incoming.dot(outgoing);
+            if 1.0 + cosine < 2.0 / 16.0 {
+                commands.push(Command::LineTo(point + a * half));
+                commands.push(Command::LineTo(point + b * half));
+            } else {
+                commands.push(Command::LineTo(point + (a + b) * (half / (1.0 + cosine))));
+            }
+        }
+        if let Some(Command::LineTo(first)) = commands.get(start) {
+            commands[start] = Command::MoveTo(*first);
+        }
+        commands.push(Command::Close);
+    }
+}
+
 #[derive(Default)]
 struct Path {
     commands: Vec<Command>,
     position: Vector,
+    /// Draw quadratic and cubic curves as lines.
+    flatten: bool,
     snap_coverage: bool,
 }
 
 impl Path {
-    fn endpoint(&self, mut point: Vector) -> Vector {
+    fn endpoint(&self, point: Vector) -> Vector {
         if self.snap_coverage {
-            // Match the quarter-pixel vertical grid used by Skia's analytic
-            // rasterizer. Glyph outline coordinates increase upwards.
-            point.y = (point.y * 4.0 - 0.5).ceil() * 0.25;
+            snap(point)
+        } else {
+            point
         }
-        point
     }
 
     fn quadratic(&mut self, start: Vector, control: Vector, end: Vector) {
@@ -211,7 +370,7 @@ impl OutlinePen for Path {
     fn quad_to(&mut self, x: f32, y: f32, to_x: f32, to_y: f32) {
         let control = Vector::new(x, y);
         let end = Vector::new(to_x, to_y);
-        if self.snap_coverage {
+        if self.flatten {
             self.quadratic(self.position, control, end);
         } else {
             self.commands.push(Command::QuadTo(control, end));
@@ -220,12 +379,33 @@ impl OutlinePen for Path {
     }
 
     fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, to_x: f32, to_y: f32) {
-        self.position = Vector::new(to_x, to_y);
-        self.commands.push(Command::CurveTo(
-            [x1, y1].into(),
-            [x2, y2].into(),
-            self.endpoint(self.position),
-        ));
+        let start = self.position;
+        let [first, second] = [Vector::new(x1, y1), Vector::new(x2, y2)];
+        let end = Vector::new(to_x, to_y);
+        self.position = end;
+        if !self.flatten {
+            self.commands
+                .push(Command::CurveTo(first, second, self.endpoint(end)));
+            return;
+        }
+        // A cubic strays from its chord by at most 3/4 of the largest
+        // second difference of its control points. Split it to an eighth
+        // of a pixel.
+        let bend = |a: Vector, b: Vector, c: Vector| {
+            let d = a - b * 2.0 + c;
+            d.x.abs().max(d.y.abs())
+        };
+        let deviation = 0.75 * bend(start, first, second).max(bend(first, second, end));
+        let segments = ((deviation * 8.0).sqrt().ceil() as u32).clamp(1, 64);
+        for segment in 1..=segments {
+            let t = segment as f32 / segments as f32;
+            let u = 1.0 - t;
+            let point = start * (u * u * u)
+                + first * (3.0 * u * u * t)
+                + second * (3.0 * u * t * t)
+                + end * (t * t * t);
+            self.commands.push(Command::LineTo(self.endpoint(point)));
+        }
     }
 
     fn close(&mut self) {
@@ -244,6 +424,7 @@ mod tests {
     #[test]
     fn snaps_coverage_edges_in_device_y_without_moving_subpixel_x() {
         let mut path = Path {
+            flatten: true,
             snap_coverage: true,
             ..Path::default()
         };
@@ -276,6 +457,7 @@ mod tests {
             },
             size: 16.0,
             coords: Vec::new(),
+            synthesis: Synthesis::default(),
         };
         let mut outlines = GrayOutlines::default();
         let base = GlyphKey {
@@ -314,5 +496,102 @@ mod tests {
             .unwrap();
         assert!(doubled.placement.height > mask.placement.height);
         assert!(doubled.placement.width > mask.placement.width);
+    }
+
+    /// The coverage of each row of a mask, in pixels.
+    fn rows(image: &Image) -> Vec<f32> {
+        image
+            .data
+            .chunks(image.placement.width as usize)
+            .map(|row| row.iter().map(|&value| f32::from(value) / 255.0).sum())
+            .collect()
+    }
+
+    /// The midpoint of a stem's edges in a row, from the coverage of the
+    /// pixels at either end.
+    fn centre(image: &Image, row: usize) -> f32 {
+        let width = image.placement.width as usize;
+        let row = &image.data[row * width..(row + 1) * width];
+        let first = row.iter().position(|&value| value > 0).unwrap();
+        let last = row.iter().rposition(|&value| value > 0).unwrap();
+        let coverage = |x: usize| f32::from(row[x]) / 255.0;
+        let left = first as f32 + 1.0 - coverage(first);
+        let right = last as f32 + coverage(last);
+        image.placement.left as f32 + (left + right) / 2.0
+    }
+
+    #[test]
+    fn synthesizes_bold_and_italic_as_skia_does() {
+        let bytes = wuff::decompress_woff2(include_bytes!(
+            "../../../tests/reftests/cases/r1/_assets/fonts/LiberationSans-Regular.woff2"
+        ))
+        .unwrap();
+        let glyph_id = FontRef::new(&bytes)
+            .unwrap()
+            .charmap()
+            .map('l')
+            .unwrap()
+            .to_u32();
+        let data = Blob::new(Arc::new(bytes));
+        let mut outlines = GrayOutlines::default();
+        let mut render = |size: f32, synthesis| {
+            let instance = FontInstance {
+                font: FontData {
+                    data: data.clone(),
+                    index: 0,
+                },
+                size,
+                coords: Vec::new(),
+                synthesis,
+            };
+            let key = GlyphKey {
+                font: FontInstanceId(size as u64),
+                glyph_id,
+                phase: [0, 0],
+                scale: 1024,
+            };
+            outlines.render(key, &instance, Vector::ZERO).unwrap()
+        };
+        let bold = Synthesis {
+            bold: true,
+            italic: false,
+        };
+        let italic = Synthesis {
+            bold: false,
+            italic: true,
+        };
+        // Chromium 159 widens the stem of an "l" by 3.12px at 100px, 0.73px
+        // at 20px and 0.50px at 12px, half on each side, and raises the top
+        // and lowers the foot by half as much.
+        for (size, wider) in [(100.0, 3.125), (20.0, 0.749), (12.0, 0.486)] {
+            assert!((fake_bold_width(size) - wider).abs() < 0.001);
+            let regular = render(size, Synthesis::default());
+            let emboldened = render(size, bold);
+            let middle = |image: &Image| rows(image)[image.placement.height as usize / 2];
+            let growth = middle(&emboldened) - middle(&regular);
+            assert!((growth - wider).abs() < 0.05, "{size}px: {growth}");
+            let centres = [&regular, &emboldened]
+                .map(|image| centre(image, image.placement.height as usize / 2));
+            assert!((centres[0] - centres[1]).abs() < 0.05, "{centres:?}");
+        }
+        let regular = render(100.0, Synthesis::default());
+        let emboldened = render(100.0, bold);
+        let extent = |image: &Image| {
+            let rows = rows(image);
+            rows.iter().sum::<f32>() / rows[rows.len() / 2]
+        };
+        assert!((extent(&emboldened) - extent(&regular) - 3.125).abs() < 0.2);
+
+        // The slant moves the top a quarter of the height to the right.
+        let slanted = render(100.0, italic);
+        assert_eq!(slanted.placement.height, regular.placement.height);
+        let [top, bottom] = [5, slanted.placement.height as usize - 5];
+        let shift = centre(&slanted, top) - centre(&slanted, bottom);
+        assert!(
+            (shift - 0.25 * (bottom - top) as f32).abs() < 0.1,
+            "{shift}"
+        );
+        let upright = centre(&regular, top) - centre(&regular, bottom);
+        assert!(upright.abs() < 0.05);
     }
 }
