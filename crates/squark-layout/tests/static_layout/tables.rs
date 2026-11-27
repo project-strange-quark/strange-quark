@@ -168,3 +168,22 @@ fn sizes_tables_by_their_box_sizing() {
     // A lone cell fills the table's content box.
     assert_eq!(rect(&tree, cell), Rect::new(15.0, 65.0, 200.0, 50.0));
 }
+
+#[test]
+fn moves_relatively_positioned_inline_blocks() {
+    let mut fixture = Fixture::new(&format!(
+        "{CSS}
+        .moved {{ display: inline-block; position: relative; left: -5px; top: 3px;
+                  width: 10px; height: 10px }}"
+    ));
+    let line = fixture.element(BODY, "div", &[]);
+    let marker = fixture.element(line, "span", &[("class", "marker")]);
+    let moved = fixture.element(line, "span", &[("class", "moved")]);
+
+    let tree = layout(&fixture.pack());
+    let baseline = rect(&tree, marker).origin.y;
+    assert_eq!(
+        rect(&tree, moved),
+        Rect::new(-5.0, baseline - 10.0 + 3.0, 10.0, 10.0)
+    );
+}

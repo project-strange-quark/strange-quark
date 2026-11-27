@@ -837,6 +837,19 @@ impl BoxTree<'_> {
                         item.x + layout.margin.left
                     };
                     layout.location.y = item.y + layout.margin.top + correction;
+                    // Relative positioning moves an atomic inline after the
+                    // line is laid out, as it moves a block.
+                    let relative = crate::relative_offset(
+                        &self[child].style,
+                        Size {
+                            width: basis,
+                            height: None,
+                        },
+                        self[id].style.direction.is_rtl(),
+                        &self.calcs,
+                    );
+                    layout.location.x += relative.x;
+                    layout.location.y += relative.y;
                     candidates.translate(layout.location);
                     out_of_flow.append(&mut candidates);
                     self[child].layout = layout;
