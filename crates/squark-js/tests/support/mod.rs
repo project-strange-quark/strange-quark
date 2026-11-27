@@ -70,7 +70,7 @@ pub fn load_dom_fixture<'s>(
     source: &str,
 ) -> v8::Local<'s, v8::Object> {
     let dist = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/@strange-quark/dom/dist");
-    let definitions: Modules = ["index.js", "canvas.js", "canvas-path.js", "canvas-matrix.js", "canvas-stream.js", "image-bitmap.js", "fetch.js", "file-reader.js", "file-list.js", "form-data.js", "platform.js", "fullscreen.js", "activation.js", "clipboard.js", "fonts.js", "indexed-db.js", "web-crypto.js", "wasm.js", "network.js", "navigation.js", "scroll.js", "tree-walker.js", "stylesheet.js", "observers.js", "media.js", "input.js", "document.js", "inner-text.js", "journal.js", "collections.js", "events.js", "timing.js", "style.js", "css-namespace.js", "mutation.js", "abort.js"]
+    let definitions: Modules = ["index.js", "canvas.js", "canvas-path.js", "canvas-matrix.js", "canvas-stream.js", "image-bitmap.js", "fetch.js", "file-reader.js", "file-list.js", "form-data.js", "platform.js", "fullscreen.js", "activation.js", "clipboard.js", "fonts.js", "indexed-db.js", "web-crypto.js", "wasm.js", "network.js", "navigation.js", "scroll.js", "tree-walker.js", "custom-elements.js", "stylesheet.js", "observers.js", "media.js", "input.js", "document.js", "inner-text.js", "journal.js", "collections.js", "events.js", "timing.js", "style.js", "css-namespace.js", "mutation.js", "abort.js"]
         .into_iter()
         .map(|name| {
             let path = dist.join(name);

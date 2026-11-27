@@ -18,6 +18,12 @@ import { AbortController, AbortSignal } from "./abort.js";
 import { computedStyle, CSSStyleDeclaration } from "./style.js";
 import { NodeFilter, TreeWalker, treeWalker } from "./tree-walker.js";
 import { MutationObserver, MutationRecord, observeDetachedSubtree, queueMutation } from "./mutation.js";
+import {
+  ceReactions, ceWrap, customElementAdopted, customElementAttributeChanged, customElementInserted, customElementRemoved,
+  customElementsActive, enqueueUpgrade, htmlElementConstructor, installCustomElements, isValidCustomElementName,
+  lookupDefinition, markCustom, markFailed, reportException,
+} from "./custom-elements.js";
+import type { CustomElementDefinition } from "./custom-elements.js";
 
 import {
   createSheet, CSSRule, CSSRuleList, CSSStyleSheet, detachSheet, styleSheetList, StyleSheetList,
@@ -393,7 +399,7 @@ export class Node extends EventTarget {
   }
 
   cloneNode(deep = false): Node {
-    return cloneNodeInto(this, ownerOf(this), Boolean(deep));
+    return cloneNodeInto(this, ownerOf(this), Boolean(deep), !inTemplateContents(this));
   }
 }
 
@@ -424,7 +430,7 @@ function sibling(node: Node, direction: number): Node | null {
   return siblings[siblings.indexOf(node) + direction] ?? null;
 }
 
-function* descendants(parent: Node): IterableIterator<Node> {
+export function* descendants(parent: Node): IterableIterator<Node> {
   const roots = childrenOf(parent);
   if (roots.length === 0) return;
   const pending = roots.slice().reverse();
@@ -740,6 +746,9 @@ export class Element extends ParentNode {
     return list;
   }
 
+  // [PutForwards=value]
+  set classList(value: string) { this.classList.value = value; }
+
   get dataset(): Record<string, string> {
     let data = datasets.get(this);
     if (data === undefined) {
@@ -770,6 +779,7 @@ export class Element extends ParentNode {
             }
           }
           queueMutation(this, { type: "attributes", name: "style", namespace: null, oldValue });
+          customElementAttributeChanged(this, "style", oldValue, text, null);
         },
       });
       styles.set(this, style);
@@ -1083,9 +1093,9 @@ function reflect(prototype: object, fields: Record<string, string>, boolean = fa
     Object.defineProperty(prototype, property, {
       configurable: true, enumerable: true,
       get(this: Element) { return boolean ? this.hasAttribute(attribute) : this.getAttribute(attribute) ?? ""; },
-      set(this: Element, value) {
+      set: ceWrap(function (this: Element, value: unknown) {
         reflectAttribute(this, attribute, boolean ? Boolean(value) : String(value));
-      },
+      }),
     });
   }
 }
@@ -1099,6 +1109,16 @@ function reflectAttribute(element: Element, name: string, value: string | boolea
   }
 }
 
+// Set while squark-dom itself constructs an element, so the HTML element
+// constructor steps apply only to script-defined custom element classes.
+let internalElement = false;
+let builtinInterfaces: Set<Function> | undefined;
+
+function isBuiltinInterface(constructor: Function): boolean {
+  builtinInterfaces ??= new Set<Function>([HTMLElement, HTMLUnknownElement, TemplateElement, ...htmlElementTypes.values()]);
+  return builtinInterfaces.has(constructor);
+}
+
 export class HTMLElement extends Element {
   declare onclick: Handler;
   declare oninput: Handler;
@@ -1106,6 +1126,24 @@ export class HTMLElement extends Element {
   declare hidden: boolean;
   declare lang: string;
   declare dir: string;
+
+  constructor(...args: ConstructorParameters<typeof Element>) {
+    if (internalElement) {
+      internalElement = false;
+      super(...args);
+      return;
+    }
+    const target = htmlElementConstructor(new.target, isBuiltinInterface, HTMLElement);
+    if (nodes.has(target as HTMLElement)) return target as HTMLElement;
+    const definition = target as CustomElementDefinition;
+    const document = definition.document;
+    const id = allocate(document);
+    recordElement(document, id, definition.localName, HTML_NAMESPACE);
+    super(definition.localName, HTML_NAMESPACE, id, document, null);
+    // A NewTarget whose prototype is not an object leaves the ordinary-object fallback.
+    if (Object.getPrototypeOf(this) === Object.prototype) Object.setPrototypeOf(this, HTMLElement.prototype);
+    markCustom(this, definition);
+  }
 
   get innerText(): string {
     const bindings = documents.get(this.ownerDocument)!.bindings;
@@ -2578,21 +2616,29 @@ function treeChanged(parent: Node, child: Node, inserted: boolean): void {
     }
   }
   if (inserted) {
+    const connected = customElementsActive && child.isConnected;
     if (child instanceof HTMLInputElement) child.syncRadioGroup();
     if (child instanceof HTMLStyleElement) syncStyleText(child);
     if (child instanceof HTMLScriptElement && child.isConnected && !parserInsertedScripts.has(child)) {
       documents.get(child.ownerDocument)?.loadScript?.(child);
     }
+    customElementInserted(child, connected);
     for (const node of descendants(child)) {
       if (node instanceof HTMLInputElement && node.type === "radio") node.syncRadioGroup();
       if (node instanceof HTMLStyleElement) syncStyleText(node);
       if (node instanceof HTMLScriptElement && node.isConnected && !parserInsertedScripts.has(node)) {
         documents.get(node.ownerDocument)?.loadScript?.(node);
       }
+      customElementInserted(node, connected);
     }
   } else {
+    const parentConnected = customElementsActive && parent.isConnected;
     if (isSheetOwner(child)) removeSheet(child);
-    for (const node of descendants(child)) if (isSheetOwner(node)) removeSheet(node);
+    customElementRemoved(child, parentConnected);
+    for (const node of descendants(child)) {
+      if (isSheetOwner(node)) removeSheet(node);
+      customElementRemoved(node, parentConnected);
+    }
     const document = ownerOf(parent);
     const state = documents.get(document)!;
     state.inputDetached?.(child);
@@ -2633,15 +2679,59 @@ export class SVGTextContentElement extends SVGGraphicsElement {
 const svgGraphics = new Set("a circle defs ellipse foreignObject g image line path polygon polyline rect marker pattern switch symbol use".split(" "));
 const svgText = new Set(["text", "textPath", "tspan"]);
 
-function createElementObject(name: string, namespace: string | null, id: number, owner: Document, prefix: string | null = null): Element {
+function createElementObject(name: string, namespace: string | null, id: number, owner: Document, prefix: string | null = null,
+                             override?: typeof HTMLElement): Element {
   if (namespace === SVG_NAMESPACE) {
     const type = name === "svg" ? SVGSVGElement : svgText.has(name) ? SVGTextContentElement :
       svgGraphics.has(name) ? SVGGraphicsElement : SVGElement;
     return new type(name, namespace, id, owner, prefix);
   }
-  const Type = namespace === HTML_NAMESPACE ? (name === "template" ? TemplateElement : htmlElementTypes.get(name) ??
-    (ordinaryHtmlElements.has(name) || name.includes("-") ? HTMLElement : HTMLUnknownElement)) : Element;
-  return new Type(name, namespace, id, owner, prefix);
+  const Type = override ?? (namespace === HTML_NAMESPACE ? (name === "template" ? TemplateElement : htmlElementTypes.get(name) ??
+    (ordinaryHtmlElements.has(name) || isValidCustomElementName(name) ? HTMLElement : HTMLUnknownElement)) : Element);
+  internalElement = true;
+  try {
+    return new Type(name, namespace, id, owner, prefix);
+  } finally {
+    internalElement = false;
+  }
+}
+
+function recordElement(document: Document, id: number, name: string, namespace: string | null): void {
+  const { journal } = documents.get(document)!;
+  if (journal === null) return;
+  const tag = journal.intern(AtomKind.Tag, name);
+  const ns = namespace === null ? 0 : journal.intern(AtomKind.Namespace, namespace);
+  journal.record(Opcode.CreateElement, id, tag, ns);
+}
+
+/** Template contents belong to an inert document in browsers, which has no custom element registry. */
+export function inTemplateContents(node: Node): boolean {
+  let root = node;
+  while (root.parentNode !== null) root = root.parentNode;
+  return nodeState(root).templateContent === true;
+}
+
+/** "Create an element" with the synchronous custom elements flag set, for a defined autonomous element. */
+function constructCustomElement(document: Document, definition: CustomElementDefinition, localName: string,
+                                prefix: string | null): Element {
+  try {
+    const result: unknown = Reflect.construct(definition.constructor, []);
+    if (!(result instanceof HTMLElement) || !nodes.has(result)) {
+      throw new TypeError("The custom element constructor did not return an HTMLElement");
+    }
+    if (result.hasAttributes()) fail("NotSupportedError", "A newly constructed custom element must not have attributes");
+    if (result.hasChildNodes()) fail("NotSupportedError", "A newly constructed custom element must not have children");
+    if (result.parentNode !== null) fail("NotSupportedError", "A newly constructed custom element must not have a parent");
+    if (result.ownerDocument !== document) fail("NotSupportedError", "A newly constructed custom element belongs to another document");
+    if (result.localName !== localName) fail("NotSupportedError", "A newly constructed custom element has another local name");
+    (result as { prefix: string | null }).prefix = prefix;
+    return result;
+  } catch (error) {
+    reportException(error);
+    const element = document[createElementInternal](localName, HTML_NAMESPACE, prefix, HTMLUnknownElement);
+    markFailed(element);
+    return element;
+  }
 }
 
 const createElementInternal = Symbol("create element");
@@ -2723,29 +2813,29 @@ export class Document extends ParentNode {
     return [...root.children].find((child) => child.namespaceURI === HTML_NAMESPACE && child.localName === name) ?? null;
   }
 
-  createElement(name: string): Element {
+  createElement(name: string, _options?: unknown): Element {
     if (arguments.length === 0) throw new TypeError("createElement requires a name");
     const { html } = documents.get(this)!;
     const localName = validateLocalName(html ? lowerAscii(String(name)) : String(name), true);
-    return this[createElementInternal](localName, html ? HTML_NAMESPACE : null, null);
+    const namespace = html ? HTML_NAMESPACE : null;
+    const definition = lookupDefinition(this, namespace, localName);
+    if (definition !== null) return constructCustomElement(this, definition, localName, null);
+    return this[createElementInternal](localName, namespace, null);
   }
 
-  createElementNS(namespace: string | null, name: string): Element {
+  createElementNS(namespace: string | null, name: string, _options?: unknown): Element {
     if (arguments.length < 2) throw new TypeError("createElementNS requires namespace and name");
     namespace = namespace == null || namespace === "" ? null : String(namespace);
     const { prefix, localName } = qualifiedName(namespace, String(name));
+    const definition = lookupDefinition(this, namespace, localName);
+    if (definition !== null) return constructCustomElement(this, definition, localName, prefix);
     return this[createElementInternal](localName, namespace, prefix);
   }
 
-  [createElementInternal](name: string, namespace: string | null, prefix: string | null): Element {
+  [createElementInternal](name: string, namespace: string | null, prefix: string | null, override?: typeof HTMLElement): Element {
     const id = allocate(this);
-    const { journal } = documents.get(this)!;
-    if (journal !== null) {
-      const tag = journal.intern(AtomKind.Tag, name);
-      const ns = namespace === null ? 0 : journal.intern(AtomKind.Namespace, namespace);
-      journal.record(Opcode.CreateElement, id, tag, ns);
-    }
-    const element = createElementObject(name, namespace, id, this, prefix);
+    recordElement(this, id, name, namespace);
+    const element = createElementObject(name, namespace, id, this, prefix, override);
     if (element instanceof TemplateElement) {
       const contents = new DocumentFragment(this, undefined, id);
       templateContents.set(element, contents);
@@ -2912,6 +3002,16 @@ function serializeXML(node: Node): string {
 
 for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", "paste"]) reflectedEvent(Document.prototype, name);
 
+ceReactions(Node.prototype, ["nodeValue", "textContent", "appendChild", "insertBefore", "removeChild", "replaceChild", "normalize", "cloneNode"]);
+ceReactions(ParentNode.prototype, ["append", "prepend", "replaceChildren"]);
+ceReactions(CharacterData.prototype, ["before", "after", "replaceWith", "remove"]);
+ceReactions(DocumentType.prototype, ["remove"]);
+ceReactions(Element.prototype, ["before", "after", "replaceWith", "remove", "innerHTML", "insertAdjacentElement", "insertAdjacentText",
+  "insertAdjacentHTML", "id", "className", "setAttribute", "setAttributeNS", "removeAttribute", "removeAttributeNS", "toggleAttribute"]);
+ceReactions(HTMLElement.prototype, ["innerText", "tabIndex"]);
+ceReactions(Document.prototype, ["createElement", "createElementNS", "importNode", "adoptNode", "title"]);
+ceReactions(CSSStyleDeclaration.prototype, ["cssText", "setProperty", "removeProperty"]);
+
 function attributeKey(namespace: string | null, localName: string): string { return `${namespace ?? ""}\0${localName}`; }
 
 function attributeAtomFor(journal: Journal, attribute: Attribute): number {
@@ -2930,7 +3030,10 @@ function writeAttribute(element: Element, attribute: Attribute, initial = false)
   if (journal !== null) {
     journal.record(Opcode.SetAttr, nodeId(element), attributeAtomFor(journal, attribute), attribute.value);
   }
-  if (!initial) queueMutation(element, { type: "attributes", name: attribute.localName, namespace: attribute.namespaceURI, oldValue });
+  if (!initial) {
+    queueMutation(element, { type: "attributes", name: attribute.localName, namespace: attribute.namespaceURI, oldValue });
+    customElementAttributeChanged(element, attribute.localName, oldValue, attribute.value, attribute.namespaceURI);
+  }
   if (attribute.namespaceURI === null && element instanceof HTMLElement) element[attributeChanged](attribute.name, oldValue);
 }
 
@@ -2941,6 +3044,7 @@ function eraseAttribute(element: Element, attribute: Attribute): void {
     journal.record(Opcode.RemoveAttr, nodeId(element), attributeAtomFor(journal, attribute), 0);
   }
   queueMutation(element, { type: "attributes", name: attribute.localName, namespace: attribute.namespaceURI, oldValue: attribute.value });
+  customElementAttributeChanged(element, attribute.localName, attribute.value, null, attribute.namespaceURI);
   if (attribute.namespaceURI === null && element instanceof HTMLElement) element[attributeChanged](attribute.name, attribute.value);
 }
 
@@ -2956,10 +3060,12 @@ function unlink(parent: Node, child: Node, suppressObserver = false, syncText = 
   if (syncText && parent instanceof HTMLStyleElement && child instanceof Text) syncStyleText(parent, true);
 }
 
-function cloneNodeInto(source: Node, targetDoc: Document, deep: boolean): Node {
+function cloneNodeInto(source: Node, targetDoc: Document, deep: boolean, upgrade = true): Node {
   let clone: Node;
   if (source instanceof Element) {
     clone = targetDoc[createElementInternal](source.localName, source.namespaceURI, source.prefix);
+    const definition = upgrade ? lookupDefinition(targetDoc, source.namespaceURI, source.localName) : null;
+    if (definition !== null) enqueueUpgrade(clone as Element, definition);
     for (const attribute of nodeState(source).attributes?.values() ?? []) writeAttribute(clone as Element, { ...attribute }, true);
     if (source instanceof HTMLInputElement && clone instanceof HTMLInputElement) source[cloneInput](clone);
   } else if (source instanceof Text) clone = targetDoc.createTextNode(source.data);
@@ -2975,9 +3081,9 @@ function cloneNodeInto(source: Node, targetDoc: Document, deep: boolean): Node {
       : new Document(journal, 0, quirks, allocator, html, contentType);
   } else clone = targetDoc.createDocumentFragment();
   if (deep) {
-    for (const child of source.childNodes) clone.appendChild(cloneNodeInto(child, targetDoc, true));
+    for (const child of source.childNodes) clone.appendChild(cloneNodeInto(child, targetDoc, true, upgrade));
     if (source instanceof TemplateElement && clone instanceof TemplateElement && source.content && clone.content) {
-      for (const child of source.content.childNodes) clone.content.appendChild(cloneNodeInto(child, targetDoc, true));
+      for (const child of source.content.childNodes) clone.content.appendChild(cloneNodeInto(child, targetDoc, true, false));
     }
   }
   return clone;
@@ -3080,7 +3186,8 @@ function demoteSubtree(sourceJournal: Journal, targetDoc: Document, root: Node):
 }
 
 function adoptSubtree(targetDoc: Document, root: Node): void {
-  if (ownerOf(root) === targetDoc) return;
+  const oldDocument = ownerOf(root);
+  if (oldDocument === targetDoc) return;
   const sourceJournal = journalFor(root);
   const targetJournal = journalFor(targetDoc);
   if (sourceJournal === null && targetJournal !== null) {
@@ -3097,6 +3204,10 @@ function adoptSubtree(targetDoc: Document, root: Node): void {
     setOwnerSubtree(targetDoc, root);
   } else {
     fail("WrongDocumentError", "Nodes use different journal sessions");
+  }
+  if (customElementsActive) {
+    customElementAdopted(root, oldDocument, targetDoc);
+    for (const node of descendants(root)) customElementAdopted(node, oldDocument, targetDoc);
   }
 }
 
@@ -3407,6 +3518,7 @@ export function installDOM(global: Record<PropertyKey, unknown>, supplied?: Docu
   state.view = installWindowEventTarget(global);
   observeListenerFlags(state.view, flags => state.journal?.record(Opcode.Listeners, 0, flags, 0));
   if (options?.url !== undefined) state.url = options.url;
+  installCustomElements(global, document);
   Object.assign(global, {
     window: global, self: global, opener: null, Window, document, Node, Element, CharacterData, Text, Comment, DocumentFragment,
     Document, XMLDocument, DOMParser, DocumentType, EventTarget, Event, CompositionEvent, CustomEvent, FocusEvent, MouseEvent, KeyboardEvent,
