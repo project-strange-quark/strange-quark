@@ -605,12 +605,11 @@ impl BoxTree<'_> {
             };
             constraints.available_space = available;
             let computed = self.compute_child_layout(child, constraints);
-            let baseline = computed
-                .baselines
-                .last
-                .or(computed.baselines.first)
+            let mut baseline = self[child]
+                .inline_block_baseline(computed.baselines)
                 .filter(|_| visible_overflow)
                 .map(|baseline| baseline + margin.top);
+            let height = (computed.size.height + margin.top + margin.bottom).max(0.0);
             let css = self[child].css.as_ref().expect("atomic inline style");
             let resolve = |calc, basis| self.calcs.resolve(calc, basis);
             let mut vertical_align = squark_text::vertical_align(css);
@@ -632,12 +631,23 @@ impl BoxTree<'_> {
                 }
                 _ => None,
             };
-            let correction = fractional_shift.map_or(0.0, |shift| {
+            if let Some(shift) = fractional_shift {
                 vertical_align.shift = parley::BaselineShift::Length(shift);
-                // Parley rounds alignment offsets along with the line metrics.
-                // Chromium uses fractional sub/sup offsets on that baseline.
-                shift.round() - shift
-            });
+            }
+            // Parley rounds alignment offsets along with the line metrics,
+            // where Chromium keeps fractional ones. Raising a box on the
+            // baseline is the same as lowering its baseline inside it, which
+            // Parley takes exactly, line height included.
+            let correction = match (vertical_align.alignment, vertical_align.shift) {
+                (parley::AlignmentBaseline::Baseline, parley::BaselineShift::Length(shift)) => {
+                    if shift != 0.0 {
+                        baseline = Some(baseline.unwrap_or(height) + shift);
+                        vertical_align.shift = parley::BaselineShift::Length(0.0);
+                    }
+                    0.0
+                }
+                _ => fractional_shift.map_or(0.0, |shift| shift.round() - shift),
+            };
             objects.push((
                 InlineBox {
                     id: usize::from(child) as u64,
@@ -648,7 +658,7 @@ impl BoxTree<'_> {
                     } else {
                         (computed.size.width + margin.left + margin.right).max(0.0)
                     },
-                    height: (computed.size.height + margin.top + margin.bottom).max(0.0),
+                    height,
                     baseline,
                     vertical_align,
                 },
@@ -839,6 +849,19 @@ impl BoxTree<'_> {
                         item.x + layout.margin.left
                     };
                     layout.location.y = item.y + layout.margin.top + correction;
+                    // Relative positioning moves an atomic inline after the
+                    // line is laid out, as it moves a block.
+                    let relative = crate::relative_offset(
+                        &self[child].style,
+                        Size {
+                            width: basis,
+                            height: None,
+                        },
+                        self[id].style.direction.is_rtl(),
+                        &self.calcs,
+                    );
+                    layout.location.x += relative.x;
+                    layout.location.y += relative.y;
                     candidates.translate(layout.location);
                     out_of_flow.append(&mut candidates);
                     self[child].layout = layout;

@@ -115,7 +115,7 @@ input:disabled:is([type=checkbox i], [type=radio i]) { background-color: transpa
 select:disabled { color: #808080; border-color: rgb(118 118 118 / 30%); }
 ::placeholder { color: #757575; }
 :focus-visible { outline: 2px solid #101010; outline-offset: -1px; }
-table { display: table; border-spacing: 2px; }
+table { display: table; border-spacing: 2px; box-sizing: border-box; text-indent: initial; }
 caption { display: table-caption; text-align: center; }
 thead { display: table-header-group; }
 tbody { display: table-row-group; }
@@ -124,6 +124,9 @@ tr { display: table-row; }
 colgroup { display: table-column-group; }
 col { display: table-column; }
 td, th { display: table-cell; padding: 1px; }
+thead, tbody, tfoot, table > tr { vertical-align: middle; }
+tr, td, th { vertical-align: inherit; }
+thead, tbody, tfoot, tr { border-color: inherit; }
 th { font-weight: bold; text-align: center; }
 
 [dir="rtl" i] { direction: rtl; unicode-bidi: isolate; }

@@ -164,7 +164,8 @@ impl Builder<'_, '_> {
             Content::Container,
         );
         if css.get_display().inside() == DisplayInside::Table {
-            self.make_table(id, owner);
+            let children = self.table_children(owner);
+            self.make_table(id, owner, children);
         } else {
             let mut tokens = Vec::new();
             let flex_or_grid = matches!(inner, Display::Flex | Display::Grid);
@@ -174,9 +175,7 @@ impl Builder<'_, '_> {
                 tokens.push(Token::Box(marker));
             }
             self.append_pseudo(id, owner, PseudoElement::Before, &mut tokens, flex_or_grid);
-            for &child in self.document.children(owner).unwrap_or_default() {
-                self.collect(child, owner, &css, flex_or_grid, &mut tokens, id);
-            }
+            self.collect_children(owner, &css, flex_or_grid, &mut tokens, id, false);
             self.append_pseudo(id, owner, PseudoElement::After, &mut tokens, flex_or_grid);
             self.flush_inline(id, owner, &css, &mut tokens);
             if flex_or_grid {
@@ -194,6 +193,50 @@ impl Builder<'_, '_> {
         id
     }
 
+    /// Collects a node's children into `parent`. Table rows, row groups and
+    /// cells outside a table, with the whitespace between them, get an
+    /// anonymous table: an inline one when `inline` says the children are in
+    /// an inline box (CSS 2.1 § 17.2.1).
+    fn collect_children(
+        &mut self,
+        owner: NodeId,
+        css: &Css,
+        flex_grid: bool,
+        tokens: &mut Vec<Token>,
+        parent: Id,
+        inline: bool,
+    ) {
+        let children = self.document.children(owner).unwrap_or_default().to_vec();
+        let mut index = 0;
+        while index < children.len() {
+            if flex_grid || !self.is_table_part(children[index]) {
+                self.collect(children[index], owner, css, flex_grid, tokens, parent, inline);
+                index += 1;
+                continue;
+            }
+            let mut end = index + 1;
+            let mut scan = end;
+            while scan < children.len() {
+                if self.is_table_part(children[scan]) {
+                    scan += 1;
+                    end = scan;
+                } else if self.is_space(children[scan]) {
+                    scan += 1;
+                } else {
+                    break;
+                }
+            }
+            let run = children[index..end]
+                .iter()
+                .copied()
+                .filter(|&child| !self.is_space(child))
+                .collect();
+            self.anonymous_table(owner, css, run, tokens, parent, inline);
+            index = end;
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn collect(
         &mut self,
         owner: NodeId,
@@ -202,6 +245,7 @@ impl Builder<'_, '_> {
         flex_grid: bool,
         tokens: &mut Vec<Token>,
         parent: Id,
+        inline: bool,
     ) {
         if self.document.is_text(owner) {
             if let Some(units) = self.document.text(owner) {
@@ -222,9 +266,7 @@ impl Builder<'_, '_> {
             return;
         }
         if display.inside() == DisplayInside::Contents {
-            for &child in self.document.children(owner).unwrap_or_default() {
-                self.collect(child, owner, &style, flex_grid, tokens, parent);
-            }
+            self.collect_children(owner, &style, flex_grid, tokens, parent, inline);
         } else if self.document.html_element(owner) == Some("br") && !flex_grid {
             tokens.push(Token::Break { owner, css: style });
         } else if !flex_grid
@@ -270,9 +312,7 @@ impl Builder<'_, '_> {
                 self.inline_edge(owner, &style, edge_style, true, tokens);
             }
             self.append_pseudo(parent, owner, PseudoElement::Before, tokens, flex_grid);
-            for &child in self.document.children(owner).unwrap_or_default() {
-                self.collect(child, owner, &style, flex_grid, tokens, parent);
-            }
+            self.collect_children(owner, &style, flex_grid, tokens, parent, true);
             self.append_pseudo(parent, owner, PseudoElement::After, tokens, flex_grid);
             if let Some(edge_style) = &edge_style {
                 self.inline_edge(owner, &style, edge_style, false, tokens);
@@ -461,107 +501,353 @@ impl Builder<'_, '_> {
         self.tree[parent].children.push(id);
     }
 
-    fn make_table(&mut self, table: Id, owner: NodeId) {
+    /// The anonymous table around a run of table parts with no table.
+    fn anonymous_table(
+        &mut self,
+        owner: NodeId,
+        css: &Css,
+        run: Vec<NodeId>,
+        tokens: &mut Vec<Token>,
+        parent: Id,
+        inline: bool,
+    ) {
+        use style::values::specified::box_::Display as CssDisplay;
+
+        let display = if inline {
+            CssDisplay::InlineTable
+        } else {
+            CssDisplay::Table
+        };
+        let table_css = self.cascade.anonymous_style(css, display);
+        let style = Rc::get_mut(&mut self.tree.calcs)
+            .expect("styles are projected before layout")
+            .style(&table_css);
+        let table = self.tree.add(
+            owner,
+            FragmentKind::Box,
+            Some(table_css),
+            style,
+            Content::Container,
+        );
+        self.tree[table].anonymous = true;
+        self.make_table(table, owner, run);
+        if inline {
+            tokens.push(Token::Box(table));
+        } else {
+            self.flush_parent_inline(parent, tokens);
+            self.tree[parent].children.push(table);
+        }
+    }
+
+    /// A table part's children, with `display: contents` elements replaced by
+    /// their own children.
+    fn table_children(&self, owner: NodeId) -> Vec<NodeId> {
+        let mut children = Vec::new();
+        for &child in self.document.children(owner).unwrap_or_default() {
+            match self.document.computed_style(child) {
+                Some(css) if css.get_display().is_none() => {}
+                Some(css) if css.get_display().inside() == DisplayInside::Contents => {
+                    children.extend(self.table_children(child));
+                }
+                Some(_) => children.push(child),
+                None if self.document.is_text(child) => children.push(child),
+                None => {}
+            }
+        }
+        children
+    }
+
+    fn table_display(&self, node: NodeId) -> Option<DisplayInside> {
+        self.document
+            .computed_style(node)
+            .map(|css| *css.get_display())
+            .filter(|display| !display.is_none())
+            .map(|display| display.inside())
+    }
+
+    fn is_table_part(&self, node: NodeId) -> bool {
+        matches!(
+            self.table_display(node),
+            Some(
+                DisplayInside::TableRowGroup
+                    | DisplayInside::TableHeaderGroup
+                    | DisplayInside::TableFooterGroup
+                    | DisplayInside::TableRow
+                    | DisplayInside::TableCell
+            )
+        )
+    }
+
+    fn is_caption(&self, node: NodeId) -> bool {
+        self.document.computed_style(node).is_some_and(|css| {
+            !css.get_display().is_none()
+                && css.get_display().outside() == DisplayOutside::TableCaption
+        })
+    }
+
+    /// Whether a node is a text node of collapsible whitespace only.
+    fn is_space(&self, node: NodeId) -> bool {
+        self.document.is_text(node)
+            && self.document.text(node).is_some_and(|units| {
+                units
+                    .iter()
+                    .all(|&unit| matches!(unit, 0x20 | 0x09 | 0x0a | 0x0c | 0x0d))
+            })
+    }
+
+    /// Builds a table's rows and cells from its children. Content that is
+    /// not a table part goes into anonymous cells, and cells outside a row
+    /// into anonymous rows.
+    fn make_table(&mut self, table: Id, owner: NodeId, children: Vec<NodeId>) {
         use style::computed_values::{
             border_collapse::T as BorderCollapse, table_layout::T as TableLayout,
         };
 
-        let css = self.tree[table].css.as_ref().expect("table style");
-        let spacing = if *css.get_border_collapse() == BorderCollapse::Separate {
+        let css = self.tree[table].css.clone().expect("table style");
+        let collapse = *css.get_border_collapse() == BorderCollapse::Collapse;
+        let spacing = if collapse {
+            taffy::Size::ZERO
+        } else {
             let spacing = &css.get_border_spacing().0;
             taffy::Size {
                 width: spacing.width.0.px(),
                 height: spacing.height.0.px(),
             }
-        } else {
-            taffy::Size::ZERO
         };
-        let mut can_size_columns = *css.get_table_layout() == TableLayout::Auto;
-        let style = &mut self.tree[table].style;
-        style.gap = spacing.map(taffy::LengthPercentage::length);
-        let mut columns = 0;
+        let fixed = *css.get_table_layout() == TableLayout::Fixed;
+        if collapse {
+            // A table whose borders collapse has no padding.
+            self.tree[table].style.padding = taffy::Rect::<taffy::LengthPercentage>::ZERO;
+        }
 
-        let mut pending: Vec<_> = self
-            .document
-            .children(owner)
-            .unwrap_or_default()
+        // The first header group comes first and the first footer group last.
+        let header = children
             .iter()
-            .rev()
-            .map(|&node| (node, None::<usize>))
+            .copied()
+            .find(|&node| self.table_display(node) == Some(DisplayInside::TableHeaderGroup));
+        let footer = children
+            .iter()
+            .copied()
+            .find(|&node| self.table_display(node) == Some(DisplayInside::TableFooterGroup));
+        let ordered: Vec<NodeId> = header
+            .into_iter()
+            .chain(
+                children
+                    .iter()
+                    .copied()
+                    .filter(|&node| Some(node) != header && Some(node) != footer),
+            )
+            .chain(footer)
             .collect();
-        let mut row = 0i16;
-        let mut parts: Vec<crate::table::Part> = Vec::new();
-        while let Some((node, group)) = pending.pop() {
-            let Some(css) = self.document.computed_style(node) else {
-                continue;
-            };
-            if css.get_display().is_none() {
-                continue;
-            }
-            match css.get_display().inside() {
-                DisplayInside::TableRow => {
-                    let start = row as usize;
-                    row = row.saturating_add(1);
-                    let end = row as usize;
-                    if let Some(group) = group {
-                        parts[group].rows.end = end;
-                    }
-                    parts.push(crate::table::Part {
+        let mut grid = TableGrid::default();
+        for node in ordered {
+            match self.table_display(node) {
+                Some(
+                    DisplayInside::TableRowGroup
+                    | DisplayInside::TableHeaderGroup
+                    | DisplayInside::TableFooterGroup,
+                ) => {
+                    self.end_anonymous_cell(table, &mut grid);
+                    grid.end_group();
+                    let group = grid.parts.len();
+                    grid.parts.push(crate::table::Part {
                         owner: node,
-                        rows: start..end,
+                        rows: grid.rows.len()..grid.rows.len(),
                     });
-                    let mut col = 1i16;
-                    for &cell in self.document.children(node).unwrap_or_default() {
-                        let Some(css) = self.document.computed_style(cell) else {
-                            continue;
-                        };
-                        if css.get_display().inside() != DisplayInside::TableCell {
-                            continue;
-                        }
-                        let span = self
-                            .attribute(cell, "colspan")
-                            .and_then(|s| s.parse::<u16>().ok())
-                            .unwrap_or(1)
-                            .clamp(1, 1000);
-                        can_size_columns &= span == 1;
-                        let child = self.make_box(cell, css);
-                        let style = &mut self.tree[child].style;
-                        style.grid_row.start = taffy::style_helpers::line(row);
-                        style.grid_column.start = taffy::style_helpers::line(col);
-                        style.grid_column.end = taffy::style_helpers::span(span);
-                        col = col.saturating_add(span as i16);
-                        self.tree[table].children.push(child);
+                    let group_css = self.document.computed_style(node).expect("styled group");
+                    for child in self.table_children(node) {
+                        self.table_item(table, &mut grid, child, node, &group_css, Some(group));
                     }
-                    columns = columns.max(usize::try_from(col - 1).unwrap_or_default());
+                    self.end_anonymous_cell(table, &mut grid);
+                    grid.end_group();
                 }
-                DisplayInside::TableRowGroup
-                | DisplayInside::TableHeaderGroup
-                | DisplayInside::TableFooterGroup => {
-                    let group = parts.len();
-                    parts.push(crate::table::Part {
-                        owner: node,
-                        rows: row as usize..row as usize,
-                    });
-                    pending.extend(
-                        self.document
-                            .children(node)
-                            .unwrap_or_default()
-                            .iter()
-                            .rev()
-                            .map(|&node| (node, Some(group))),
-                    );
-                }
-                _ => {}
+                _ => self.table_item(table, &mut grid, node, owner, &css, None),
             }
         }
-        // Even a row without cells consumes a track (and its border spacing).
-        self.tree[table].style.grid_template_rows =
-            vec![taffy::style_helpers::auto(); row as usize];
+        self.end_anonymous_cell(table, &mut grid);
+        grid.end_group();
         self.tree[table].content = Content::Table(crate::table::Table {
             spacing,
-            auto_columns: (can_size_columns && columns > 0).then_some(columns),
-            parts,
+            fixed,
+            rows: grid.rows,
+            cells: grid.cells,
+            columns: grid.columns,
+            parts: grid.parts,
+            tracks: Default::default(),
         });
+    }
+
+    /// Places a child of a table or row group: a row as it is, a cell in an
+    /// anonymous row, and other content in an anonymous cell in that row.
+    fn table_item(
+        &mut self,
+        table: Id,
+        grid: &mut TableGrid,
+        node: NodeId,
+        owner: NodeId,
+        css: &Css,
+        group: Option<usize>,
+    ) {
+        match self.table_display(node) {
+            Some(DisplayInside::TableRow) => {
+                self.end_anonymous_cell(table, grid);
+                self.table_row(table, grid, node, group);
+            }
+            Some(DisplayInside::TableColumn | DisplayInside::TableColumnGroup) => {}
+            // Captions are not laid out yet.
+            _ if self.is_caption(node) => {}
+            _ if self.is_space(node) && grid.loose.is_empty() => {}
+            display => {
+                if !grid.anonymous_row {
+                    self.end_anonymous_cell(table, grid);
+                    grid.start_row(None, Dimension::AUTO, group);
+                    grid.anonymous_row = true;
+                }
+                if display == Some(DisplayInside::TableCell) {
+                    self.end_anonymous_cell(table, grid);
+                    self.table_cell(table, grid, node);
+                } else {
+                    if grid.loose.is_empty() {
+                        grid.loose_style = Some((owner, css.clone()));
+                    }
+                    grid.loose.push(node);
+                }
+            }
+        }
+    }
+
+    fn table_row(&mut self, table: Id, grid: &mut TableGrid, row: NodeId, group: Option<usize>) {
+        let Some(css) = self.document.computed_style(row) else {
+            return;
+        };
+        let height = Rc::get_mut(&mut self.tree.calcs)
+            .expect("styles are projected before layout")
+            .style(&css)
+            .size
+            .height;
+        grid.start_row(Some(row), height, group);
+        for child in self.table_children(row) {
+            if self.table_display(child) == Some(DisplayInside::TableCell) {
+                self.end_anonymous_cell(table, grid);
+                self.table_cell(table, grid, child);
+            } else if !(self.is_space(child) && grid.loose.is_empty()) {
+                if grid.loose.is_empty() {
+                    grid.loose_style = Some((row, css.clone()));
+                }
+                grid.loose.push(child);
+            }
+        }
+        self.end_anonymous_cell(table, grid);
+    }
+
+    /// Wraps the content collected outside cells in an anonymous cell.
+    fn end_anonymous_cell(&mut self, table: Id, grid: &mut TableGrid) {
+        if grid.loose.is_empty() {
+            return;
+        }
+        let nodes = std::mem::take(&mut grid.loose);
+        let (owner, parent_css) = grid.loose_style.take().expect("loose content style");
+        let css = self.cascade.anonymous_style(
+            &parent_css,
+            style::values::specified::box_::Display::TableCell,
+        );
+        let style = Rc::get_mut(&mut self.tree.calcs)
+            .expect("styles are projected before layout")
+            .style(&css);
+        let cell = self.tree.add(
+            owner,
+            FragmentKind::Box,
+            Some(css.clone()),
+            style,
+            Content::Container,
+        );
+        self.tree[cell].anonymous = true;
+        let mut tokens = Vec::new();
+        let mut index = 0;
+        while index < nodes.len() {
+            // Table parts among the content get an anonymous table of their
+            // own inside the cell.
+            if self.is_table_part(nodes[index]) {
+                let end = nodes[index..]
+                    .iter()
+                    .position(|&node| !self.is_table_part(node))
+                    .map_or(nodes.len(), |offset| index + offset);
+                let run = nodes[index..end].to_vec();
+                self.anonymous_table(owner, &css, run, &mut tokens, cell, false);
+                index = end;
+            } else {
+                self.collect(nodes[index], owner, &css, false, &mut tokens, cell, false);
+                index += 1;
+            }
+        }
+        self.flush_inline(cell, owner, &css, &mut tokens);
+        self.place_cell(table, grid, cell, 1, 1, crate::table::Align::Baseline);
+    }
+
+    /// Places a cell in the first free column of the current row.
+    fn table_cell(&mut self, table: Id, grid: &mut TableGrid, cell: NodeId) {
+        let Some(css) = self.document.computed_style(cell) else {
+            return;
+        };
+        let span = |name, max: u16| {
+            self.attribute(cell, name)
+                .and_then(|value| value.trim().parse::<u16>().ok())
+                .map(|span| span.min(max))
+        };
+        let columns = usize::from(span("colspan", 1000).unwrap_or(1).max(1));
+        // `rowspan="0"` spans the rest of the row group.
+        let rows = match span("rowspan", 65534).unwrap_or(1) {
+            0 => usize::MAX,
+            rows => usize::from(rows),
+        };
+        let align = cell_align(&css);
+        let child = self.make_box(cell, css);
+        self.place_cell(table, grid, child, columns, rows, align);
+    }
+
+    /// Puts a cell box in the grid. The table resolves the cell's sizes, so
+    /// its box keeps automatic ones.
+    fn place_cell(
+        &mut self,
+        table: Id,
+        grid: &mut TableGrid,
+        child: Id,
+        columns: usize,
+        rows: usize,
+        align: crate::table::Align,
+    ) {
+        let row = grid.rows.len() - 1;
+        let mut column = grid.column;
+        while grid.occupied.get(column).is_some_and(|&until| until > row) {
+            column += 1;
+        }
+        let end = column + columns;
+        if grid.occupied.len() < end {
+            grid.occupied.resize(end, 0);
+        }
+        for until in &mut grid.occupied[column..end] {
+            *until = (*until).max(row.saturating_add(rows));
+        }
+        grid.column = end;
+        grid.columns = grid.columns.max(end);
+        let style = &mut self.tree[child].style;
+        grid.cells.push(crate::table::Cell {
+            row,
+            column,
+            rows,
+            columns,
+            align,
+            size: style.size,
+            min_size: style.min_size,
+            max_width: style.max_size.width,
+        });
+        style.size = taffy::Size::AUTO;
+        style.min_size = taffy::Size::AUTO;
+        style.max_size = taffy::Size::AUTO;
+        style.aspect_ratio = None;
+        // Table cells have no margins.
+        style.margin = taffy::Rect::<taffy::LengthPercentageAuto>::ZERO;
+        self.tree[table].children.push(child);
     }
 
     fn svg_dimension(&self, id: NodeId, name: &str, pixels: Option<f32>) -> Dimension {
@@ -626,6 +912,79 @@ impl Builder<'_, '_> {
         } else {
             None
         }
+    }
+}
+
+/// The table grid as its rows and cells are found.
+#[derive(Default)]
+struct TableGrid {
+    rows: Vec<crate::table::Row>,
+    cells: Vec<crate::table::Cell>,
+    parts: Vec<crate::table::Part>,
+    columns: usize,
+    /// The next column to try in the current row.
+    column: usize,
+    /// For each column, the first row that a cell from an earlier row does
+    /// not span into.
+    occupied: Vec<usize>,
+    /// The first cell of the current row group.
+    group_cells: usize,
+    /// Whether the current row is an anonymous one holding cells that have
+    /// no row of their own.
+    anonymous_row: bool,
+    /// Content of the current row that is not in a cell, waiting for an
+    /// anonymous cell, and the element and style that cell inherits from.
+    loose: Vec<NodeId>,
+    loose_style: Option<(NodeId, Css)>,
+}
+
+impl TableGrid {
+    fn start_row(&mut self, owner: Option<NodeId>, height: Dimension, group: Option<usize>) {
+        let index = self.rows.len();
+        self.rows.push(crate::table::Row { height });
+        if let Some(owner) = owner {
+            self.parts.push(crate::table::Part {
+                owner,
+                rows: index..index + 1,
+            });
+        }
+        if let Some(group) = group {
+            self.parts[group].rows.end = index + 1;
+        }
+        self.column = 0;
+        self.anonymous_row = false;
+    }
+
+    /// Cells span rows only within their row group.
+    fn end_group(&mut self) {
+        let end = self.rows.len();
+        for cell in &mut self.cells[self.group_cells..] {
+            cell.rows = cell.rows.min(end - cell.row);
+        }
+        self.group_cells = self.cells.len();
+        self.occupied.clear();
+        self.anonymous_row = false;
+    }
+}
+
+/// A table cell's `vertical-align`, which Stylo stores as the
+/// `alignment-baseline` and `baseline-shift` longhands.
+fn cell_align(css: &Css) -> crate::table::Align {
+    use crate::table::Align;
+    use style::values::{
+        computed::{AlignmentBaseline, BaselineShift},
+        generics::box_::BaselineShiftKeyword,
+    };
+
+    let box_style = css.get_box();
+    match box_style.get_baseline_shift() {
+        BaselineShift::Keyword(BaselineShiftKeyword::Top) => Align::Top,
+        BaselineShift::Keyword(BaselineShiftKeyword::Bottom) => Align::Bottom,
+        BaselineShift::Keyword(BaselineShiftKeyword::Center) => Align::Middle,
+        _ if box_style.slow_clone_alignment_baseline() == AlignmentBaseline::Middle => {
+            Align::Middle
+        }
+        _ => Align::Baseline,
     }
 }
 

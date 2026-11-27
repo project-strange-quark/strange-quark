@@ -595,6 +595,24 @@ impl<'a> Cascade<'a> {
         self.media.device_pixel_ratio.0
     }
 
+    /// The style of an anonymous box, such as a table wrapper that layout
+    /// generates around misparented table parts: inherited properties come
+    /// from the parent box and the rest take their initial values.
+    pub fn anonymous_style(
+        &self,
+        parent: &ComputedValues,
+        display: style::values::computed::Display,
+    ) -> Arc<ComputedValues> {
+        let mut builder = style::properties::StyleBuilder::for_inheritance(
+            self.stylist.device(),
+            Some(&self.stylist),
+            Some(parent),
+            None,
+        );
+        builder.mutate_box().set_display(display);
+        builder.build()
+    }
+
     pub fn set_blob_resolver(&mut self, resolver: std::sync::Arc<squark_assets::BlobResolver>) {
         self.blob_resolver = Some(resolver);
     }

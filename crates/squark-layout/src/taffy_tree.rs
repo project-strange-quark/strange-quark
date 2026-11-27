@@ -170,6 +170,10 @@ impl BoxTree<'_> {
             if display == Display::None || input.run_mode == taffy::RunMode::PerformHiddenLayout {
                 return taffy::compute_hidden_layout(tree, id);
             }
+            if input.run_mode == taffy::RunMode::PerformLayout {
+                // A fresh layout places the children unshifted.
+                tree[id].content_offset = 0.0;
+            }
             if let Some(known) = tree.size_contained(id, &input) {
                 if input.run_mode == taffy::RunMode::ComputeSize
                     && known.width.is_some()
@@ -213,9 +217,7 @@ impl BoxTree<'_> {
                     })
                 }
                 Content::Control(_) => crate::controls::compute(tree, id, input),
-                Content::Table(ref table) => {
-                    crate::table::compute(tree, id, input, table.spacing, table.auto_columns)
-                }
+                Content::Table(_) => crate::table::compute(tree, id, input),
                 Content::Container => match display {
                     Display::Flex => tree.compute_flex(id, input),
                     Display::Grid => taffy::compute_grid_layout(tree, id, input),
@@ -230,15 +232,17 @@ impl BoxTree<'_> {
                 {
                     output.baselines.last = tree[id].children.iter().rev().find_map(|&child| {
                         let child = &tree[child];
+                        // Like Chromium, a table gives no baseline to the
+                        // block around it, so an inline-block keeps the
+                        // baseline of a line box before the table.
                         if child.style.position.is_out_of_flow()
                             || child.style.overflow.y != taffy::Overflow::Visible
+                            || matches!(child.content, Content::Table(_))
                         {
                             return None;
                         }
                         child
-                            .baselines
-                            .last
-                            .or(child.baselines.first)
+                            .inline_block_baseline(child.baselines)
                             .map(|baseline| child.layout.location.y + baseline)
                     });
                 }

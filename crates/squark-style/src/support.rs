@@ -256,7 +256,9 @@ fn ignored(property: &str, value: &str) -> Option<Consumer> {
         ) => Layout,
         ("tab-size" | "-moz-tab-size", _) => Layout,
         ("writing-mode", _) => Layout,
-        ("display", value) if value.contains("table") || value.contains("ruby") => Layout,
+        // Layout builds tables, but not their captions or column widths.
+        ("display", "table-caption" | "table-column" | "table-column-group") => Layout,
+        ("display", value) if value.contains("ruby") => Layout,
         ("grid-template" | "grid-template-columns" | "grid-template-rows", value)
             if value.contains("subgrid") =>
         {
@@ -397,6 +399,24 @@ p { clear: none; writing-mode: horizontal-tb; }
             warnings.last().unwrap().to_string(),
             "https://example.test/css/limited.css:15:1: style drops the rule \
              `.list, .list::-webkit-scrollbar-thumb { … }`"
+        );
+    }
+
+    #[test]
+    fn reports_only_the_table_displays_layout_ignores() {
+        let url = Url::parse("https://example.test/css/tables.css").unwrap();
+        let css = "\
+.t { display: inline-table } .g { display: table-row-group } .r { display: table-row }
+.c { display: table-cell } .h { display: table-header-group } .f { display: table-footer-group }
+.k { display: table-caption } .o { display: table-column } .p { display: table-column-group }";
+        let warnings: Vec<_> = stylesheet(css, &url, None)
+            .iter()
+            .map(|warning| (warning.value.clone(), warning.consumer))
+            .collect();
+        assert_eq!(
+            warnings,
+            ["table-caption", "table-column", "table-column-group"]
+                .map(|value| (value.to_owned(), Consumer::Layout))
         );
     }
 }

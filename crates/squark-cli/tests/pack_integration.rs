@@ -572,7 +572,7 @@ fn malformed_packs_and_documents_are_rejected() {
 }
 
 #[test]
-fn all_150_r1_reftest_cases_compile_and_validate_through_squark_journal() {
+fn all_r1_reftest_cases_compile_and_validate_through_squark_journal() {
     let r1_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/reftests/cases/r1");
     let mut count = 0usize;
     let mut stack = vec![r1_root.clone()];
@@ -598,7 +598,7 @@ fn all_150_r1_reftest_cases_compile_and_validate_through_squark_journal() {
             }
         }
     }
-    assert_eq!(count, 150, "expected all 150 R1 reftest cases");
+    assert_eq!(count, 159, "expected all 159 R1 reftest cases");
 }
 
 #[test]

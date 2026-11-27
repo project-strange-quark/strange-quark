@@ -567,7 +567,7 @@ impl DocumentEngine for StaticDocument<'_> {
             self.cascade.resources(),
             viewport.scale,
         )?;
-        self.boxes = query::BoxIndex::build(&snapshot);
+        self.boxes = query::BoxIndex::build(&snapshot, &self.layout.anonymous);
         self.snapshot = snapshot;
         self.layout_input = Some(layout_input);
         self.changed = false;
