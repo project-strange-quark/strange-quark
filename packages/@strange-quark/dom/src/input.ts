@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 
+import { DragController, dragSource } from "./drag.js";
+import type { DragHost } from "./drag.js";
 import {
   beginPointerSelection, changeStateChain, connectedInputTarget, disabledControl, Document, Element, elementChain, focusFromPointer,
   inputComposition, isComposing, keyboardDefault, noteKeyboardModality, notePointerModality, onInputDetach, spaceActivates, updatePointerSelection,
@@ -58,7 +60,10 @@ class InputController {
 
   // Chromium shows the context menu, and fires contextmenu, when the right
   // button goes down, except on Windows, where it waits for the button to rise.
-  constructor(readonly document: Document, readonly contextMenuOnRelease: boolean) {
+  readonly drag: DragController;
+
+  constructor(readonly document: Document, readonly contextMenuOnRelease: boolean, dragHost: DragHost) {
+    this.drag = new DragController(document, dragHost);
     onInputDetach(document, child => {
       const hover = this.chain("hover");
       const active = this.chain("active");
@@ -162,6 +167,23 @@ class InputController {
     return { target, button, x, y, time, modifiers, detail };
   }
 
+  /** A drag started: the pointer's own gesture ends with pointercancel. */
+  cancelForDrag(pointer: Pointer, fields: PointerFields, time: number): void {
+    const target = pointer.capture?.isConnected ? pointer.capture : pointer.down;
+    if (target?.isConnected) {
+      dispatchTrustedEvent(target, new PointerEvent("pointercancel", {
+        ...mouseInit(fields, this.document), bubbles: true, cancelable: false, composed: true, button: -1,
+      }), time);
+    }
+    this.active(pointer, null);
+    pointer.selection = null;
+    pointer.pendingCapture = null;
+    this.capture(pointer, fields, time);
+    pointer.down = null;
+    pointer.clickPress = null;
+    pointer.suppressMouse = false;
+  }
+
   dispatchPointer(type: "pointerdown" | "pointerup" | "pointermove" | "pointercancel",
     hit: Element | null, stale: boolean, related: Element | null, fields: PointerFields, time: number): boolean {
     const id = fields.pointerId;
@@ -179,6 +201,32 @@ class InputController {
       this.hover(pointer, target, fields, time, related);
       if (pointer.hover.length === 0 && pointer.buttons === 0 && pointer.pendingCapture === null) this.pointers.delete(id);
       return false;
+    }
+
+    // A drag in progress takes the primary mouse pointer's moves and release.
+    if (this.drag.dragging && fields.isPrimary && fields.pointerType === "mouse") {
+      const dragInit = mouseInit(fields, this.document);
+      pointer.buttons = fields.buttons;
+      pointer.last = { x: fields.x, y: fields.y };
+      if (type === "pointermove") this.drag.move(hit, dragInit, id, () => {});
+      else if (type === "pointerup") this.drag.release(dragInit);
+      else if (type === "pointercancel") this.drag.cancel(dragInit, false);
+      if (type !== "pointermove") {
+        this.hover(pointer, hit?.isConnected ? hit : null, fields, time);
+        if (pointer.hover.length === 0 && pointer.buttons === 0) this.pointers.delete(id);
+      }
+      return true;
+    }
+    if ((type === "pointerup" || type === "pointercancel") && fields.isPrimary && this.drag.takeRelease()) {
+      pointer.buttons = fields.buttons;
+      this.hover(pointer, hit?.isConnected ? hit : null, fields, time);
+      if (pointer.hover.length === 0 && pointer.buttons === 0) this.pointers.delete(id);
+      return true;
+    }
+    if (type === "pointermove" && fields.isPrimary && fields.pointerType === "mouse" && (fields.buttons & 1) !== 0 &&
+        this.drag.move(hit, mouseInit(fields, this.document), id, () => this.cancelForDrag(pointer!, fields, time))) {
+      pointer.last = { x: fields.x, y: fields.y };
+      return true;
     }
 
     const touch = fields.pointerType === "touch";
@@ -239,7 +287,13 @@ class InputController {
       }), time);
       if (allowed && fields.button === 0 && target.isConnected) {
         focusFromPointer(this.document, target, time);
-        if (!touch) pointer.selection = beginPointerSelection(this.document, target, fields.x, fields.y, fields.shiftKey);
+        // A press on a draggable source arms a drag instead of a text selection.
+        if (!touch && fields.isPrimary) this.drag.arm(target, fields.x, fields.y, id);
+        if (!touch && dragSource(target) === null) {
+          pointer.selection = beginPointerSelection(this.document, target, fields.x, fields.y, fields.shiftKey);
+        }
+      } else if (fields.button === 0) {
+        this.drag.disarm();
       }
       canceled ||= !allowed;
     }
@@ -251,6 +305,7 @@ class InputController {
       updatePointerSelection(pointer.selection, fields.x, fields.y);
     }
     if (released) {
+      if (fields.isPrimary) this.drag.disarm();
       pointer.selection = null;
       pointer.pendingCapture = null;
       this.capture(pointer, fields, time);
@@ -326,6 +381,8 @@ class InputController {
   }
 
   keyboard(type: "keydown" | "keyup", fields: KeyFields, time: number): boolean {
+    // Escape ends a drag before anything else sees the key, as in Chromium.
+    if (type === "keydown" && fields.key === "Escape" && this.drag.cancel()) return true;
     const target = this.document.activeElement;
     const previousSpaceTarget = this.#spaceChain[0];
     if (type === "keyup" && fields.key === " ") this.setSpaceTarget(null);
@@ -433,8 +490,13 @@ function activates(message: InputMessage): boolean {
   }
 }
 
-export function installInput(document: Document, host: { os?: string; inputResult(id: number, defaultPrevented: boolean): void }) {
-  const controller = new InputController(document, host.os === "windows");
+export function installInput(document: Document, host: {
+  os?: string;
+  inputResult(id: number, defaultPrevented: boolean): void;
+  postTask?(callback: () => void): void;
+}) {
+  const postTask = host.postTask?.bind(host) ?? ((callback: () => void) => void Promise.resolve().then(callback));
+  const controller = new InputController(document, host.os === "windows", { postTask });
   controllers.set(document, controller);
   for (const [name, value] of Object.entries({ setPointerCapture, releasePointerCapture, hasPointerCapture })) {
     Object.defineProperty(Element.prototype, name, { value, configurable: true, writable: true });

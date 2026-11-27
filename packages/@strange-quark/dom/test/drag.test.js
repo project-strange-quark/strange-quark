@@ -130,3 +130,52 @@ test("DataTransfer outside a drag keeps its clipboard behaviour", () => {
   transfer.setData("text", "hi");
   assert.equal(transfer.getData("text/plain"), "hi");
 });
+
+test("pointer input drives a drag: pointercancel, no mouseup or click, and Escape cancels", async () => {
+  const { bootstrapDocument, installInput } = await import("@strange-quark/dom");
+  const { Journal } = await import("@strange-quark/dom/journal");
+  const { nodeId } = await import("../dist/document.js");
+  const document = bootstrapDocument(new Journal(), 1, 0, []);
+  const root = document.appendChild(document.createElement("html"));
+  const body = root.appendChild(document.createElement("body"));
+  const a = body.appendChild(document.createElement("div"));
+  const b = body.appendChild(document.createElement("div"));
+  a.setAttribute("draggable", "true");
+  const tasks = [];
+  const dispatch = installInput(document, { inputResult() {}, postTask: callback => tasks.push(callback) });
+  const seen = [];
+  for (const type of ["pointerdown", "pointercancel", "mousedown", "mousemove", "mouseup", "click", "dragstart", "dragenter", "dragleave", "dragover", "drop", "dragend"]) {
+    body.addEventListener(type, event => seen.push(`${type}:${event.target === a ? "a" : event.target === b ? "b" : "?"}`));
+  }
+  b.addEventListener("dragover", event => event.preventDefault());
+  b.addEventListener("drop", event => event.preventDefault());
+  let time = 0;
+  const pointer = (type, target, x, buttons) => dispatch({
+    id: 1, type, target: nodeId(target), related: 0, time: time += 5, cancelable: true, fields: {
+      pointerType: "mouse", pointerId: 1, button: type === "pointermove" ? -1 : 0, buttons, isPrimary: true,
+      boundaryUpdate: false, x, y: 10, pressure: buttons ? 0.5 : 0, samples: [], clickCount: null,
+      ctrlKey: false, altKey: false, shiftKey: false, metaKey: false,
+    },
+  });
+  pointer("pointerdown", a, 10, 1);
+  pointer("pointermove", a, 12, 1);
+  pointer("pointermove", b, 40, 1);
+  pointer("pointermove", b, 41, 1);
+  pointer("pointerup", b, 41, 0);
+  assert.deepEqual(seen, [
+    "pointerdown:a", "mousedown:a", "mousemove:a",
+    "dragstart:a", "pointercancel:a", "dragenter:b", "dragover:b",
+    "dragover:b", "drop:b", "dragend:a",
+  ]);
+
+  seen.length = 0;
+  pointer("pointerdown", a, 10, 1);
+  pointer("pointermove", b, 40, 1);
+  dispatch({ id: 2, type: "keydown", target: 0, related: 0, time: time += 5, cancelable: true, fields: {
+    key: "Escape", code: "Escape", location: 0, repeat: false, isComposing: false,
+    ctrlKey: false, altKey: false, shiftKey: false, metaKey: false,
+  } });
+  pointer("pointerup", b, 40, 0);
+  assert.deepEqual(seen.slice(-2), ["dragleave:b", "dragend:a"]);
+  assert.ok(!seen.includes("mouseup:b") && !seen.includes("click:b"));
+});

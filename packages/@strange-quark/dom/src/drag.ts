@@ -96,6 +96,9 @@ function editable(element: Element | null): boolean {
 export class DragController {
   #armed: Armed | null = null;
   #operation: Operation | null = null;
+  // A drag cancelled before its button was released (Escape) still owns
+  // that release: the page sees neither mouseup nor click for it.
+  #swallowRelease = false;
   readonly #document: Document;
   readonly #host: DragHost;
 
@@ -222,11 +225,19 @@ export class DragController {
     return true;
   }
 
+  /** The release that ends a cancelled drag's gesture, if it is still pending. */
+  takeRelease(): boolean {
+    const swallow = this.#swallowRelease;
+    this.#swallowRelease = false;
+    return swallow;
+  }
+
   /** Escape, a window blur or a cancelled pointer ends the drag without a drop. */
-  cancel(init: MouseInit = {}): boolean {
+  cancel(init: MouseInit = {}, buttonHeld = true): boolean {
     this.#armed = null;
     const operation = this.#operation;
     if (operation === null) return false;
+    this.#swallowRelease = buttonHeld;
     if (operation.under?.isConnected) this.#event("dragleave", operation.under, init, false);
     this.#finish("none", init);
     return true;
