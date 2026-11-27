@@ -57,16 +57,15 @@ export interface SquarkNativeConfig {
   defaultFeatures?: boolean;
 }
 
-export interface SquarkTauriCompatConfig {
-  /** The native module Tauri commands go to. */
-  module?: string;
-  /** A classic script defining `__STRANGE_QUARK_TAURI_FIXTURE__`: canned replies, no native modules. */
-  fixture?: string;
-}
-
-export interface SquarkCompatConfig {
-  /** Run a Tauri 2 frontend unchanged, through `@strange-quark/tauri`. */
-  tauri?: SquarkTauriCompatConfig;
+export interface SquarkPrelude {
+  /**
+   * A classic script run before the app's own scripts: a path relative to the
+   * project (`./`, `../`, absolute), or a path inside an installed package
+   * (`@scope/pkg/dist/file.js`).
+   */
+  file: string;
+  /** Globals assigned before the script runs, as `globalThis[name] = value`. */
+  globals?: Record<string, unknown>;
 }
 
 export interface SquarkConfig {
@@ -77,7 +76,8 @@ export interface SquarkConfig {
   build?: SquarkBuildConfig;
   network?: SquarkNetworkConfig;
   native?: SquarkNativeConfig;
-  compat?: SquarkCompatConfig;
+  /** Scripts run before the app's, in order; optional packages provide them. */
+  preludes?: SquarkPrelude[];
 }
 
 export interface ResolvedSquarkConfig {
@@ -180,15 +180,19 @@ export function validateConfig(config: unknown): asserts config is SquarkConfig 
       throw new TypeError("squark.config.native.defaultFeatures must be a boolean");
     }
   }
-  if (c.compat?.tauri !== undefined) {
-    const tauri = c.compat.tauri;
-    if (typeof tauri !== "object" || tauri === null) {
-      throw new TypeError("squark.config.compat.tauri must be an object");
+  if (c.preludes !== undefined) {
+    if (!Array.isArray(c.preludes)) {
+      throw new TypeError("squark.config.preludes must be an array");
     }
-    for (const key of ["module", "fixture"] as const) {
-      const value = tauri[key];
-      if (value !== undefined && (typeof value !== "string" || value.trim() === "")) {
-        throw new TypeError(`squark.config.compat.tauri.${key} must be a non-empty string`);
+    for (const prelude of c.preludes) {
+      if (typeof prelude?.file !== "string" || prelude.file.trim() === "") {
+        throw new TypeError("squark.config.preludes[].file must be a non-empty string");
+      }
+      if (
+        prelude.globals !== undefined &&
+        (typeof prelude.globals !== "object" || prelude.globals === null || Array.isArray(prelude.globals))
+      ) {
+        throw new TypeError("squark.config.preludes[].globals must be an object");
       }
     }
   }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 //! App runtimes for apps with native modules (architecture §13), and the
-//! Tauri compatibility prelude.
+//! preludes squark.config runs before the app.
 //!
 //! An app's native modules are an ordinary Rust library crate whose
 //! `modules()` returns `Vec<squark_native::Module>`. `squark build` writes a
@@ -16,7 +16,7 @@ use std::{
 };
 
 use crate::{
-    config::{RawCompatConfig, RawNativeConfig, resolve_path},
+    config::{RawNativeConfig, RawPrelude, resolve_path},
     error::CliError,
     pack::Prelude,
 };
@@ -275,59 +275,52 @@ pub fn build_native_runtime(
     Ok(Some(exe))
 }
 
-/// Where the shim lives in an app's node_modules (the app installs
-/// `@strange-quark/tauri` as a dev dependency), or `SQUARK_TAURI_SHIM`.
-fn tauri_shim(project_dir: &Path) -> Result<PathBuf, CliError> {
-    if let Some(path) = std::env::var_os("SQUARK_TAURI_SHIM") {
-        return Ok(PathBuf::from(path));
+/// A prelude's script file: relative to the project, or inside a package
+/// installed in the project's (or an ancestor's) node_modules.
+fn prelude_file(project_dir: &Path, file: &str) -> Result<PathBuf, CliError> {
+    let path = Path::new(file);
+    if path.is_absolute() || file.starts_with("./") || file.starts_with("../") {
+        return Ok(resolve_path(project_dir, path));
     }
-    let relative = Path::new("node_modules/@strange-quark/tauri/dist/tauri.classic.js");
     project_dir
         .ancestors()
-        .map(|dir| dir.join(relative))
-        .find(|path| path.is_file())
+        .map(|dir| dir.join("node_modules").join(path))
+        .find(|candidate| candidate.is_file())
         .ok_or_else(|| {
-            CliError::Usage(
-                "compat.tauri needs @strange-quark/tauri: add it to the app's devDependencies"
-                    .to_owned(),
-            )
+            CliError::Usage(format!(
+                "prelude {file} was not found in node_modules; install the package that provides it"
+            ))
         })
 }
 
-/// The classic script that installs `__TAURI_INTERNALS__` before the app runs.
-pub fn tauri_prelude(
-    project_dir: &Path,
-    compat: &RawCompatConfig,
-) -> Result<Option<Prelude>, CliError> {
-    let Some(tauri) = &compat.tauri else {
+/// The `preludes` of squark.config as one classic script, run before the
+/// app: each entry's globals, then its file, in order.
+pub fn preludes(project_dir: &Path, preludes: &[RawPrelude]) -> Result<Option<Prelude>, CliError> {
+    if preludes.is_empty() {
         return Ok(None);
-    };
-    let read = |path: &Path| {
-        fs::read(path).map_err(|source| CliError::Io {
-            path: path.to_path_buf(),
-            source,
-        })
-    };
-    let mut config = serde_json::Map::new();
-    if let Some(module) = &tauri.module {
-        config.insert("module".into(), module.clone().into());
     }
-    let mut source = Vec::new();
-    if let Some(fixture) = &tauri.fixture {
-        config.insert("fixture".into(), true.into());
-        source.extend(read(&resolve_path(project_dir, Path::new(fixture)))?);
+    let mut source = b"// Preludes from squark.config, run before the app's scripts.\n".to_vec();
+    for prelude in preludes {
+        for (name, value) in &prelude.globals {
+            source.extend(
+                format!(
+                    "globalThis[{}] = {};\n",
+                    serde_json::Value::String(name.clone()),
+                    value
+                )
+                .into_bytes(),
+            );
+        }
+        let path = prelude_file(project_dir, &prelude.file)?;
+        source.extend(fs::read(&path).map_err(|error| CliError::Io {
+            path: path.clone(),
+            source: error,
+        })?);
         source.push(b'\n');
     }
-    let mut prelude = format!(
-        "// SPDX-License-Identifier: MIT\nglobalThis.__STRANGE_QUARK_TAURI__ = {};\n",
-        serde_json::Value::Object(config)
-    )
-    .into_bytes();
-    prelude.extend(source);
-    prelude.extend(read(&tauri_shim(project_dir)?)?);
     Ok(Some(Prelude {
-        path: "/__squark/tauri.js".to_owned(),
-        source: prelude,
+        path: "/__squark/prelude.js".to_owned(),
+        source,
     }))
 }
 
@@ -351,40 +344,54 @@ mod tests {
     fn runtime_manifest_links_the_app_crate_against_the_source_checkout() {
         let manifest = runtime_manifest(
             Path::new("/src/sq"),
-            Path::new("/app/src-tauri"),
+            Path::new("/app/native"),
             "demo",
             &["squark".into()],
             false,
         );
         assert!(manifest.contains(r#"squark-host = { path = "/src/sq/crates/squark-host" }"#));
         assert!(manifest.contains(
-            r#"app = { path = "/app/src-tauri", package = "demo", features = ["squark"], default-features = false }"#
+            r#"app = { path = "/app/native", package = "demo", features = ["squark"], default-features = false }"#
         ));
         assert!(manifest.contains(r#"stylo = { path = "/src/sq/vendor/stylo" }"#));
         assert!(manifest.contains("[workspace]"));
     }
 
     #[test]
-    fn tauri_prelude_writes_config_fixture_and_shim_in_order() {
+    fn preludes_assign_globals_then_run_files_in_order() {
         let dir = tempfile::tempdir().unwrap();
-        let shim = dir.path().join("node_modules/@strange-quark/tauri/dist");
-        fs::create_dir_all(&shim).unwrap();
-        fs::write(shim.join("tauri.classic.js"), "/*shim*/").unwrap();
+        let package = dir.path().join("node_modules/@acme/shim/dist");
+        fs::create_dir_all(&package).unwrap();
+        fs::write(package.join("shim.js"), "/*shim*/").unwrap();
         fs::write(dir.path().join("fixture.js"), "/*fixture*/").unwrap();
-        let compat = RawCompatConfig {
-            tauri: Some(crate::config::RawTauriCompat {
-                module: Some("demo".into()),
-                fixture: Some("fixture.js".into()),
-            }),
-        };
-        let prelude = tauri_prelude(dir.path(), &compat).unwrap().unwrap();
+        let project = dir.path().join("app");
+        fs::create_dir_all(&project).unwrap();
+        let entries = vec![
+            RawPrelude {
+                file: "../fixture.js".into(),
+                globals: serde_json::Map::new(),
+            },
+            RawPrelude {
+                file: "@acme/shim/dist/shim.js".into(),
+                globals: serde_json::json!({ "__ACME__": { "module": "demo" } })
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ];
+        let prelude = preludes(&project, &entries).unwrap().unwrap();
         let text = String::from_utf8(prelude.source).unwrap();
-        let config = text.find(r#"globalThis.__STRANGE_QUARK_TAURI__ = {"fixture":true,"module":"demo"};"#);
-        let fixture = text.find("/*fixture*/");
-        let shim = text.find("/*shim*/");
-        assert!(config < fixture && fixture < shim, "{text}");
-        assert_eq!(prelude.path, "/__squark/tauri.js");
-        assert!(tauri_prelude(dir.path(), &RawCompatConfig::default()).unwrap().is_none());
+        let fixture = text.find("/*fixture*/").unwrap();
+        let global = text.find(r#"globalThis["__ACME__"] = {"module":"demo"};"#).unwrap();
+        let shim = text.find("/*shim*/").unwrap();
+        assert!(fixture < global && global < shim, "{text}");
+        assert_eq!(prelude.path, "/__squark/prelude.js");
+        assert!(preludes(&project, &[]).unwrap().is_none());
+        let missing = RawPrelude {
+            file: "@acme/missing.js".into(),
+            globals: serde_json::Map::new(),
+        };
+        assert!(preludes(&project, &[missing]).is_err());
     }
 }
 
@@ -397,9 +404,9 @@ mod prelude_tests {
         assert_eq!(
             inject_prelude(
                 "<!doctype html><html><HEAD lang=en><script type=module src=/a.js></script></head></html>",
-                "/__squark/tauri.js"
+                "/__squark/prelude.js"
             ),
-            "<!doctype html><html><HEAD lang=en><script src=\"/__squark/tauri.js\"></script><script type=module src=/a.js></script></head></html>"
+            "<!doctype html><html><HEAD lang=en><script src=\"/__squark/prelude.js\"></script><script type=module src=/a.js></script></head></html>"
         );
         // <header> is not <head>.
         assert_eq!(

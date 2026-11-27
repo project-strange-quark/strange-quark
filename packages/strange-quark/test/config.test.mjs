@@ -98,14 +98,15 @@ test("resolveConfig loads squark.config.json and rejects missing explicit path",
   }
 });
 
-test("defineConfig accepts native modules and Tauri compatibility, and rejects malformed ones", () => {
+test("defineConfig accepts native modules and preludes, and rejects malformed ones", () => {
   const cfg = defineConfig({
     native: { crate: "native", modules: ["demo"], squarkSource: "../strange-quark" },
-    compat: { tauri: { module: "demo" } },
+    preludes: [{ file: "@acme/shim/dist/shim.js", globals: { __ACME__: { module: "demo" } } }],
   });
   assert.deepEqual(cfg.native?.modules, ["demo"]);
   assert.throws(() => defineConfig({ native: { crate: "" } }), TypeError);
   assert.throws(() => defineConfig({ native: { modules: ["a", 1] } }), TypeError);
-  assert.throws(() => defineConfig({ compat: { tauri: { fixture: "" } } }), TypeError);
-  assert.throws(() => defineConfig({ compat: { tauri: null } }), TypeError);
+  assert.throws(() => defineConfig({ preludes: [{ file: "" }] }), TypeError);
+  assert.throws(() => defineConfig({ preludes: [{ file: "x.js", globals: [] }] }), TypeError);
+  assert.throws(() => defineConfig({ preludes: {} }), TypeError);
 });

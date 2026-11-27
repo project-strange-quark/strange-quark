@@ -42,7 +42,7 @@ pub struct RawSquarkConfig {
     #[serde(default)]
     pub native: RawNativeConfig,
     #[serde(default)]
-    pub compat: RawCompatConfig,
+    pub preludes: Vec<RawPrelude>,
 }
 
 /// `native`: the app's native modules (architecture §13).
@@ -66,24 +66,18 @@ pub struct RawNativeConfig {
     pub default_features: Option<bool>,
 }
 
-/// `compat`: frontends written for another shell.
-#[derive(Debug, Default, Deserialize)]
+/// `preludes[]`: a classic script run before every script of the entry HTML,
+/// such as a compatibility shim an optional package provides.
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RawCompatConfig {
-    pub tauri: Option<RawTauriCompat>,
+pub struct RawPrelude {
+    /// The script: a path relative to the project (`./`, `../` or absolute),
+    /// or a path inside an installed package (`@scope/pkg/dist/file.js`).
+    pub file: String,
+    /// Globals assigned before the script runs, as `globalThis[name] = value`.
+    #[serde(default)]
+    pub globals: serde_json::Map<String, serde_json::Value>,
 }
-
-/// `compat.tauri`: run a Tauri 2 frontend through `@strange-quark/tauri`.
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RawTauriCompat {
-    /// The native module Tauri commands go to.
-    pub module: Option<String>,
-    /// A classic script defining `__STRANGE_QUARK_TAURI_FIXTURE__`, canned
-    /// replies for running the frontend without native modules.
-    pub fixture: Option<String>,
-}
-
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawNetworkConfig {

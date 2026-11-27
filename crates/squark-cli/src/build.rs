@@ -13,7 +13,7 @@ use crate::config::{
     ProjectConfig, RawBuildConfig, RuntimePreference, resolve_path, resolve_runtime_binary,
 };
 use crate::error::CliError;
-use crate::native::{RuntimeProfile, build_native_runtime, tauri_prelude};
+use crate::native::{RuntimeProfile, build_native_runtime, preludes};
 use crate::pack::{PackOptions, PackSummary, pack_directory};
 
 /// Options for `squark build`.
@@ -81,7 +81,7 @@ pub fn build_app(options: &BuildOptions) -> Result<BuildSummary, CliError> {
             RuntimePreference::Dist,
         )?,
     };
-    let prelude = tauri_prelude(&project_dir, &raw_cfg.compat)?;
+    let prelude = preludes(&project_dir, &raw_cfg.preludes)?;
 
     let out_binary = match (&options.out_binary, &raw_cfg.build.out) {
         (Some(path), _) => resolve_path(&cwd, path),

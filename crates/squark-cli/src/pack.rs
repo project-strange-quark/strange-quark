@@ -281,7 +281,7 @@ pub struct PackOptions {
     /// Native modules `squark.config` enables, written to the manifest.
     pub native_modules: Vec<String>,
     /// A classic script run before every script of the entry HTML, such as
-    /// the Tauri compatibility shim.
+    /// a compatibility shim (see `native::preludes`).
     pub prelude: Option<Prelude>,
 }
 

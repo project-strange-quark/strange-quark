@@ -201,7 +201,7 @@ pub fn run_dev(options: &DevOptions) -> Result<DevSummary, CliError> {
                 .unwrap_or_else(|| project.app_name.clone()),
             network_allow: project.raw.network.allow.clone(),
             native_modules: project.raw.native.modules.clone(),
-            prelude: match crate::native::tauri_prelude(&project.dir, &project.raw.compat) {
+            prelude: match crate::native::preludes(&project.dir, &project.raw.preludes) {
                 Ok(prelude) => prelude,
                 Err(error) => {
                     stop(&mut vite);
@@ -632,7 +632,7 @@ mod tests {
         let mut with_native = input("http://127.0.0.1:5173", Vec::new());
         with_native.native_modules = vec!["demo".into()];
         with_native.prelude = Some(crate::pack::Prelude {
-            path: "/__squark/tauri.js".into(),
+            path: "/__squark/prelude.js".into(),
             source: b"globalThis.shim = '</script>';".to_vec(),
         });
         write_dev_pack(
