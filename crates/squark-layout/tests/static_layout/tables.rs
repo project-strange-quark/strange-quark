@@ -187,3 +187,23 @@ fn moves_relatively_positioned_inline_blocks() {
         Rect::new(-5.0, baseline - 10.0 + 3.0, 10.0, 10.0)
     );
 }
+
+/// KaTeX's struts set a line's depth with fractional `vertical-align`
+/// lengths, which Chromium does not round.
+#[test]
+fn keeps_fractional_vertical_align_lengths_of_inline_blocks() {
+    let mut fixture = Fixture::new(&format!(
+        "{CSS}
+        .lowered {{ display: inline-block; width: 0; height: 20px; vertical-align: -2.5px }}
+        .raised {{ display: inline-block; width: 0; height: 20px; vertical-align: 7.25px }}"
+    ));
+    let line = fixture.element(BODY, "div", &[]);
+    let marker = fixture.element(line, "span", &[("class", "marker")]);
+    let lowered = fixture.element(line, "span", &[("class", "lowered")]);
+    let raised = fixture.element(line, "span", &[("class", "raised")]);
+
+    let tree = layout(&fixture.pack());
+    let baseline = rect(&tree, marker).origin.y;
+    assert_eq!(rect(&tree, lowered).origin.y, baseline + 2.5 - 20.0);
+    assert_eq!(rect(&tree, raised).origin.y, baseline - 7.25 - 20.0);
+}
