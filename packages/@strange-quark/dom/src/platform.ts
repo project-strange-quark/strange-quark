@@ -12,6 +12,7 @@ import { dispatchTrustedEvent, DOMException, EventTarget } from "./events.js";
 import { FileList } from "./file-list.js";
 import { installFullscreen } from "./fullscreen.js";
 import { registerWindowRequests } from "./native.js";
+import { DragEvent } from "./drag.js";
 import { navigatorIdentity } from "./navigator-identity.js";
 import type { HostArch, HostOS } from "./navigator-identity.js";
 import type { DOMFile } from "./file-list.js";
@@ -114,7 +115,7 @@ export function installPlatform(global: Record<PropertyKey, unknown>, document: 
 
   const clipboard = new Clipboard(illegal);
   Object.assign(global, {
-    Navigator, Clipboard, ClipboardItem, ClipboardEvent, DataTransfer, DataTransferItem, DataTransferItemList, FileList,
+    Navigator, Clipboard, ClipboardItem, ClipboardEvent, DataTransfer, DataTransferItem, DataTransferItemList, FileList, DragEvent,
   });
   Object.defineProperty(global, "navigator", { configurable: true, enumerable: true, value: new Navigator(navigatorToken, clipboard, host) });
 

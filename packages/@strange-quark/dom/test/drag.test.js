@@ -179,3 +179,18 @@ test("pointer input drives a drag: pointercancel, no mouseup or click, and Escap
   assert.deepEqual(seen.slice(-2), ["dragleave:b", "dragend:a"]);
   assert.ok(!seen.includes("mouseup:b") && !seen.includes("click:b"));
 });
+
+test("DragEvent is a global and drag handlers reflect as properties", async () => {
+  const { installDOM: install, installPlatform, createDocument: create } = await import("@strange-quark/dom");
+  const { Journal: J, RECORD_BYTES: R } = await import("@strange-quark/dom/journal");
+  const global = { Blob, File, reportError() {} };
+  const doc = create(new J(buffer => new DataView(buffer).getUint32(0, true) / R));
+  install(global, doc, { url: "https://app.test/" });
+  installPlatform(global, doc, { utf8Encode: t => new TextEncoder().encode(t), utf8Decode: b => new TextDecoder().decode(b), postTask() {} });
+  assert.equal(global.DragEvent, DragEvent);
+  const div = doc.createElement("div");
+  let fired = 0;
+  div.ondragover = () => fired++;
+  div.dispatchEvent(new DragEvent("dragover"));
+  assert.equal(fired, 1);
+});

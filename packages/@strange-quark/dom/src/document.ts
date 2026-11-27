@@ -1472,6 +1472,7 @@ for (const name of ["click", "dblclick", "input", "change", "focus", "blur", "er
   "focusin", "focusout", "select", "selectionchange", "search", "cancel", "copy", "cut", "paste", "compositionstart", "compositionupdate", "compositionend", "keydown", "keyup", "keypress", "wheel", "touchmove", "mousedown", "mouseup", "mousemove",
   "mouseover", "mouseout", "mouseenter", "mouseleave", "pointerdown", "pointerup", "pointermove", "pointercancel",
   "pointerover", "pointerout", "pointerenter", "pointerleave", "gotpointercapture", "lostpointercapture",
+  "dragstart", "drag", "dragenter", "dragleave", "dragover", "drop", "dragend",
   "transitionrun", "transitionstart", "transitionend", "transitioncancel",
   "animationstart", "animationiteration", "animationend", "animationcancel"]) {
   reflectedEvent(HTMLElement.prototype, name);
