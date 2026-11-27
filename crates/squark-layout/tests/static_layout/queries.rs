@@ -1298,7 +1298,10 @@ fn links_inserted_after_load_read_same_origin_sheets_from_the_pack() {
     let foreign = f.element(
         BODY,
         "link",
-        &[("rel", "stylesheet"), ("href", "https://cdn.test/assets/late%20one.css")],
+        &[
+            ("rel", "stylesheet"),
+            ("href", "https://cdn.test/assets/late%20one.css"),
+        ],
     );
     let target = f.element(BODY, "div", &[("id", "target")]);
     let pack = f.pack_with_assets(&[(
@@ -1312,9 +1315,7 @@ fn links_inserted_after_load_read_same_origin_sheets_from_the_pack() {
             .unwrap();
     let frame = input();
     let loaded_state = |engine: &mut StaticDocument, node| {
-        engine
-            .query(&frame, Query::SheetLoaded(id(node)))
-            .unwrap()
+        engine.query(&frame, Query::SheetLoaded(id(node))).unwrap()
     };
     assert_eq!(loaded_state(&mut engine, loaded), QueryValue::Bool(true));
     assert_eq!(loaded_state(&mut engine, missing), QueryValue::Bool(false));

@@ -338,7 +338,9 @@ impl<'a> Cascade<'a> {
     }
 
     pub fn has_sheet(&self, owner: NodeId) -> bool {
-        self.sources.iter().any(|source| source.owner == Some(owner))
+        self.sources
+            .iter()
+            .any(|source| source.owner == Some(owner))
     }
 
     pub fn sheet_rules(&self, document: &Document, owner: NodeId) -> Vec<String> {
