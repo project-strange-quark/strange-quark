@@ -17,7 +17,7 @@ import { renderedInnerText } from "./inner-text.js";
 import type { DOMFile } from "./file-list.js";
 import { AbortController, AbortSignal } from "./abort.js";
 import { computedStyle, CSSStyleDeclaration } from "./style.js";
-import { NodeFilter, TreeWalker, treeWalker } from "./tree-walker.js";
+import { NodeFilter, NodeIterator, nodeIterator, nodeIteratorsBeforeRemove, TreeWalker, treeWalker } from "./tree-walker.js";
 import { MutationObserver, MutationRecord, observeDetachedSubtree, queueMutation } from "./mutation.js";
 import {
   ceReactions, ceWrap, customElementAdopted, customElementAttributeChanged, customElementInserted, customElementRemoved,
@@ -3106,6 +3106,15 @@ export class Document extends ParentNode {
   createTreeWalker(root: Node, whatToShow = NodeFilter.SHOW_ALL, filter: Parameters<typeof treeWalker>[2] = null): TreeWalker {
     return treeWalker(root, whatToShow, filter);
   }
+  createNodeIterator(root: Node, whatToShow = NodeFilter.SHOW_ALL, filter: Parameters<typeof nodeIterator>[2] = null): NodeIterator {
+    if (arguments.length === 0) throw new TypeError("createNodeIterator requires a root");
+    return nodeIterator(root, whatToShow, filter);
+  }
+  get implementation(): DOMImplementation {
+    let implementation = implementations.get(this);
+    if (implementation === undefined) implementations.set(this, implementation = new DOMImplementation(implementationToken, this));
+    return implementation;
+  }
   createEvent(interfaceName: string): Event { return createLegacyEvent(interfaceName); }
   getElementById(id: string): Element | null { return byId(this, String(id)); }
   getElementsByTagName(name: string): HTMLCollection<Element> { return byTag(this, String(name)); }
@@ -3198,6 +3207,59 @@ export class DOMParser {
     return doc;
   }
 }
+
+const implementationToken = Symbol("DOMImplementation constructor");
+const implementations = new WeakMap<Document, DOMImplementation>();
+
+function documentType(owner: Document, name: string, publicId: string, systemId: string): DocumentType {
+  const id = allocate(owner);
+  journalFor(owner)?.record(Opcode.CreateNode, id, NodeType.DocumentType, name);
+  return new DocumentType(id, owner, name, publicId, systemId);
+}
+
+/** Creates documents without a browsing context, as DOMParser's are: inert and outside the journal. */
+export class DOMImplementation {
+  readonly #document: Document;
+
+  constructor(token: symbol, document: Document) {
+    if (token !== implementationToken) throw new TypeError("Illegal constructor");
+    this.#document = document;
+  }
+
+  createDocumentType(name: string, publicId: string, systemId: string): DocumentType {
+    if (arguments.length < 3) throw new TypeError("createDocumentType requires a name, a public ID and a system ID");
+    name = String(name);
+    if (/[\0\t\n\f\r >]/.test(name)) fail("InvalidCharacterError", "Invalid doctype name");
+    return documentType(this.#document, name, String(publicId), String(systemId));
+  }
+
+  createDocument(namespace: string | null, qualified: string | null, doctype: DocumentType | null = null): XMLDocument {
+    if (arguments.length < 2) throw new TypeError("createDocument requires a namespace and a qualified name");
+    namespace = namespace == null || namespace === "" ? null : String(namespace);
+    const name = qualified === null ? "" : String(qualified);
+    if (doctype !== null && !(doctype instanceof DocumentType)) throw new TypeError("Expected a DocumentType");
+    const contentType = namespace === HTML_NAMESPACE ? "application/xhtml+xml" :
+      namespace === SVG_NAMESPACE ? "image/svg+xml" : "application/xml";
+    const document = new XMLDocument(null, 0, 0, null, false, contentType);
+    const element = name === "" ? null : document.createElementNS(namespace, name);
+    if (doctype !== null) document.appendChild(doctype);
+    if (element !== null) document.appendChild(element);
+    return document;
+  }
+
+  createHTMLDocument(title?: string): Document {
+    const document = new Document(null, 0, 0, null, true, "text/html");
+    document.appendChild(documentType(document, "html", "", ""));
+    const root = document.appendChild(document.createElement("html"));
+    const head = root.appendChild(document.createElement("head"));
+    if (title !== undefined) head.appendChild(document.createElement("title")).appendChild(document.createTextNode(String(title)));
+    root.appendChild(document.createElement("body"));
+    return document;
+  }
+
+  hasFeature(): boolean { return true; }
+}
+Object.defineProperty(DOMImplementation.prototype, Symbol.toStringTag, { value: "DOMImplementation", configurable: true });
 
 const voidElements = new Set("area base br col embed hr img input link meta param source track wbr".split(" "));
 const rawText = new Set("iframe noembed noframes plaintext script style xmp".split(" "));
@@ -3311,6 +3373,7 @@ function unlink(parent: Node, child: Node, suppressObserver = false, syncText = 
   const previous = suppressObserver ? null : child.previousSibling;
   const next = suppressObserver ? null : child.nextSibling;
   observeDetachedSubtree(child, parent);
+  nodeIteratorsBeforeRemove(child);
   detach(parent, child);
   journal?.record(Opcode.Remove, nodeId(parent), nodeId(child), 0);
   if (!suppressObserver) queueMutation(parent, { type: "childList", added: [], removed: [child], previous, next });
@@ -3786,7 +3849,7 @@ export function installDOM(global: Record<PropertyKey, unknown>, supplied?: Docu
     Document, XMLDocument, DOMParser, DocumentType, Attr, NamedNodeMap, EventTarget, Event, UIEvent, CompositionEvent, CustomEvent, FocusEvent, MouseEvent, KeyboardEvent,
     PointerEvent, WheelEvent, InputEvent, SubmitEvent, ErrorEvent, ProgressEvent,
     CSSStyleSheet, CSSRule, CSSRuleList, StyleSheetList, HTMLStyleElement, HTMLLinkElement,
-    SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement, NodeFilter, TreeWalker, Selection,
+    SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement, NodeFilter, TreeWalker, NodeIterator, DOMImplementation, Selection,
     getSelection: () => document.getSelection(),
     AbortController, AbortSignal, DOMException, NodeList, HTMLCollection, DOMTokenList, MutationObserver, MutationRecord, CSSStyleDeclaration,
     HTMLElement, HTMLInputElement, HTMLTextAreaElement, HTMLSelectElement, HTMLOptionElement, HTMLBRElement,
@@ -3910,12 +3973,28 @@ function adjacentPosition(element: Element, position: string): { parent: Node; b
 function parseMarkup(context: Element, html: string): Node[] {
   if (html === "") return [];
   const document = context.ownerDocument;
-  const bindings = documents.get(document)!.bindings;
-  if (bindings === undefined) fail("NotSupportedError", "HTML fragment parsing requires the document engine");
-  const id = nodeId(context);
+  const realm = realmDocument === undefined ? undefined : documents.get(realmDocument);
+  const bindings = documents.get(document)!.bindings ?? realm?.bindings;
+  if (bindings === undefined || realm === undefined) fail("NotSupportedError", "HTML fragment parsing requires the document engine");
   const journal = journalFor(document);
-  journal?.flush();
+  // The engine parses against a context element it mirrors. A context in a
+  // document outside the realm's journal, such as one DOMParser or
+  // DOMImplementation made, lends its name and attributes to a stand-in.
+  const id = nodeId(journal === realm.journal ? context : parsingContext(context, realmDocument!));
+  realm.journal?.flush();
   return bindings.parseFragment(html, id).map(node => materialize(document, journal, node, false));
+}
+
+function parsingContext(context: Element, realm: Document): Element {
+  const standIn = realm[createElementInternal](context.localName, context.namespaceURI, context.prefix);
+  for (const attribute of nodeState(context).attributes?.values() ?? []) writeAttribute(standIn, { ...attribute }, true);
+  for (let ancestor = context.parentElement; ancestor !== null; ancestor = ancestor.parentElement) {
+    if (ancestor.namespaceURI === HTML_NAMESPACE && ancestor.localName === "form") {
+      realm[createElementInternal]("form", HTML_NAMESPACE, null).appendChild(standIn);
+      break;
+    }
+  }
+  return standIn;
 }
 
 function materialize(document: Document, journal: Journal | null, node: ParsedNode, markScripts: boolean): Node {

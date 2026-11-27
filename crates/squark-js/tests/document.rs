@@ -13,6 +13,8 @@ mod css_tests;
 mod data_tests;
 #[path = "document/domparser.rs"]
 mod domparser_tests;
+#[path = "document/dompurify.rs"]
+mod dompurify_tests;
 #[path = "document/editing.rs"]
 mod editing_tests;
 #[path = "document/fonts.rs"]

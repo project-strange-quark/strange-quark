@@ -144,3 +144,147 @@ export function treeWalker(root: Node, whatToShow: number, filter: Filter | null
   if (filter !== null && typeof filter !== "object" && typeof filter !== "function") throw new TypeError("Expected a NodeFilter");
   return new TreeWalker(token, root, whatToShow >>> 0, filter);
 }
+
+function nodeDocument(node: Node): Node { return node.ownerDocument ?? node; }
+
+/** The node after `node` in tree order inside `root`, skipping `node`'s descendants when `skipChildren`. */
+function following(node: Node, root: Node, skipChildren: boolean): Node | null {
+  if (!skipChildren && node.firstChild !== null) return node.firstChild;
+  for (let current: Node | null = node; current !== null && current !== root; current = current.parentNode) {
+    if (current.nextSibling !== null) return current.nextSibling;
+  }
+  return null;
+}
+
+function preceding(node: Node, root: Node): Node | null {
+  if (node === root) return null;
+  let previous = node.previousSibling;
+  if (previous === null) return node.parentNode;
+  while (previous.lastChild !== null) previous = previous.lastChild;
+  return previous;
+}
+
+type Position = { node: Node; before: boolean };
+
+/** The DOM "NodeIterator pre-removing steps" for one position of an iterator over `root`. */
+function retarget(position: Position, removed: Node, root: Node): Position {
+  if (removed === root || !removed.contains(position.node)) return position;
+  if (position.before) {
+    const next = following(removed, root, true);
+    if (next !== null) return { node: next, before: true };
+  }
+  let node = removed.previousSibling;
+  if (node === null) return { node: removed.parentNode!, before: false };
+  while (node.lastChild !== null) node = node.lastChild;
+  return { node, before: false };
+}
+
+// Live iterators observe removals in their root's document. They are held
+// weakly so that an abandoned iterator does not keep its tree alive.
+const iterators = new Set<WeakRef<NodeIterator>>();
+const collected = new FinalizationRegistry<WeakRef<NodeIterator>>(reference => iterators.delete(reference));
+let preRemove: (iterator: NodeIterator, node: Node) => void;
+
+export class NodeIterator {
+  #root: Node;
+  #reference: Node;
+  #pointerBeforeReference = true;
+  #whatToShow: number;
+  #filter: Filter | null;
+  #active = false;
+  // The position a traversal has reached while its candidate is filtered.
+  // A removal during filtering moves it as it moves the reference.
+  #inFlight: Position | null = null;
+
+  static {
+    preRemove = (iterator, node) => iterator.#preRemove(node);
+  }
+
+  constructor(check: symbol, root: Node, whatToShow: number, filter: Filter | null) {
+    if (check !== token) throw new TypeError("Illegal NodeIterator constructor");
+    this.#root = this.#reference = root;
+    this.#whatToShow = whatToShow;
+    this.#filter = filter;
+    const reference = new WeakRef(this);
+    iterators.add(reference);
+    collected.register(this, reference);
+  }
+
+  get root(): Node { return this.#root; }
+  get referenceNode(): Node { return this.#reference; }
+  get pointerBeforeReferenceNode(): boolean { return this.#pointerBeforeReference; }
+  get whatToShow(): number { return this.#whatToShow; }
+  get filter(): Filter | null { return this.#filter; }
+
+  nextNode(): Node | null { return this.#traverse(true); }
+  previousNode(): Node | null { return this.#traverse(false); }
+  detach(): void {}
+
+  #accept(node: Node): number {
+    if (this.#active) throw new DOMException("The filter is already running", "InvalidStateError");
+    if ((this.#whatToShow & (1 << (node.nodeType - 1))) === 0) return NodeFilter.FILTER_SKIP;
+    const filter = this.#filter;
+    if (filter === null) return NodeFilter.FILTER_ACCEPT;
+    this.#active = true;
+    try {
+      if (typeof filter === "function") return filter(node) & 0xffff;
+      const accept = filter.acceptNode;
+      if (typeof accept !== "function") throw new TypeError("The NodeFilter has no acceptNode method");
+      return accept.call(filter, node) & 0xffff;
+    } finally {
+      this.#active = false;
+    }
+  }
+
+  #traverse(next: boolean): Node | null {
+    let position: Position = { node: this.#reference, before: this.#pointerBeforeReference };
+    try {
+      for (;;) {
+        let { node, before } = position;
+        if (next === before) {
+          // The pointer's own node comes next in this direction.
+          before = !before;
+        } else {
+          const moved = next ? following(node, this.#root, false) : preceding(node, this.#root);
+          if (moved === null) return null;
+          node = moved;
+        }
+        this.#inFlight = { node, before };
+        const accepted = this.#accept(node) === NodeFilter.FILTER_ACCEPT;
+        position = this.#inFlight;
+        if (accepted) {
+          this.#reference = position.node;
+          this.#pointerBeforeReference = position.before;
+          return node;
+        }
+      }
+    } finally {
+      this.#inFlight = null;
+    }
+  }
+
+  #preRemove(node: Node): void {
+    if (nodeDocument(node) !== nodeDocument(this.#root)) return;
+    const reference = retarget({ node: this.#reference, before: this.#pointerBeforeReference }, node, this.#root);
+    this.#reference = reference.node;
+    this.#pointerBeforeReference = reference.before;
+    if (this.#inFlight !== null) this.#inFlight = retarget(this.#inFlight, node, this.#root);
+  }
+}
+Object.defineProperty(NodeIterator.prototype, Symbol.toStringTag, { value: "NodeIterator", configurable: true });
+
+export function nodeIterator(root: Node, whatToShow: number, filter: Filter | null): NodeIterator {
+  if (!(root instanceof Node)) throw new TypeError("Expected a root Node");
+  if (filter !== null && typeof filter !== "object" && typeof filter !== "function") throw new TypeError("Expected a NodeFilter");
+  return new NodeIterator(token, root, whatToShow >>> 0, filter);
+}
+
+/** Runs before `node` leaves its parent, so live iterators keep a reference node in the tree. */
+export function nodeIteratorsBeforeRemove(node: Node): void {
+  if (iterators.size === 0) return;
+  for (const reference of iterators) {
+    const iterator = reference.deref();
+    if (iterator === undefined) iterators.delete(reference);
+    else preRemove(iterator, node);
+  }
+}
