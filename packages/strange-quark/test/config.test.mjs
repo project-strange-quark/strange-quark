@@ -97,3 +97,15 @@ test("resolveConfig loads squark.config.json and rejects missing explicit path",
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("defineConfig accepts native modules and Tauri compatibility, and rejects malformed ones", () => {
+  const cfg = defineConfig({
+    native: { crate: "src-squark", modules: ["julide"], squarkSource: "../strange-quark" },
+    compat: { tauri: { module: "julide" } },
+  });
+  assert.deepEqual(cfg.native?.modules, ["julide"]);
+  assert.throws(() => defineConfig({ native: { crate: "" } }), TypeError);
+  assert.throws(() => defineConfig({ native: { modules: ["a", 1] } }), TypeError);
+  assert.throws(() => defineConfig({ compat: { tauri: { fixture: "" } } }), TypeError);
+  assert.throws(() => defineConfig({ compat: { tauri: null } }), TypeError);
+});

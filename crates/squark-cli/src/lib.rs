@@ -9,5 +9,6 @@ pub mod dev;
 pub mod error;
 pub mod html;
 pub mod inspect;
+pub mod native;
 pub mod pack;
 pub mod screenshot;

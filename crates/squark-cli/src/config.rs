@@ -39,6 +39,49 @@ pub struct RawSquarkConfig {
     pub window: RawWindowConfig,
     #[serde(default)]
     pub build: RawBuildConfig,
+    #[serde(default)]
+    pub native: RawNativeConfig,
+    #[serde(default)]
+    pub compat: RawCompatConfig,
+}
+
+/// `native`: the app's native modules (architecture §13).
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RawNativeConfig {
+    /// The app's Rust library crate, whose `modules()` returns its
+    /// `squark_native::Module`s. `squark build` links it into an app runtime.
+    #[serde(rename = "crate")]
+    pub crate_dir: Option<String>,
+    /// Modules the app may call. Others are refused at run time.
+    #[serde(default)]
+    pub modules: Vec<String>,
+    /// A Strange Quark source checkout to build the app runtime from
+    /// (default: `SQUARK_SOURCE_DIR`).
+    pub squark_source: Option<String>,
+    /// Cargo features of the native crate to enable.
+    #[serde(default)]
+    pub features: Vec<String>,
+    /// Whether the native crate's default features stay on (default: true).
+    pub default_features: Option<bool>,
+}
+
+/// `compat`: frontends written for another shell.
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RawCompatConfig {
+    pub tauri: Option<RawTauriCompat>,
+}
+
+/// `compat.tauri`: run a Tauri 2 frontend through `@strange-quark/tauri`.
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RawTauriCompat {
+    /// The native module Tauri commands go to.
+    pub module: Option<String>,
+    /// A classic script defining `__STRANGE_QUARK_TAURI_FIXTURE__`, canned
+    /// replies for running the frontend without native modules.
+    pub fixture: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]

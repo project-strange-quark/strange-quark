@@ -13,6 +13,7 @@ use crate::config::{
     ProjectConfig, RawBuildConfig, RuntimePreference, resolve_path, resolve_runtime_binary,
 };
 use crate::error::CliError;
+use crate::native::{RuntimeProfile, build_native_runtime, tauri_prelude};
 use crate::pack::{PackOptions, PackSummary, pack_directory};
 
 /// Options for `squark build`.
@@ -64,13 +65,23 @@ pub fn build_app(options: &BuildOptions) -> Result<BuildSummary, CliError> {
         raw_cfg.build.dist_dir.as_deref(),
     )?;
 
-    let runtime_binary = resolve_runtime_binary(
-        &cwd,
-        &project_dir,
-        options.runtime_binary.as_deref(),
-        raw_cfg.build.runtime.as_deref(),
-        RuntimePreference::Dist,
-    )?;
+    // An app with native modules gets its own runtime, unless one is given.
+    let native_runtime = if options.runtime_binary.is_none() && raw_cfg.build.runtime.is_none() {
+        build_native_runtime(&project_dir, &raw_cfg.native, RuntimeProfile::Dist)?
+    } else {
+        None
+    };
+    let runtime_binary = match native_runtime {
+        Some(runtime) => runtime,
+        None => resolve_runtime_binary(
+            &cwd,
+            &project_dir,
+            options.runtime_binary.as_deref(),
+            raw_cfg.build.runtime.as_deref(),
+            RuntimePreference::Dist,
+        )?,
+    };
+    let prelude = tauri_prelude(&project_dir, &raw_cfg.compat)?;
 
     let out_binary = match (&options.out_binary, &raw_cfg.build.out) {
         (Some(path), _) => resolve_path(&cwd, path),
@@ -96,6 +107,8 @@ pub fn build_app(options: &BuildOptions) -> Result<BuildSummary, CliError> {
         window: Some(project.pack_window()),
         network_allow: raw_cfg.network.allow.clone(),
         extra_assets: project.extra_assets(),
+        native_modules: raw_cfg.native.modules.clone(),
+        prelude,
     })?;
     let output = pack
         .output

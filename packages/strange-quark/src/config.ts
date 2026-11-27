@@ -41,6 +41,34 @@ export interface SquarkNetworkConfig {
   allow?: string[];
 }
 
+export interface SquarkNativeConfig {
+  /**
+   * The app's native module crate: a Rust library whose `modules()` returns
+   * `Vec<squark_native::Module>`. `squark build` links it into an app runtime.
+   */
+  crate?: string;
+  /** Native modules the app may call; calls to any other module fail. */
+  modules?: string[];
+  /** Strange Quark source checkout to build the app runtime from (default: SQUARK_SOURCE_DIR). */
+  squarkSource?: string;
+  /** Cargo features of the native crate to enable. */
+  features?: string[];
+  /** Whether the native crate's default features stay on (default: true). */
+  defaultFeatures?: boolean;
+}
+
+export interface SquarkTauriCompatConfig {
+  /** The native module Tauri commands go to. */
+  module?: string;
+  /** A classic script defining `__STRANGE_QUARK_TAURI_FIXTURE__`: canned replies, no native modules. */
+  fixture?: string;
+}
+
+export interface SquarkCompatConfig {
+  /** Run a Tauri 2 frontend unchanged, through `@strange-quark/tauri`. */
+  tauri?: SquarkTauriCompatConfig;
+}
+
 export interface SquarkConfig {
   name?: string;
   /** Extra files packed at exact paths the app build did not emit. */
@@ -48,6 +76,8 @@ export interface SquarkConfig {
   window?: SquarkWindowConfig;
   build?: SquarkBuildConfig;
   network?: SquarkNetworkConfig;
+  native?: SquarkNativeConfig;
+  compat?: SquarkCompatConfig;
 }
 
 export interface ResolvedSquarkConfig {
@@ -125,6 +155,40 @@ export function validateConfig(config: unknown): asserts config is SquarkConfig 
       }
       if (typeof asset.file !== "string" || asset.file.trim() === "") {
         throw new TypeError("squark.config.assets[].file must be a non-empty string");
+      }
+    }
+  }
+  const isStringArray = (value: unknown) =>
+    Array.isArray(value) && value.every((entry) => typeof entry === "string");
+  if (c.native !== undefined) {
+    if (typeof c.native !== "object" || c.native === null) {
+      throw new TypeError("squark.config.native must be an object");
+    }
+    for (const key of ["crate", "squarkSource"] as const) {
+      const value = c.native[key];
+      if (value !== undefined && (typeof value !== "string" || value.trim() === "")) {
+        throw new TypeError(`squark.config.native.${key} must be a non-empty string`);
+      }
+    }
+    if (c.native.modules !== undefined && !isStringArray(c.native.modules)) {
+      throw new TypeError("squark.config.native.modules must be an array of strings");
+    }
+    if (c.native.features !== undefined && !isStringArray(c.native.features)) {
+      throw new TypeError("squark.config.native.features must be an array of strings");
+    }
+    if (c.native.defaultFeatures !== undefined && typeof c.native.defaultFeatures !== "boolean") {
+      throw new TypeError("squark.config.native.defaultFeatures must be a boolean");
+    }
+  }
+  if (c.compat?.tauri !== undefined) {
+    const tauri = c.compat.tauri;
+    if (typeof tauri !== "object" || tauri === null) {
+      throw new TypeError("squark.config.compat.tauri must be an object");
+    }
+    for (const key of ["module", "fixture"] as const) {
+      const value = tauri[key];
+      if (value !== undefined && (typeof value !== "string" || value.trim() === "")) {
+        throw new TypeError(`squark.config.compat.tauri.${key} must be a non-empty string`);
       }
     }
   }

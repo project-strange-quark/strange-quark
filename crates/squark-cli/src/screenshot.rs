@@ -154,6 +154,8 @@ fn prepare_pack_input(input: &Path) -> Result<(PathBuf, Option<TempFileGuard>), 
             window: None,
             network_allow: Vec::new(),
             extra_assets: Vec::new(),
+            native_modules: Vec::new(),
+            prelude: None,
         })?;
         return Ok((temp_sqpak.clone(), Some(TempFileGuard(temp_sqpak))));
     }
@@ -183,6 +185,8 @@ fn prepare_pack_input(input: &Path) -> Result<(PathBuf, Option<TempFileGuard>), 
         window: None,
         network_allow: Vec::new(),
         extra_assets: Vec::new(),
+        native_modules: Vec::new(),
+        prelude: None,
     })?;
 
     Ok((temp_sqpak.clone(), Some(TempFileGuard(temp_sqpak))))

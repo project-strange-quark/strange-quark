@@ -75,6 +75,8 @@ fn golden_basic_pack_and_appended_binary_match_byte_for_byte() {
         window: None,
         network_allow: Vec::new(),
         extra_assets: Vec::new(),
+        native_modules: Vec::new(),
+        prelude: None,
     })
     .unwrap();
 
@@ -617,6 +619,8 @@ fn a_windows_runtime_packs_to_an_exe_and_other_runtimes_keep_the_name() {
             window: None,
             network_allow: Vec::new(),
             extra_assets: Vec::new(),
+            native_modules: Vec::new(),
+            prelude: None,
         })
         .unwrap()
         .output
@@ -660,6 +664,8 @@ fn a_previous_macos_bundle_in_the_web_dir_is_never_packed_again() {
             window: None,
             network_allow: Vec::new(),
             extra_assets: Vec::new(),
+            native_modules: Vec::new(),
+            prelude: None,
         })
         .unwrap()
     };

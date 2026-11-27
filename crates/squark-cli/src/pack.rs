@@ -278,6 +278,44 @@ pub struct PackOptions {
     pub network_allow: Vec<String>,
     /// Files `squark.config` adds at exact pack paths (see `ExtraAsset`).
     pub extra_assets: Vec<ExtraAsset>,
+    /// Native modules `squark.config` enables, written to the manifest.
+    pub native_modules: Vec<String>,
+    /// A classic script run before every script of the entry HTML, such as
+    /// the Tauri compatibility shim.
+    pub prelude: Option<Prelude>,
+}
+
+/// A classic script packed at `path` and run first (see `PackOptions::prelude`).
+#[derive(Clone, Debug)]
+pub struct Prelude {
+    pub path: String,
+    pub source: Vec<u8>,
+}
+
+/// Insert `<script src=path>` as the first child of `<head>`, so it runs
+/// before the page's own scripts.
+pub fn inject_prelude(html: &str, path: &str) -> String {
+    let tag = format!("<script src=\"{path}\"></script>");
+    let lower = html.to_ascii_lowercase();
+    let head = lower
+        .match_indices("<head")
+        .find(|(index, _)| {
+            matches!(
+                lower.as_bytes().get(index + 5),
+                Some(b'>' | b' ' | b'\t' | b'\n' | b'\r' | b'/')
+            )
+        })
+        .and_then(|(index, _)| lower[index..].find('>').map(|end| index + end + 1));
+    let at = head.unwrap_or_else(|| {
+        // No <head> tag: the parser implies one before the first element of
+        // the body or the first script, so insert before whichever comes first.
+        lower.find("<script").or_else(|| lower.find("<body")).unwrap_or(html.len())
+    });
+    let mut out = String::with_capacity(html.len() + tag.len());
+    out.push_str(&html[..at]);
+    out.push_str(&tag);
+    out.push_str(&html[at..]);
+    out
 }
 
 /// Summary of a completed `squark pack` run.
@@ -298,6 +336,11 @@ struct PackNetworkManifest<'a> {
 }
 
 #[derive(Serialize)]
+struct PackNativeManifest<'a> {
+    modules: &'a [String],
+}
+
+#[derive(Serialize)]
 struct PackManifest<'a> {
     version: u32,
     app_name: &'a str,
@@ -306,6 +349,8 @@ struct PackManifest<'a> {
     window: Option<&'a PackWindow>,
     #[serde(skip_serializing_if = "Option::is_none")]
     network: Option<PackNetworkManifest<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    native: Option<PackNativeManifest<'a>>,
 }
 
 /// Packs a web directory into a `.sqpak` archive and optionally appends it to a runtime binary.
@@ -341,6 +386,10 @@ pub fn pack_directory(options: &PackOptions) -> Result<PackSummary, CliError> {
         path: html_fs_path.clone(),
         source,
     })?;
+    let html_source = match &options.prelude {
+        Some(prelude) => inject_prelude(&html_source, &prelude.path),
+        None => html_source,
+    };
     let compiled = compile_html_to_document_bin(&html_source, &entry_html_pack_path)?;
 
     let app_name = options.app_name.clone().unwrap_or_else(|| {
@@ -359,6 +408,9 @@ pub fn pack_directory(options: &PackOptions) -> Result<PackSummary, CliError> {
         entry_html: &entry_html_pack_path,
         window: options.window.as_ref(),
         network,
+        native: (!options.native_modules.is_empty()).then_some(PackNativeManifest {
+            modules: &options.native_modules,
+        }),
     })?;
 
     // Avoid accidentally packing the output file if it lives inside `web_dir`.
@@ -371,6 +423,9 @@ pub fn pack_directory(options: &PackOptions) -> Result<PackSummary, CliError> {
     let mut builder = PackBuilder::new();
     builder.add_entry(DOCUMENT_PATH, MimeSpec::Builtin(0), compiled.bytes.clone())?;
     builder.add_entry(MANIFEST_PATH, MimeSpec::Builtin(4), manifest_bytes)?;
+    if let Some(prelude) = &options.prelude {
+        builder.add_entry(prelude.path.clone(), MimeSpec::Builtin(2), prelude.source.clone())?;
+    }
     // Declared assets win over nothing: a file that the app's own CSS or code
     // asks for, which the app build did not emit (a Vite asset outside dist, a
     // public/ path, or a URL assembled at run time).

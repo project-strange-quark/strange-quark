@@ -194,6 +194,8 @@ fn run(cli: Cli) -> Result<(), CliError> {
                 window: None,
                 network_allow: Vec::new(),
                 extra_assets: Vec::new(),
+                native_modules: Vec::new(),
+                prelude: None,
             })?;
             println!(
                 "packed {} entries ({} bytes, crc32={:#010x}) from {} (nodes={}, batches={}, scripts={})",
