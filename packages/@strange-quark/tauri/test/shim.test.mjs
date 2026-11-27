@@ -138,3 +138,14 @@ test("the classic script installs from the injected config", async () => {
   assert.equal(typeof context.__STRANGE_QUARK_TAURI_EMIT__, "function");
   assert.equal(typeof installTauriFromConfig, "function");
 });
+
+test("the config helper fills in squark.config's generic preludes", async () => {
+  const { tauri, SHIM_FILE } = await import("@strange-quark/tauri/config");
+  assert.deepEqual(tauri({ module: "demo" }), {
+    preludes: [{ file: SHIM_FILE, globals: { __STRANGE_QUARK_TAURI__: { module: "demo" } } }],
+  });
+  assert.deepEqual(tauri({ fixture: "fixtures/replies.js" }).preludes, [
+    { file: "./fixtures/replies.js" },
+    { file: SHIM_FILE, globals: { __STRANGE_QUARK_TAURI__: { fixture: true } } },
+  ]);
+});
