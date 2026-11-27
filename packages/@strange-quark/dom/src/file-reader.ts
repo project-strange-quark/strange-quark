@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-import { reflectedEvent } from "./document.js";
+import { reflectedEvent } from "./handlers.js";
 import { dispatchTrustedEvent, DOMException, EventTarget, ProgressEvent } from "./events.js";
 import { blobBytes } from "./fetch.js";
 import type { NetworkBlob } from "./fetch.js";
