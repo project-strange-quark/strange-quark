@@ -105,7 +105,11 @@ pub(crate) fn install(
     set(scope, host, "nativeInvoke", invoke.into())
 }
 
-fn native_invoke(scope: &mut PinScope<'_, '_>, args: FunctionCallbackArguments<'_>, _: ReturnValue) {
+fn native_invoke(
+    scope: &mut PinScope<'_, '_>,
+    args: FunctionCallbackArguments<'_>,
+    _: ReturnValue,
+) {
     let call = (|| {
         let id = unsigned(args.get(0))?;
         let call = NativeCall {

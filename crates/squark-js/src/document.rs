@@ -479,8 +479,8 @@ impl<'engine> DocumentRunner<'engine> {
             .map_err(setup)?;
             let host_reply = Local::<Function>::try_from(host_reply).map_err(setup)?;
             let install_native = function(scope, api, "installNative")?;
-            let native = call(scope, install_native, &[global.into(), host.into()])
-                .map_err(setup)?;
+            let native =
+                call(scope, install_native, &[global.into(), host.into()]).map_err(setup)?;
             let native = Local::<Function>::try_from(native)
                 .ok()
                 .map(|native| Global::new(scope, native));

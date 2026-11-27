@@ -123,7 +123,11 @@ impl fmt::Debug for Module {
             .field("name", &self.name)
             .field(
                 "commands",
-                &self.commands.iter().map(|command| command.name()).collect::<Vec<_>>(),
+                &self
+                    .commands
+                    .iter()
+                    .map(|command| command.name())
+                    .collect::<Vec<_>>(),
             )
             .finish_non_exhaustive()
     }
@@ -413,7 +417,10 @@ impl NativeDispatcher for Dispatcher {
 
     fn start(&self, host: Arc<dyn NativeHost>, enabled: &[String]) {
         let _ = self.app.0.host.set(host);
-        *self.enabled.write().unwrap_or_else(|poison| poison.into_inner()) = self
+        *self
+            .enabled
+            .write()
+            .unwrap_or_else(|poison| poison.into_inner()) = self
             .modules
             .iter()
             .filter(|name| enabled.contains(name))
@@ -426,7 +433,12 @@ impl NativeDispatcher for Dispatcher {
                 );
             }
         }
-        let setup = std::mem::take(&mut *self.setup.lock().unwrap_or_else(|poison| poison.into_inner()));
+        let setup = std::mem::take(
+            &mut *self
+                .setup
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner()),
+        );
         for run in setup {
             run(&self.app);
         }
@@ -454,7 +466,10 @@ impl NativeDispatcher for Dispatcher {
             )));
             return;
         }
-        let Some(entry) = self.commands.get(&(call.module.clone(), call.command.clone())) else {
+        let Some(entry) = self
+            .commands
+            .get(&(call.module.clone(), call.command.clone()))
+        else {
             reply(Self::error(format_args!(
                 "native module {:?} has no command {:?}",
                 call.module, call.command
@@ -475,10 +490,9 @@ impl NativeDispatcher for Dispatcher {
             Invocation::Async(future) => {
                 let task = runtime.spawn(future);
                 runtime.spawn(async move {
-                    reply(
-                        task.await
-                            .unwrap_or_else(|_| Self::error(format_args!("command {name:?} panicked"))),
-                    );
+                    reply(task.await.unwrap_or_else(|_| {
+                        Self::error(format_args!("command {name:?} panicked"))
+                    }));
                 });
             }
         }
@@ -497,8 +511,12 @@ impl NativeDispatcher for Dispatcher {
     }
 
     fn exit(&self) {
-        let handlers =
-            std::mem::take(&mut *self.on_exit.lock().unwrap_or_else(|poison| poison.into_inner()));
+        let handlers = std::mem::take(
+            &mut *self
+                .on_exit
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner()),
+        );
         for handler in handlers {
             handler(&self.app);
         }
@@ -514,7 +532,9 @@ pub mod __private {
 
     pub fn parse_args<T: DeserializeOwned>(command: &str, args: &str) -> Result<T, String> {
         serde_json::from_str(if args.is_empty() { "{}" } else { args }).map_err(|error| {
-            json_error(format_args!("invalid arguments for command {command:?}: {error}"))
+            json_error(format_args!(
+                "invalid arguments for command {command:?}: {error}"
+            ))
         })
     }
 

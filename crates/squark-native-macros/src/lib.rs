@@ -56,7 +56,10 @@ fn classify(arg: &FnArg) -> syn::Result<Param> {
         Some(segment) if segment.ident == "App" && segment.arguments.is_empty() => Ok(Param::App),
         Some(segment) if segment.ident == "State" => {
             let PathArguments::AngleBracketed(args) = &segment.arguments else {
-                return Err(syn::Error::new(segment.span(), "State needs a type: State<T>"));
+                return Err(syn::Error::new(
+                    segment.span(),
+                    "State needs a type: State<T>",
+                ));
             };
             let inner = args
                 .args
@@ -128,7 +131,9 @@ fn options(attr: TokenStream2) -> syn::Result<Options> {
                 other => {
                     return Err(syn::Error::new(
                         value.span(),
-                        format!("rename_all must be \"camelCase\" or \"snake_case\", not {other:?}"),
+                        format!(
+                            "rename_all must be \"camelCase\" or \"snake_case\", not {other:?}"
+                        ),
                     ));
                 }
             };
@@ -146,7 +151,9 @@ fn options(attr: TokenStream2) -> syn::Result<Options> {
 fn returns_result(output: &ReturnType) -> bool {
     match output {
         ReturnType::Default => false,
-        ReturnType::Type(_, ty) => last_segment(ty).is_some_and(|segment| segment.ident == "Result"),
+        ReturnType::Type(_, ty) => {
+            last_segment(ty).is_some_and(|segment| segment.ident == "Result")
+        }
     }
 }
 
@@ -271,7 +278,10 @@ pub fn handlers(input: TokenStream) -> TokenStream {
     };
     let markers = paths.into_iter().map(|mut path| {
         if let Some(last) = path.segments.last_mut() {
-            last.ident = Ident::new(&format!("__squark_command_{}", last.ident), last.ident.span());
+            last.ident = Ident::new(
+                &format!("__squark_command_{}", last.ident),
+                last.ident.span(),
+            );
         }
         quote!(::std::boxed::Box::new(#path) as ::std::boxed::Box<dyn ::squark_native::Command>)
     });

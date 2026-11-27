@@ -103,7 +103,12 @@ impl NativeHost for Host {
     }
 }
 
-fn call(dispatcher: &dyn NativeDispatcher, module: &str, command: &str, args: &str) -> Result<String, String> {
+fn call(
+    dispatcher: &dyn NativeDispatcher,
+    module: &str,
+    command: &str,
+    args: &str,
+) -> Result<String, String> {
     let (send, receive) = mpsc::channel();
     dispatcher.invoke(
         NativeCall {
@@ -113,14 +118,25 @@ fn call(dispatcher: &dyn NativeDispatcher, module: &str, command: &str, args: &s
         },
         Box::new(move |result| send.send(result).unwrap()),
     );
-    receive.recv_timeout(Duration::from_secs(10)).expect("a reply")
+    receive
+        .recv_timeout(Duration::from_secs(10))
+        .expect("a reply")
 }
 
 fn modules() -> Vec<Module> {
     vec![
         Module::new("demo")
             .manage(Counter::default())
-            .commands(handlers![greet, bump, list, fail, boom, pick, quit, nested::echo])
+            .commands(handlers![
+                greet,
+                bump,
+                list,
+                fail,
+                boom,
+                pick,
+                quit,
+                nested::echo
+            ])
             .on_close_requested(|app| {
                 let _ = app.emit("close-requested", ());
                 CloseRequest::Prevent
@@ -146,10 +162,18 @@ fn commands_run_with_camel_case_args_state_events_and_errors() {
     dispatcher.attach(events.clone());
 
     assert_eq!(
-        call(&*dispatcher, "demo", "greet", r#"{"fullName":"Ada","times":2}"#),
+        call(
+            &*dispatcher,
+            "demo",
+            "greet",
+            r#"{"fullName":"Ada","times":2}"#
+        ),
         Ok(r#""Hello, Ada!Hello, Ada!""#.into())
     );
-    assert_eq!(call(&*dispatcher, "demo", "greet", r#"{"fullName":"Bo"}"#), Ok(r#""Hello, Bo!""#.into()));
+    assert_eq!(
+        call(&*dispatcher, "demo", "greet", r#"{"fullName":"Bo"}"#),
+        Ok(r#""Hello, Bo!""#.into())
+    );
     assert_eq!(call(&*dispatcher, "demo", "bump", "{}"), Ok("1".into()));
     assert_eq!(call(&*dispatcher, "demo", "bump", ""), Ok("2".into()));
     assert_eq!(
@@ -168,18 +192,35 @@ fn commands_run_with_camel_case_args_state_events_and_errors() {
         call(&*dispatcher, "demo", "boom", "{}"),
         Err(r#""command \"boom\" panicked""#.into())
     );
-    assert_eq!(call(&*dispatcher, "demo", "pick_dir", "{}"), Ok(r#""/work/demo""#.into()));
-    assert_eq!(call(&*dispatcher, "demo", "echo", r#"{"raw_value":[1,"a"]}"#), Ok(r#"[1,"a"]"#.into()));
-    assert!(call(&*dispatcher, "demo", "greet", r#"{"times":1}"#)
-        .unwrap_err()
-        .contains("missing field `fullName`"));
-    assert!(call(&*dispatcher, "demo", "nope", "{}").unwrap_err().contains("has no command"));
-    assert!(call(&*dispatcher, "disabled", "greet", r#"{"fullName":"x"}"#)
-        .unwrap_err()
-        .contains("not enabled"));
+    assert_eq!(
+        call(&*dispatcher, "demo", "pick_dir", "{}"),
+        Ok(r#""/work/demo""#.into())
+    );
+    assert_eq!(
+        call(&*dispatcher, "demo", "echo", r#"{"raw_value":[1,"a"]}"#),
+        Ok(r#"[1,"a"]"#.into())
+    );
+    assert!(
+        call(&*dispatcher, "demo", "greet", r#"{"times":1}"#)
+            .unwrap_err()
+            .contains("missing field `fullName`")
+    );
+    assert!(
+        call(&*dispatcher, "demo", "nope", "{}")
+            .unwrap_err()
+            .contains("has no command")
+    );
+    assert!(
+        call(&*dispatcher, "disabled", "greet", r#"{"fullName":"x"}"#)
+            .unwrap_err()
+            .contains("not enabled")
+    );
 
     assert_eq!(dispatcher.close_requested(), CloseRequest::Prevent);
-    assert_eq!(events.0.lock().unwrap().last().unwrap().0, "close-requested");
+    assert_eq!(
+        events.0.lock().unwrap().last().unwrap().0,
+        "close-requested"
+    );
     assert_eq!(call(&*dispatcher, "demo", "quit", "{}"), Ok("null".into()));
     assert_eq!(host.0.lock().unwrap().as_slice(), [WindowOp::Close]);
 }

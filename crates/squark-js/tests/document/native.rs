@@ -5,8 +5,7 @@ use std::sync::{Arc, Mutex, mpsc};
 use squark_types::{
     host::{HostRequest, HostValue},
     native::{
-        CloseRequest, NativeCall, NativeDispatcher, NativeEvents, NativeHost,
-        NativeReply, WindowOp,
+        CloseRequest, NativeCall, NativeDispatcher, NativeEvents, NativeHost, NativeReply, WindowOp,
     },
 };
 
@@ -89,7 +88,10 @@ const API: &str = "globalThis[Symbol.for('strange-quark.native')]";
 #[test]
 fn invoke_round_trips_json_and_events_reach_listeners() {
     let mut h = Harness::new(Some(Arc::default()));
-    assert_eq!(h.eval(&format!("JSON.stringify({API}.modules)")), r#""[\"demo\"]""#);
+    assert_eq!(
+        h.eval(&format!("JSON.stringify({API}.modules)")),
+        r#""[\"demo\"]""#
+    );
     // Not a web API: no global name, only the registered symbol.
     assert_eq!(
         h.eval("Object.getOwnPropertyNames(globalThis).some(name => /native/i.test(name))"),
@@ -114,7 +116,9 @@ fn invoke_round_trips_json_and_events_reach_listeners() {
     let mut replies = calls.into_iter().map(|(_, reply)| reply);
     // Replies come from module threads; they wake the document thread.
     let first = replies.next().unwrap();
-    std::thread::spawn(move || first(Ok(r#""module Demo""#.into()))).join().unwrap();
+    std::thread::spawn(move || first(Ok(r#""module Demo""#.into())))
+        .join()
+        .unwrap();
     replies.next().unwrap()(Err(r#""No such file""#.into()));
     let events = h.native.events.lock().unwrap().clone().unwrap();
     events.emit("pty-output", r#"{"session_id":"s","data":"$ "}"#.into());
@@ -159,5 +163,8 @@ fn window_operations_go_to_the_host_and_the_api_exists_without_modules() {
     );
     h.runner.host_reply(1, Ok(HostValue::Done)).unwrap();
     h.settle();
-    assert_eq!(h.eval("rejected"), r#""native module \"demo\" is not available""#);
+    assert_eq!(
+        h.eval("rejected"),
+        r#""native module \"demo\" is not available""#
+    );
 }
