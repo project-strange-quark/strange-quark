@@ -55,6 +55,7 @@ pub struct Fonts {
     web: web_fonts::WebFaces,
     document_fonts: Vec<DocumentFont>,
     document_coverage: Vec<document_fonts::Coverage>,
+    families: HashMap<String, Vec<document_fonts::Face>>,
     keys: HashMap<InstanceKey, FontInstanceId>,
     instances: Vec<FontInstance>,
     measured_sources: HashMap<u64, fontique::Blob<u8>>,
@@ -77,6 +78,7 @@ impl Default for Fonts {
             web: Default::default(),
             document_fonts: Vec::new(),
             document_coverage: Vec::new(),
+            families: HashMap::new(),
             keys: HashMap::new(),
             instances: Vec::new(),
             measured_sources: HashMap::new(),
@@ -123,6 +125,7 @@ impl Fonts {
                 .collect::<Vec<_>>(),
         );
         self.document_coverage = coverage.split_off(faces.len());
+        self.families = document_fonts::family_index(&faces, document_fonts);
         self.web.sync(resources, &faces, coverage);
         for (face, coverage) in document_fonts.iter().zip(&self.document_coverage) {
             face.register(&mut self.context, coverage);

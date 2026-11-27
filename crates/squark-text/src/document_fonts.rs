@@ -2,7 +2,7 @@
 //! CSS font matching over web font faces: the `@font-face` rules in effect and
 //! the faces script adds to `document.fonts`.
 
-use std::{borrow::Cow, cmp::Ordering, ops::RangeInclusive, sync::Arc};
+use std::{borrow::Cow, cmp::Ordering, collections::HashMap, ops::RangeInclusive, sync::Arc};
 
 use parley::{FontFamily, FontFamilyName, TextStyle, fontique};
 use style::font_face::Descriptors;
@@ -377,9 +377,35 @@ impl DocumentFont {
 /// A face CSS font matching can pick: an `@font-face` rule by its index, or
 /// a loaded `document.fonts` member by its index.
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Face {
+pub(crate) enum Face {
     Rule(usize),
     Document(usize),
+}
+
+/// The faces of each family, by its ASCII-lowercased name, rules first and
+/// each in definition order, so matching a run reads only its own family.
+pub(crate) fn family_index(
+    rules: &[crate::WebFont],
+    documents: &[DocumentFont],
+) -> HashMap<String, Vec<Face>> {
+    let mut index: HashMap<String, Vec<Face>> = HashMap::new();
+    let families = rules
+        .iter()
+        .enumerate()
+        .map(|(face, rule)| (&rule.family, Face::Rule(face)))
+        .chain(
+            documents
+                .iter()
+                .enumerate()
+                .map(|(face, document)| (&document.family, Face::Document(face))),
+        );
+    for (family, face) in families {
+        index
+            .entry(family.to_ascii_lowercase())
+            .or_default()
+            .push(face);
+    }
+    index
 }
 
 impl Fonts {
@@ -454,22 +480,22 @@ impl Fonts {
     /// first, and whether the name still reaches installed fonts: a name an
     /// `@font-face` rule defines does not, as in browsers.
     fn match_family(&self, family: &str, request: FontRequest) -> (Vec<Face>, bool) {
-        let mut candidates: Vec<(Face, &FaceAttributes)> = self
-            .faces
+        let Some(faces) = self.families.get(&family.to_ascii_lowercase()) else {
+            return (Vec::new(), true);
+        };
+        let candidates: Vec<(Face, &FaceAttributes)> = faces
             .iter()
-            .enumerate()
-            .filter(|(_, face)| face.family.eq_ignore_ascii_case(family))
-            .map(|(index, face)| (Face::Rule(index), &face.attributes))
+            .map(|&face| (face, self.attributes(face)))
             .collect();
-        let installed = candidates.is_empty();
-        candidates.extend(
-            self.document_fonts
-                .iter()
-                .enumerate()
-                .filter(|(_, face)| face.family.eq_ignore_ascii_case(family))
-                .map(|(index, face)| (Face::Document(index), &face.attributes)),
-        );
+        let installed = !faces.iter().any(|face| matches!(face, Face::Rule(_)));
         (matching_faces(&candidates, request), installed)
+    }
+
+    fn attributes(&self, face: Face) -> &FaceAttributes {
+        match face {
+            Face::Rule(index) => &self.faces[index].attributes,
+            Face::Document(index) => &self.document_fonts[index].attributes,
+        }
     }
 
     fn coverage(&self, face: Face) -> &[RangeInclusive<u32>] {
