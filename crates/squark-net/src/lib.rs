@@ -280,6 +280,12 @@ impl Drop for Transport {
     }
 }
 
+/// The I/O runtime squark-net drives, shared with native modules so an app
+/// runtime runs one set of worker threads. Created on first use.
+pub fn shared_runtime() -> Option<tokio::runtime::Handle> {
+    runtime().ok().map(|runtime| runtime.handle().clone())
+}
+
 fn runtime() -> Result<&'static Runtime, ()> {
     static IO: OnceLock<Option<Runtime>> = OnceLock::new();
     IO.get_or_init(|| {
