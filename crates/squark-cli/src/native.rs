@@ -182,6 +182,26 @@ fn write_if_changed(path: &Path, contents: &[u8]) -> Result<(), CliError> {
 }
 
 /// Build the app runtime for `native.crate`, returning the executable.
+/// The `channel` a rust-toolchain.toml pins, if any.
+fn toolchain_channel(text: &str) -> Option<String> {
+    let mut in_toolchain = false;
+    for line in text.lines() {
+        let line = line.split('#').next().unwrap_or("").trim();
+        if line.starts_with('[') {
+            in_toolchain = line == "[toolchain]";
+            continue;
+        }
+        if let Some(value) = line.strip_prefix("channel")
+            && in_toolchain
+            && let Some(value) = value.trim_start().strip_prefix('=')
+        {
+            let value = value.trim().trim_matches('"').trim_matches('\'');
+            return (!value.is_empty()).then(|| value.to_owned());
+        }
+    }
+    None
+}
+
 pub fn build_native_runtime(
     project_dir: &Path,
     native: &RawNativeConfig,
@@ -242,7 +262,20 @@ pub fn build_native_runtime(
         package,
         profile.cargo_name()
     );
-    let status = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
+    let toolchain = fs::read_to_string(source.join("rust-toolchain.toml"))
+        .ok()
+        .and_then(|text| toolchain_channel(&text));
+    let mut command = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
+    // A parent cargo (`cargo run -p squark-cli`) must not pin its own
+    // target directory onto the nested build. The toolchain is pinned to
+    // the checkout's: rustup picks rustc per crate directory otherwise, and
+    // an app crate under its own rust-toolchain.toml would be compiled by a
+    // different rustc than the runtime it links into.
+    command.env_remove("RUSTUP_TOOLCHAIN");
+    if let Some(channel) = &toolchain {
+        command.env("RUSTUP_TOOLCHAIN", channel);
+    }
+    let status = command
         .current_dir(&dir)
         .args([
             "build",
@@ -253,9 +286,6 @@ pub fn build_native_runtime(
         .arg(dir.join("Cargo.toml"))
         .arg("--target-dir")
         .arg(&target_dir)
-        // A parent cargo (`cargo run -p squark-cli`) must not pin its own
-        // toolchain or target directory onto the nested build.
-        .env_remove("RUSTUP_TOOLCHAIN")
         .env_remove("CARGO_TARGET_DIR")
         .status()
         .map_err(|error| CliError::CommandFailed {
@@ -332,6 +362,20 @@ pub fn preludes(project_dir: &Path, preludes: &[RawPrelude]) -> Result<Option<Pr
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_nested_build_uses_the_checkouts_toolchain_channel() {
+        assert_eq!(
+            super::toolchain_channel(
+                "# pinned\n[toolchain]\nchannel = \"1.98.1\" # see CI\ncomponents = [\"clippy\"]\n"
+            )
+            .as_deref(),
+            Some("1.98.1")
+        );
+        assert_eq!(super::toolchain_channel("[other]\nchannel = \"x\"\n"), None);
+        assert_eq!(super::toolchain_channel(""), None);
+        assert!(super::toolchain_channel(include_str!("../../../rust-toolchain.toml")).is_some());
+    }
+
     use super::*;
 
     #[test]
