@@ -795,6 +795,9 @@ export class Element extends ParentNode {
     return style;
   }
 
+  // [PutForwards=cssText]
+  set style(value: string) { this.style.cssText = value; }
+
   get attributes(): NamedNodeMap {
     let map = attributeLists.get(this);
     if (map === undefined) attributeLists.set(this, map = new NamedNodeMap(namedNodeMapToken, this));

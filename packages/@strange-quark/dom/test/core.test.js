@@ -275,6 +275,17 @@ test("nodeType is a Node.prototype accessor, so getters cached from the prototyp
   assert.throws(() => descriptor.get.call({}), TypeError);
 });
 
+test("assigning to style and classList forwards to cssText and value", () => {
+  const document = createDocument(new Journal());
+  const element = document.createElement("div");
+  element.style = "color: red; background-color: green";
+  assert.equal(element.style.color, "red");
+  assert.equal(element.style.backgroundColor, "green");
+  element.classList = "a b";
+  assert.equal(element.className, "a b");
+  assert.equal(element.toggleAttribute("style"), false);
+});
+
 test("Node.prototype's nodeName getter answers for every kind of node", () => {
   const document = installDOM({});
   const nodeName = Object.getOwnPropertyDescriptor(Node.prototype, "nodeName").get;
