@@ -133,14 +133,72 @@ const PROBE_SCRIPT = `(() => {
   add("WebGL2", () => window.WebGL2RenderingContext, (value) => !!canvas().getContext("webgl2"));
   add("WebGPU", () => own(navigator, "gpu"), (value) => typeof value.requestAdapter === "function");
   add("contentEditable", () => own(document.createElement("div"), "contentEditable"), (value) => typeof value === "string");
-  add("Selection", () => window.Selection, (Ctor) => document.getSelection() instanceof Ctor);
-  add("Range", () => window.Range, (value) => document.createRange() instanceof value);
-  add("HTMLIFrameElement", () => window.HTMLIFrameElement, (value) => document.createElement("iframe") instanceof value);
-  add("Worker", () => window.Worker);
+  add("Selection", () => window.Selection, (Ctor) => {
+    const selection = document.getSelection();
+    if (!(selection instanceof Ctor) || typeof selection.addRange !== "function") return false;
+    const range = document.createRange();
+    range.selectNodeContents(document.body);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const works = selection.rangeCount === 1 && selection.anchorNode === document.body;
+    selection.removeAllRanges();
+    return works;
+  });
+  add("Range", () => window.Range, (value) => {
+    const range = document.createRange();
+    range.selectNodeContents(document.body);
+    return range instanceof value && typeof range.getClientRects === "function" && range.toString === value.prototype.toString;
+  });
+  add("document.caretRangeFromPoint", () => own(document, "caretRangeFromPoint"), (value) => typeof value === "function");
+  add("document.caretPositionFromPoint", () => own(document, "caretPositionFromPoint"), (value) => typeof value === "function");
+  add("document.implementation.createHTMLDocument", () => own(own(document, "implementation"), "createHTMLDocument"), () => {
+    const doc = document.implementation.createHTMLDocument("probe");
+    doc.body.innerHTML = "<p id=x>a</p>";
+    return doc.getElementById("x")?.textContent === "a";
+  });
+  add("document.createNodeIterator", () => own(document, "createNodeIterator"), () => {
+    const iterator = document.createNodeIterator(document.body, NodeFilter.SHOW_ELEMENT);
+    return iterator.nextNode() === document.body;
+  });
+  add("requestIdleCallback", () => window.requestIdleCallback, (value) => new Promise((resolve) => {
+    value((deadline) => resolve(typeof deadline.timeRemaining() === "number"), { timeout: 2000 });
+  }));
+  add("performance.mark", () => own(performance, "mark"), () => {
+    performance.mark("squark-probe");
+    const found = performance.getEntriesByName("squark-probe").length > 0;
+    performance.clearMarks("squark-probe");
+    return found;
+  });
+  add("document.hasFocus", () => own(document, "hasFocus"), (value) => typeof value.call(document) === "boolean");
+  add("strange-quark native modules", () => own(window, Symbol.for("strange-quark.native")), (api) => Array.isArray(api.modules) && api.modules.length > 0);
+  add("HTMLIFrameElement", () => window.HTMLIFrameElement, (Ctor) => new Promise((resolve) => {
+    const frame = document.createElement("iframe");
+    if (!(frame instanceof Ctor)) return resolve(false);
+    frame.srcdoc = "<p>x</p>";
+    const done = (works) => { frame.remove(); resolve(works); };
+    frame.onload = () => done(frame.contentDocument?.body?.textContent === "x");
+    setTimeout(() => done(false), 2000);
+    document.body.appendChild(frame);
+  }));
+  add("Worker", () => window.Worker, (Ctor) => new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob(["onmessage = (e) => postMessage(e.data + 1);"], { type: "text/javascript" }));
+    const worker = new Ctor(url);
+    worker.onmessage = (event) => { worker.terminate(); URL.revokeObjectURL(url); resolve(event.data === 42); };
+    worker.onerror = () => { worker.terminate(); reject(new Error("worker failed")); };
+    worker.postMessage(41);
+  }));
   add("SharedWorker", () => window.SharedWorker);
   add("navigator.serviceWorker", () => own(navigator, "serviceWorker"));
   add("Element.attachShadow", () => Element.prototype.attachShadow, (value) => typeof value === "function");
-  add("customElements", () => window.customElements);
+  add("customElements", () => window.customElements, (registry) => {
+    const name = "squark-probe-" + Math.random().toString(36).slice(2);
+    let connected = false;
+    registry.define(name, class extends HTMLElement { connectedCallback() { connected = true; } });
+    const element = document.createElement(name);
+    document.body.appendChild(element);
+    element.remove();
+    return connected && element instanceof HTMLElement && registry.get(name) === element.constructor;
+  });
   add("Element.animate", () => Element.prototype.animate, (value) => typeof value === "function");
   add("document.startViewTransition", () => own(document, "startViewTransition"));
   add("HTMLElement.draggable", () => own(document.createElement("div"), "draggable"), (value) => typeof value === "boolean");
