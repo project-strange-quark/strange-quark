@@ -2,11 +2,11 @@
   "suite": "r1",
   "mode": "compare",
   "gpuAdapter": "software",
-  "total": 150,
-  "passed": 149,
+  "total": 155,
+  "passed": 154,
   "failed": 1,
   "renderErrors": 0,
-  "passRate": 0.9933333333333333,
+  "passRate": 0.9935483870967742,
   "cases": [
     {
       "id": "01-inline/01-whitespace-across-spans",
@@ -309,6 +309,16 @@
       "reason": null
     },
     {
+      "id": "01-inline/21-font-variation-settings",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 4,
+      "diffPixels": 0,
+      "meanChannelError": 0.007807692307692308,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
       "id": "02-block/01-block-stacking-basic",
       "pass": true,
       "diffRatio": 0,
@@ -485,6 +495,21 @@
         "y": 31,
         "width": 239,
         "height": 87
+      },
+      "reason": null
+    },
+    {
+      "id": "02-block/18-contain-size-layout-paint",
+      "pass": true,
+      "diffRatio": 0.0019416666666666666,
+      "maxDelta": 86,
+      "diffPixels": 233,
+      "meanChannelError": 0.03738125,
+      "diffBounds": {
+        "x": 13,
+        "y": 92,
+        "width": 288,
+        "height": 68
       },
       "reason": null
     },
@@ -1479,6 +1504,21 @@
       "reason": null
     },
     {
+      "id": "08-effects/15-backdrop-filter-invert-grayscale",
+      "pass": true,
+      "diffRatio": 0.00084375,
+      "maxDelta": 37,
+      "diffPixels": 81,
+      "meanChannelError": 0.027854166666666666,
+      "diffBounds": {
+        "x": 160,
+        "y": 40,
+        "width": 100,
+        "height": 70
+      },
+      "reason": null
+    },
+    {
       "id": "09-content/01-inline-svg-basic-shapes",
       "pass": true,
       "diffRatio": 0.006841666666666667,
@@ -1680,6 +1720,36 @@
         "y": 100,
         "width": 200,
         "height": 100
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/15-font-face-descriptor-matching",
+      "pass": true,
+      "diffRatio": 0.008375,
+      "maxDelta": 55,
+      "diffPixels": 1072,
+      "meanChannelError": 0.21370703125,
+      "diffBounds": {
+        "x": 17,
+        "y": 18,
+        "width": 268,
+        "height": 292
+      },
+      "reason": null
+    },
+    {
+      "id": "09-content/16-font-face-unicode-range-subsets",
+      "pass": true,
+      "diffRatio": 0.010677083333333334,
+      "maxDelta": 170,
+      "diffPixels": 1025,
+      "meanChannelError": 0.339265625,
+      "diffBounds": {
+        "x": 17,
+        "y": 19,
+        "width": 277,
+        "height": 120
       },
       "reason": null
     },
