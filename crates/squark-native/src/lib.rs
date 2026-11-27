@@ -46,7 +46,9 @@ use std::{
 
 use serde::Serialize;
 pub use squark_native_macros::{export, handlers};
-pub use squark_types::native::{CloseRequest, DialogRequest, WindowOp};
+pub use squark_types::native::{
+    AboutInfo, CloseRequest, DialogRequest, Menu, MenuItem, MenuRole, WindowOp,
+};
 use squark_types::native::{
     NativeCall, NativeDispatcher, NativeEvents, NativeHost, NativeReply, NativeResult,
 };
@@ -104,6 +106,7 @@ impl<T: ?Sized> State<T> {
 }
 
 type CloseHandler = Arc<dyn Fn(&App) -> CloseRequest + Send + Sync>;
+type MenuHandler = Arc<dyn Fn(&App, &str) + Send + Sync>;
 type SetupHandler = Box<dyn FnOnce(&App) + Send>;
 type ExitHandler = Box<dyn FnOnce(&App) + Send>;
 
@@ -114,6 +117,7 @@ pub struct Module {
     states: Vec<(TypeId, Arc<dyn Any + Send + Sync>)>,
     setup: Vec<SetupHandler>,
     on_close: Option<CloseHandler>,
+    on_menu: Option<MenuHandler>,
     on_exit: Vec<ExitHandler>,
 }
 
@@ -141,6 +145,7 @@ impl Module {
             states: Vec::new(),
             setup: Vec::new(),
             on_close: None,
+            on_menu: None,
             on_exit: Vec::new(),
         }
     }
@@ -171,6 +176,14 @@ impl Module {
         handler: impl Fn(&App) -> CloseRequest + Send + Sync + 'static,
     ) -> Self {
         self.on_close = Some(Arc::new(handler));
+        self
+    }
+
+    /// Handle menu commands: `id` is the activated item's
+    /// (`MenuItem::Command`), by click or accelerator. Runs on a blocking
+    /// thread; the page's native API hears the same id.
+    pub fn on_menu(mut self, handler: impl Fn(&App, &str) + Send + Sync + 'static) -> Self {
+        self.on_menu = Some(Arc::new(handler));
         self
     }
 
@@ -328,6 +341,11 @@ impl Window {
     pub fn exit(&self, code: i32) {
         self.op(WindowOp::Exit(code));
     }
+    /// Replace the window's menu (`None` removes it). Activated commands
+    /// reach `Module::on_menu` handlers.
+    pub fn set_menu(&self, menu: Option<Menu>) {
+        self.op(WindowOp::SetMenu(menu));
+    }
 }
 
 struct Entry {
@@ -343,6 +361,7 @@ pub struct Dispatcher {
     enabled: RwLock<Vec<String>>,
     setup: Mutex<Vec<SetupHandler>>,
     on_close: Vec<CloseHandler>,
+    on_menu: Vec<MenuHandler>,
     on_exit: Mutex<Vec<ExitHandler>>,
 }
 
@@ -361,6 +380,7 @@ pub fn dispatcher(modules: impl IntoIterator<Item = Module>) -> Arc<Dispatcher> 
     let mut commands = HashMap::new();
     let mut setup = Vec::new();
     let mut on_close = Vec::new();
+    let mut on_menu = Vec::new();
     let mut on_exit = Vec::new();
     for module in modules {
         for (id, state) in module.states {
@@ -382,6 +402,7 @@ pub fn dispatcher(modules: impl IntoIterator<Item = Module>) -> Arc<Dispatcher> 
         }
         setup.extend(module.setup);
         on_close.extend(module.on_close);
+        on_menu.extend(module.on_menu);
         on_exit.extend(module.on_exit);
         names.push(module.name);
     }
@@ -392,6 +413,7 @@ pub fn dispatcher(modules: impl IntoIterator<Item = Module>) -> Arc<Dispatcher> 
         enabled: RwLock::default(),
         setup: Mutex::new(setup),
         on_close,
+        on_menu,
         on_exit: Mutex::new(on_exit),
     })
 }
@@ -508,6 +530,24 @@ impl NativeDispatcher for Dispatcher {
         } else {
             CloseRequest::Allow
         }
+    }
+
+    fn menu(&self, id: &str) {
+        if self.on_menu.is_empty() {
+            return;
+        }
+        let handlers = self.on_menu.clone();
+        let app = self.app.clone();
+        let id = id.to_owned();
+        self.app.runtime().spawn_blocking(move || {
+            for handler in handlers {
+                if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handler(&app, &id)))
+                    .is_err()
+                {
+                    eprintln!("squark-native: a menu handler panicked on {id:?}");
+                }
+            }
+        });
     }
 
     fn exit(&self) {

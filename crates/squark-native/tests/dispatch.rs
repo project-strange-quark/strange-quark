@@ -247,3 +247,59 @@ fn exit_handlers_run_once() {
     dispatcher.exit();
     assert_eq!(runs.load(Ordering::SeqCst), 1);
 }
+
+#[test]
+fn menu_commands_reach_every_module_handler_off_the_caller_thread() {
+    let (send, receive) = mpsc::channel();
+    let caller = std::thread::current().id();
+    let first = send.clone();
+    let dispatcher = dispatcher([
+        Module::new("a").on_menu(move |app, id| {
+            assert_ne!(std::thread::current().id(), caller);
+            app.window().set_menu(None);
+            first.send(format!("a:{id}")).unwrap();
+        }),
+        Module::new("b").on_menu(move |_, id| send.send(format!("b:{id}")).unwrap()),
+        Module::new("c").on_menu(|_, _| panic!("a broken handler")),
+    ]);
+    let host = Arc::new(Host::default());
+    dispatcher.start(host.clone(), &["a".into()]);
+    dispatcher.menu("file.save");
+    let mut seen = [
+        receive.recv_timeout(Duration::from_secs(10)).unwrap(),
+        receive.recv_timeout(Duration::from_secs(10)).unwrap(),
+    ];
+    seen.sort();
+    assert_eq!(seen, ["a:file.save", "b:file.save"]);
+    assert_eq!(host.0.lock().unwrap().as_slice(), [WindowOp::SetMenu(None)]);
+}
+
+#[test]
+fn menu_items_build_with_accelerators() {
+    use squark_native::{Menu, MenuItem, MenuRole};
+    let menu = Menu {
+        items: vec![MenuItem::submenu(
+            "&File",
+            vec![
+                MenuItem::command("file.open", "Open…").with_accelerator("CmdOrCtrl+O"),
+                MenuItem::Separator,
+                MenuItem::role(MenuRole::Quit),
+                MenuItem::Separator.with_accelerator("Ctrl+X"),
+            ],
+        )],
+    };
+    let MenuItem::Submenu { items, .. } = &menu.items[0] else {
+        panic!("a submenu")
+    };
+    assert_eq!(
+        items[0],
+        MenuItem::Command {
+            id: "file.open".into(),
+            label: "Open…".into(),
+            accelerator: Some("CmdOrCtrl+O".into()),
+            enabled: true,
+            checked: None,
+        }
+    );
+    assert_eq!(items[3], MenuItem::Separator);
+}

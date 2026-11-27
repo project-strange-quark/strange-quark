@@ -45,6 +45,107 @@ pub enum WindowOp {
     /// Start the app again with the same arguments, then exit.
     Relaunch,
     Exit(i32),
+    /// Replace the window's menu; `None` removes it.
+    SetMenu(Option<Menu>),
+}
+
+/// A window's menu bar: its entries, normally one submenu each.
+///
+/// Labels may mark a mnemonic with `&` (`"&File"`; `"&&"` is a literal
+/// ampersand). Accelerators use Electron's and Tauri's syntax, such as
+/// `"CmdOrCtrl+Shift+F"`: modifiers joined by `+`, then one key.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Menu {
+    pub items: Vec<MenuItem>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MenuItem {
+    /// Activating it sends `id` to the modules' menu handlers and to the
+    /// page's native API.
+    Command {
+        id: String,
+        label: String,
+        accelerator: Option<String>,
+        enabled: bool,
+        /// `Some` for a check item.
+        checked: Option<bool>,
+    },
+    Submenu {
+        label: String,
+        enabled: bool,
+        items: Vec<MenuItem>,
+    },
+    Separator,
+    /// A standard item the runtime implements. `label` replaces the
+    /// default label and `accelerator` the default accelerator.
+    Role {
+        role: MenuRole,
+        label: Option<String>,
+        accelerator: Option<String>,
+    },
+}
+
+impl MenuItem {
+    pub fn command(id: impl Into<String>, label: impl Into<String>) -> Self {
+        Self::Command {
+            id: id.into(),
+            label: label.into(),
+            accelerator: None,
+            enabled: true,
+            checked: None,
+        }
+    }
+
+    pub fn submenu(label: impl Into<String>, items: Vec<MenuItem>) -> Self {
+        Self::Submenu {
+            label: label.into(),
+            enabled: true,
+            items,
+        }
+    }
+
+    pub fn role(role: MenuRole) -> Self {
+        Self::Role {
+            role,
+            label: None,
+            accelerator: None,
+        }
+    }
+
+    /// Sets the accelerator of a command or role item; others are unchanged.
+    pub fn with_accelerator(mut self, value: impl Into<String>) -> Self {
+        if let Self::Command { accelerator, .. } | Self::Role { accelerator, .. } = &mut self {
+            *accelerator = Some(value.into());
+        }
+        self
+    }
+}
+
+/// Standard menu items.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MenuRole {
+    Undo,
+    Redo,
+    Cut,
+    Copy,
+    Paste,
+    SelectAll,
+    /// Asks to close the window, as the title bar's close button does.
+    CloseWindow,
+    /// Asks to close the window and end the app.
+    Quit,
+    About(AboutInfo),
+}
+
+/// What an About item shows.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct AboutInfo {
+    pub name: Option<String>,
+    pub version: Option<String>,
+    pub comments: Option<String>,
+    pub copyright: Option<String>,
+    pub website: Option<String>,
 }
 
 /// A native dialog a module asks for. Paths come back absolute.
@@ -103,6 +204,10 @@ pub trait NativeDispatcher: Send + Sync {
     fn invoke(&self, call: NativeCall, reply: NativeReply);
     /// The user asked to close the window (title bar, Alt+F4, ⌘Q).
     fn close_requested(&self) -> CloseRequest;
+    /// The user activated the menu command `id`, by its item or its
+    /// accelerator. Handlers must not block the caller (the window's event
+    /// loop).
+    fn menu(&self, _id: &str) {}
     /// The app is ending: the window closed or the app exited. Called once,
     /// after the page has stopped, so modules can stop child processes.
     fn exit(&self) {}
