@@ -295,7 +295,18 @@ pub struct Prelude {
 /// Insert `<script src=path>` as the first child of `<head>`, so it runs
 /// before the page's own scripts.
 pub fn inject_prelude(html: &str, path: &str) -> String {
-    let tag = format!("<script src=\"{path}\"></script>");
+    insert_first_script(html, &format!("<script src=\"{path}\"></script>"))
+}
+
+/// Insert the prelude's source as an inline script, first in `<head>`, for
+/// documents whose scripts come from elsewhere (the `squark dev` server).
+pub fn inject_inline_prelude(html: &str, source: &[u8]) -> String {
+    // `</script` inside a script ends it early; `<\/script` is the same text.
+    let source = String::from_utf8_lossy(source).replace("</script", "<\\/script");
+    insert_first_script(html, &format!("<script>{source}</script>"))
+}
+
+fn insert_first_script(html: &str, tag: &str) -> String {
     let lower = html.to_ascii_lowercase();
     let head = lower
         .match_indices("<head")
@@ -313,7 +324,7 @@ pub fn inject_prelude(html: &str, path: &str) -> String {
     });
     let mut out = String::with_capacity(html.len() + tag.len());
     out.push_str(&html[..at]);
-    out.push_str(&tag);
+    out.push_str(tag);
     out.push_str(&html[at..]);
     out
 }

@@ -100,12 +100,19 @@ struct DevManifest<'a> {
 }
 
 #[derive(Debug, Serialize)]
+struct DevNativeManifest {
+    modules: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
 struct DevPackManifest<'a> {
     version: u32,
     app_name: &'a str,
     entry_html: &'a str,
     window: crate::pack::PackWindow,
     network: DevNetworkManifest,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    native: Option<DevNativeManifest>,
     dev: DevManifest<'a>,
 }
 
@@ -193,6 +200,14 @@ pub fn run_dev(options: &DevOptions) -> Result<DevSummary, CliError> {
                 .clone()
                 .unwrap_or_else(|| project.app_name.clone()),
             network_allow: project.raw.network.allow.clone(),
+            native_modules: project.raw.native.modules.clone(),
+            prelude: match crate::native::tauri_prelude(&project.dir, &project.raw.compat) {
+                Ok(prelude) => prelude,
+                Err(error) => {
+                    stop(&mut vite);
+                    return Err(error);
+                }
+            },
         },
     ) {
         Ok(pack) => pack,
@@ -213,13 +228,27 @@ pub fn run_dev(options: &DevOptions) -> Result<DevSummary, CliError> {
         });
     }
 
-    let runtime_path = match resolve_runtime_binary(
-        &cwd,
-        &project.dir,
-        options.runtime_binary.as_deref(),
-        project.raw.build.runtime.as_deref(),
-        RuntimePreference::Sibling,
-    ) {
+    // An app with native modules runs its own runtime, built with the dev profile.
+    let native_runtime =
+        if options.runtime_binary.is_none() && project.raw.build.runtime.is_none() {
+            crate::native::build_native_runtime(
+                &project.dir,
+                &project.raw.native,
+                crate::native::RuntimeProfile::Dev,
+            )
+        } else {
+            Ok(None)
+        };
+    let runtime_path = match native_runtime.and_then(|native| match native {
+        Some(path) => Ok(path),
+        None => resolve_runtime_binary(
+            &cwd,
+            &project.dir,
+            options.runtime_binary.as_deref(),
+            project.raw.build.runtime.as_deref(),
+            RuntimePreference::Sibling,
+        ),
+    }) {
         Ok(path) => path,
         Err(error) => {
             stop(&mut vite);
@@ -464,6 +493,9 @@ struct DevPackInput<'a> {
     height: u32,
     title: String,
     network_allow: Vec<String>,
+    native_modules: Vec<String>,
+    /// A classic script to run first, inlined into the dev document.
+    prelude: Option<crate::pack::Prelude>,
 }
 
 /// Writes the dev pack and returns its path.
@@ -472,6 +504,11 @@ fn write_dev_pack(
     html: &str,
     input: DevPackInput<'_>,
 ) -> Result<PathBuf, CliError> {
+    let html = match &input.prelude {
+        Some(prelude) => crate::pack::inject_inline_prelude(html, &prelude.source),
+        None => html.to_owned(),
+    };
+    let html = html.as_str();
     let compiled = compile_html_to_document_bin(html, PACK_ENTRY_HTML)?;
 
     // The dev origin is allowlisted explicitly as well as through the runtime's
@@ -493,6 +530,9 @@ fn write_dev_pack(
             title: input.title,
         },
         network: DevNetworkManifest { allow },
+        native: (!input.native_modules.is_empty()).then_some(DevNativeManifest {
+            modules: input.native_modules,
+        }),
         dev: DevManifest {
             origin: input.origin,
             hmr: input.hmr,
@@ -580,7 +620,32 @@ mod tests {
             height: 600,
             title: "Counter".to_owned(),
             network_allow: allow,
+            native_modules: Vec::new(),
+            prelude: None,
         }
+    }
+
+    #[test]
+    fn dev_packs_inline_the_prelude_and_list_native_modules() {
+        let dir = tempfile::tempdir().unwrap();
+        let pack = dir.path().join("dev.sqpak");
+        let mut with_native = input("http://127.0.0.1:5173", Vec::new());
+        with_native.native_modules = vec!["julide".into()];
+        with_native.prelude = Some(crate::pack::Prelude {
+            path: "/__squark/tauri.js".into(),
+            source: b"globalThis.shim = '</script>';".to_vec(),
+        });
+        write_dev_pack(
+            &pack,
+            "<html><head><script type=module src=/src/main.tsx></script></head></html>",
+            with_native,
+        )
+        .unwrap();
+        let bytes = fs::read(&pack).unwrap();
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(text.contains(r#""modules": ["#), "{text}");
+        assert!(text.contains("julide"));
+        assert!(text.contains(r"<head><script>globalThis.shim = '<\/script>';</script><script type=module"));
     }
 
     #[test]
