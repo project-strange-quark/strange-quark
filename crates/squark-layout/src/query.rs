@@ -275,27 +275,29 @@ impl<'a> Geometry<'a> {
                 .and_then(|id| self.tree.nodes.get(&id))
                 .map(|fragment| fragment.owner);
         }
-        std::iter::successors(self.document.parent(owner), |id| self.document.parent(*id)).find(
-            |&id| {
-                let Some(css) = self.document.computed_style(id) else {
-                    return false;
-                };
-                use style::values::specified::box_::DisplayInside;
-                let display = css.get_display();
-                if display.is_none() || display.is_contents() {
-                    return false;
-                }
-                self.document.html_element(id) == Some("body")
-                    || css.get_box().position != crate::css::stylo::Position::Static
-                    || crate::css::containing_block_claims(&css)
-                        != taffy::ContainingBlockClaims::NONE
-                    || (first.style.stacking.position == PositionKind::Static
-                        && matches!(
-                            display.inside(),
-                            DisplayInside::Table | DisplayInside::TableCell
-                        ))
-            },
-        )
+        // Like Chromium, look through the flat tree. squark-dom retargets the
+        // result out of shadow trees the element is not in.
+        std::iter::successors(self.document.flat_parent(owner), |id| {
+            self.document.flat_parent(*id)
+        })
+        .find(|&id| {
+            let Some(css) = self.document.computed_style(id) else {
+                return false;
+            };
+            use style::values::specified::box_::DisplayInside;
+            let display = css.get_display();
+            if display.is_none() || display.is_contents() {
+                return false;
+            }
+            self.document.html_element(id) == Some("body")
+                || css.get_box().position != crate::css::stylo::Position::Static
+                || crate::css::containing_block_claims(&css) != taffy::ContainingBlockClaims::NONE
+                || (first.style.stacking.position == PositionKind::Static
+                    && matches!(
+                        display.inside(),
+                        DisplayInside::Table | DisplayInside::TableCell
+                    ))
+        })
     }
 
     pub fn focus_scroll(&self, owner: NodeId) -> Vec<(NodeId, Point)> {

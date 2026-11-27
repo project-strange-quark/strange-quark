@@ -9,6 +9,7 @@ ul { display: block; }
 
 head, base, link, meta, script, style, template, title { display: none; }
 noscript { display: none !important; }
+slot { display: contents; }
 [hidden]:not([hidden="until-found"]), input[type=hidden] { display: none; }
 
 body { margin: 8px; }

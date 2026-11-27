@@ -206,7 +206,9 @@ impl Builder<'_, '_> {
         parent: Id,
         inline: bool,
     ) {
-        let children = self.document.children(owner).unwrap_or_default().to_vec();
+        // Boxes follow the flat tree: a shadow host renders its shadow tree,
+        // and a slot its assigned nodes or else its own children.
+        let children = self.document.flat_children(owner).to_vec();
         let mut index = 0;
         while index < children.len() {
             if flex_grid || !self.is_table_part(children[index]) {

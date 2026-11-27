@@ -74,7 +74,7 @@ impl Slices {
             {
                 ancestors.push((owner, css));
             }
-            let Some(parent) = document.parent(owner) else {
+            let Some(parent) = document.flat_parent(owner) else {
                 break;
             };
             owner = parent;

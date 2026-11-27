@@ -52,7 +52,7 @@ pub(crate) fn spans(
             if !propagates_into(&css) {
                 break;
             }
-            parent = document.parent(node);
+            parent = document.flat_parent(node);
         }
     }
     result.into_boxed_slice()

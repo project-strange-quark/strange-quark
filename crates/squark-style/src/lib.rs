@@ -74,6 +74,9 @@ pub struct Cascade<'a> {
     stylist: Stylist,
     author_sheets: Vec<DocumentStyleSheet>,
     sources: Vec<Source>,
+    /// Each connected shadow root's stylesheets, in its tree order and then
+    /// its adopted order.
+    shadow_sources: BTreeMap<NodeId, Vec<Source>>,
     inline_styles: Vec<(NodeId, String)>,
     warnings: Vec<CssWarning>,
     reported: HashSet<WarningLocation>,
@@ -111,7 +114,11 @@ struct Source {
     owner: Option<NodeId>,
 }
 
-type AuthorSources = (Vec<Source>, Vec<(NodeId, String)>);
+struct AuthorSources {
+    document: Vec<Source>,
+    shadows: BTreeMap<NodeId, Vec<Source>>,
+    inline_styles: Vec<(NodeId, String)>,
+}
 
 impl<'a> Cascade<'a> {
     pub fn keyframes(
@@ -167,6 +174,7 @@ impl<'a> Cascade<'a> {
                 stylist,
                 author_sheets: Vec::new(),
                 sources: Vec::new(),
+                shadow_sources: BTreeMap::new(),
                 inline_styles: Vec::new(),
                 warnings: Vec::new(),
                 reported: HashSet::new(),
@@ -179,10 +187,21 @@ impl<'a> Cascade<'a> {
 
     pub fn update(&mut self, document: &mut Document, media: MediaData) -> Result<(), LoadError> {
         self.set_media(document, media);
-        let (sources, inline_styles) = self.sources(document)?;
+        let AuthorSources {
+            document: sources,
+            shadows,
+            inline_styles,
+        } = self.sources(document)?;
         let inline_changed = inline_styles != self.inline_styles;
         let sheets_changed = self.sources != sources;
-        if self.device_changed || sheets_changed || self.preferences_changed {
+        let shadows_changed = self.shadow_sources != shadows;
+        if self.device_changed || sheets_changed || shadows_changed || self.preferences_changed {
+            // A shadow root's cascade data evaluates its media queries against
+            // the device, so a new device rebuilds it too.
+            if shadows_changed || self.device_changed || self.preferences_changed {
+                self.build_shadow_styles(document, &shadows);
+                self.shadow_sources = shadows;
+            }
             if sheets_changed || self.preferences_changed {
                 {
                     let guard = document.style_lock().read();
@@ -210,6 +229,41 @@ impl<'a> Cascade<'a> {
             self.update_warnings();
         }
         Ok(())
+    }
+
+    fn build_shadow_styles(
+        &mut self,
+        document: &mut Document,
+        shadows: &BTreeMap<NodeId, Vec<Source>>,
+    ) {
+        use style::author_styles::AuthorStyles;
+        let parsed: Vec<_> = shadows
+            .iter()
+            .map(|(&root, sources)| {
+                let sheets: Vec<_> = sources
+                    .iter()
+                    .map(|source| {
+                        let sheet = parse_sheet(source, document, Origin::Author);
+                        self.resolve_sheet_media(document, &sheet, &source.url);
+                        sheet
+                    })
+                    .collect();
+                (root, sheets)
+            })
+            .collect();
+        let mut styles = BTreeMap::new();
+        {
+            let guard = document.style_lock().read();
+            for (root, sheets) in parsed {
+                let mut author = AuthorStyles::<DocumentStyleSheet>::new();
+                for sheet in sheets {
+                    author.stylesheets.append_stylesheet(sheet, &guard);
+                }
+                author.flush(&mut self.stylist, &guard);
+                styles.insert(root, author.data.clone());
+            }
+        }
+        document.set_shadow_styles(styles);
     }
 
     pub fn restyle(&mut self, document: &mut Document) -> Result<(), LoadError> {
@@ -337,16 +391,35 @@ impl<'a> Cascade<'a> {
             .is_ok_and(|condition| condition.eval(&mut context))
     }
 
-    pub fn has_sheet(&self, owner: NodeId) -> bool {
+    /// Every author stylesheet source: the document's, then each shadow root's.
+    fn all_sources(&self) -> impl Iterator<Item = &Source> {
         self.sources
             .iter()
-            .any(|source| source.owner == Some(owner))
+            .chain(self.shadow_sources.values().flatten())
+    }
+
+    pub fn has_sheet(&self, owner: NodeId) -> bool {
+        self.all_sources().any(|source| source.owner == Some(owner))
     }
 
     pub fn sheet_rules(&self, document: &Document, owner: NodeId) -> Vec<String> {
-        self.sources
-            .iter()
-            .find(|source| source.owner == Some(owner))
+        let source = self
+            .all_sources()
+            .find(|source| source.owner == Some(owner));
+        // A constructed stylesheet that nothing adopts still has rules.
+        let unadopted = source
+            .is_none()
+            .then(|| sheet_text(document, owner))
+            .flatten()
+            .map(|css| Source {
+                css,
+                url: self.document_url.clone(),
+                media: String::new(),
+                inline_owner: None,
+                owner: Some(owner),
+            });
+        source
+            .or(unadopted.as_ref())
             .map(|source| {
                 let sheet = parse_sheet(source, document, Origin::Author);
                 let guard = document.style_lock().read();
@@ -411,9 +484,7 @@ impl<'a> Cascade<'a> {
         node: NodeId,
         pseudo: Option<&style::selector_parser::PseudoElement>,
     ) -> Option<Arc<ComputedValues>> {
-        if !std::iter::successors(Some(node), |id| document.parent(*id))
-            .any(|id| id == document.root())
-        {
+        if !document.is_connected(node) {
             return None;
         }
         match pseudo {
@@ -660,12 +731,20 @@ impl<'a> Cascade<'a> {
             .map(|entry| (entry.node, entry))
             .collect();
         let mut sheets = Vec::new();
+        let mut shadows: BTreeMap<NodeId, Vec<Source>> = BTreeMap::new();
         let mut inline_styles = Vec::new();
-        let mut pending = vec![document.root()];
-        while let Some(id) = pending.pop() {
+        let root = document.root();
+        // Each node walks with the root of its tree: the document, or the
+        // shadow root whose stylesheets style it.
+        let mut pending = vec![(root, root)];
+        while let Some((id, scope)) = pending.pop() {
             let attr = |name| document.attribute(id, name).map(String::from_utf16_lossy);
             let children = document.children(id).unwrap_or_default();
-            pending.extend(children.iter().rev().copied());
+            if let Some(shadow) = document.shadow_root(id) {
+                shadows.entry(shadow).or_default();
+                pending.push((shadow, shadow));
+            }
+            pending.extend(children.iter().rev().map(|&child| (child, scope)));
             if let Some(style) = attr("style") {
                 inline_styles.push((id, style));
             }
@@ -740,16 +819,55 @@ impl<'a> Cascade<'a> {
                 }
                 _ => continue,
             };
-            sheets.push(Source {
+            let source = Source {
                 css,
                 url,
                 media: attr("media").unwrap_or_default(),
                 inline_owner: (document.html_element(id) == Some("style")).then_some(id),
                 owner: Some(id),
-            });
+            };
+            if scope == root {
+                sheets.push(source);
+            } else {
+                shadows.entry(scope).or_default().push(source);
+            }
         }
-        Ok((sheets, inline_styles))
+        // Adopted stylesheets follow the tree's own, in adoption order.
+        let adopted = |scope| {
+            document.adopted_sheets(scope).iter().filter_map(|&sheet| {
+                Some(Source {
+                    css: sheet_text(document, sheet)?,
+                    url: self.document_url.clone(),
+                    media: String::from_utf16_lossy(document.sheet_media(sheet)?),
+                    inline_owner: None,
+                    owner: Some(sheet),
+                })
+            })
+        };
+        sheets.extend(adopted(root));
+        for (&shadow, sources) in &mut shadows {
+            sources.extend(adopted(shadow));
+        }
+        Ok(AuthorSources {
+            document: sheets,
+            shadows,
+            inline_styles,
+        })
     }
+}
+
+/// A constructed stylesheet's rule text.
+fn sheet_text(document: &Document, sheet: NodeId) -> Option<String> {
+    document.sheet_media(sheet)?;
+    Some(
+        document
+            .sheet_rules(sheet.raw())
+            .unwrap_or_default()
+            .iter()
+            .map(|rule| String::from_utf16_lossy(rule))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
 }
 
 /// Turns on the Stylo preferences for the features layout and paint honour.
