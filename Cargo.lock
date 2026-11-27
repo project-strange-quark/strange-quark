@@ -3955,6 +3955,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "squark-native"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "squark-native-macros",
+ "squark-net",
+ "squark-types",
+ "tokio",
+]
+
+[[package]]
+name = "squark-native-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "squark-net"
 version = "0.1.0"
 dependencies = [
