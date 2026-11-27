@@ -415,6 +415,7 @@ fn prepare_query(
         9 => Query::FocusScroll(id),
         10 => Query::SheetRules(id),
         11 => Query::CaretRect(id, unsigned(arg)?),
+        13 => Query::SheetLoaded(id),
         _ => return None,
     };
     Some(Request::Plain(plain))

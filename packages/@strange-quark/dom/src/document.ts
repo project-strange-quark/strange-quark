@@ -2261,7 +2261,10 @@ export class HTMLLinkElement extends HTMLElement {
 
   override [attributeChanged](name: string): void {
     super[attributeChanged](name);
-    if (name === "rel" || name === "href") removeSheet(this);
+    if (name === "rel" || name === "href") {
+      removeSheet(this);
+      syncLinkSheet(this);
+    }
   }
 }
 reflect(HTMLLinkElement.prototype, { media: "media", rel: "rel" });
@@ -2280,6 +2283,8 @@ type SheetBacking = {
   raw: boolean;
   rules?: readonly string[];
   sheet?: CSSStyleSheet;
+  /** Bumped for each fetch of a link's stylesheet, so stale load events are dropped. */
+  loads?: number;
 };
 const sheetBackings = new WeakMap<SheetOwner, SheetBacking>();
 
@@ -2350,6 +2355,44 @@ function syncStyleText(owner: HTMLStyleElement, changed = false): void {
   state.text = text;
   state.raw = text !== "";
   replaceSheetRecords(owner, state, text === "" ? [] : [text]);
+}
+
+function isStylesheetLink(link: HTMLLinkElement): boolean {
+  const rel = lowerAscii(link.rel).split(/[\t\n\f\r ]+/);
+  return rel.includes("stylesheet") && !rel.includes("alternate");
+}
+
+// A stylesheet link connected after load: the engine reads same-origin hrefs
+// from the pack. Like a browser, fire `load` once the sheet applies and `error`
+// when it cannot, from a task, so listeners added right after insertion run.
+function syncLinkSheet(link: HTMLLinkElement): void {
+  if (!link.isConnected || !isStylesheetLink(link)) return;
+  const href = link.getAttribute("href");
+  if (href === null || href === "") return;
+  const state = backing(link);
+  if (state.packedLink !== href || state.href === undefined) {
+    if (state.sheet !== undefined) detachSheet(state.sheet);
+    state.sheet = undefined;
+    state.rules = undefined;
+    state.href = link.href;
+    state.packedLink = href;
+    state.raw = true;
+  }
+  const document = link.ownerDocument;
+  const record = documents.get(document)!;
+  const host = record.bindings;
+  const generation = state.loads = (state.loads ?? 0) + 1;
+  const finish = () => {
+    if (state.loads !== generation || !link.isConnected || link.getAttribute("href") !== href) return;
+    let loaded = false;
+    if (host !== undefined) {
+      flushDocument(document);
+      loaded = host.query(13, nodeId(link)) === true;
+    }
+    dispatchTrustedEvent(link, new Event(loaded ? "load" : "error"));
+  };
+  if (host !== undefined) host.postTask(finish);
+  else Promise.resolve().then(finish);
 }
 
 function attachedSheet(owner: SheetOwner): CSSStyleSheet | null {
@@ -2580,12 +2623,14 @@ function treeChanged(parent: Node, child: Node, inserted: boolean): void {
   if (inserted) {
     if (child instanceof HTMLInputElement) child.syncRadioGroup();
     if (child instanceof HTMLStyleElement) syncStyleText(child);
+    if (child instanceof HTMLLinkElement) syncLinkSheet(child);
     if (child instanceof HTMLScriptElement && child.isConnected && !parserInsertedScripts.has(child)) {
       documents.get(child.ownerDocument)?.loadScript?.(child);
     }
     for (const node of descendants(child)) {
       if (node instanceof HTMLInputElement && node.type === "radio") node.syncRadioGroup();
       if (node instanceof HTMLStyleElement) syncStyleText(node);
+      if (node instanceof HTMLLinkElement) syncLinkSheet(node);
       if (node instanceof HTMLScriptElement && node.isConnected && !parserInsertedScripts.has(node)) {
         documents.get(node.ownerDocument)?.loadScript?.(node);
       }
