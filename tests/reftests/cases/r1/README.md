@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 # Reftest Suite R1 (Static HTML/CSS)
 
-150 static HTML/CSS cases (zero JavaScript, zero external network URLs) rendered
+152 static HTML/CSS cases (zero JavaScript, zero external network URLs) rendered
 against headless Chromium (`/usr/bin/chromium`) with bundled fonts under
 `_assets/fonts/` and deterministic images under `_assets/images/`.
 
@@ -15,7 +15,7 @@ against headless Chromium (`/usr/bin/chromium`) with bundled fonts under
 | `06-backgrounds/` | 12 | Solid hex/rgb/hsl/alpha, `background-clip`, linear/radial/conic/repeating gradients, multi-layer backgrounds, `repeat`/`position`/`size`, `oklch()`/`color-mix()`, `currentColor` |
 | `07-borders/` | 12 | Per-side borders & CSS triangles, `dashed`/`dotted`/`double`, `border-radius` (uniform, per-corner, elliptical, pill, thick borders, bg clip), `outline`/`outline-offset`, `box-shadow` (outset, spread rings, inset, layered elevation, rounded) |
 | `08-effects/` | 14 | Group vs per-child `opacity`, `visibility`, `filter` (`invert` + `hue-rotate`, `blur`, `brightness`, `contrast`, `drop-shadow`, `grayscale`, `sepia`), `mix-blend-mode`, 2D/3D `transform` & `transform-origin`, `overflow: hidden` rect & rounded, `clip-path`, layered alpha compositing |
-| `09-content/` | 14 | Inline SVG shapes/paths/dashes/`viewBox`, `data:image/png;base64` & `data:image/svg+xml` URLs, `<img>` intrinsic sizing & `object-fit`, `@font-face` WOFF2 + TTF, `::before`/`::after`, `:nth-child`/`:not`/`:is`/`:where`/`:has`, `@media`, `<link rel="stylesheet">` cascade, `appearance: none` controls, root full-height layout |
+| `09-content/` | 16 | Inline SVG shapes/paths/dashes/`viewBox`, `data:image/png;base64` & `data:image/svg+xml` URLs, `<img>` intrinsic sizing & `object-fit`, `@font-face` WOFF2 + TTF, `@font-face` faces matched by weight, style and `local()` and split by `unicode-range`, `::before`/`::after`, `:nth-child`/`:not`/`:is`/`:where`/`:has`, `@media`, `<link rel="stylesheet">` cascade, `appearance: none` controls, root full-height layout |
 | `10-excalidraw/` | 16 | Excalidraw v0.18.1 CSS patterns found by auditing its stylesheets: `:root`/`.theme--dark` CSS vars, dark-mode `invert(93%) hue-rotate(180deg)`, `.visually-hidden` legacy `clip: rect(1px,1px,1px,1px)`, `env(safe-area-inset-*)`, `.Island` floating toolbar, swatch grid, data-PNG checkerboard, data-SVG select chevron, modal backdrop, tooltip `::before` arrow, `[data-state]`/`[aria-selected]` selectors, `[dir="rtl"]`, SVG `stroke: currentColor`, Assistant WOFF2 UI typography, clipped sidebar, full workspace shell |
 
 ## Running

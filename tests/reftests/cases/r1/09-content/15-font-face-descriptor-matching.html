@@ -1,0 +1,77 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":320,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>@font-face faces matched by their weight and style descriptors</title>
+  <style>
+    /* KaTeX's pattern: one family, one face per weight and style. */
+    @font-face {
+      font-family: "MathMain";
+      src: url("../_assets/fonts/LiberationSans-Regular.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "MathMain";
+      src: url("../_assets/fonts/LiberationSans-Bold.woff2") format("woff2");
+      font-weight: 700;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "MathMain";
+      src: url("../_assets/fonts/LiberationSans-Italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    /* The descriptors, not the files, decide which face is which. */
+    @font-face {
+      font-family: "Swapped";
+      src: url("../_assets/fonts/LiberationSans-Regular.woff2") format("woff2");
+      font-weight: 700;
+    }
+    @font-face {
+      font-family: "Swapped";
+      src: url("../_assets/fonts/LiberationSans-Bold.woff2") format("woff2");
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: "Swapped";
+      src: url("../_assets/fonts/LiberationMono-Regular.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    /* local() finds an installed font by its full name. */
+    @font-face {
+      font-family: "Installed";
+      src: local("Liberation Sans Bold"), url("../_assets/fonts/LiberationSans-Regular.woff2") format("woff2");
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 12px 16px; font: 18px/24px "MathMain", monospace; }
+    p { margin: 0 0 4px 0; }
+    .w300 { font-weight: 300; }
+    .w500 { font-weight: 500; }
+    .w600 { font-weight: 600; }
+    .w900 { font-weight: 900; }
+    .italic { font-style: italic; }
+    .oblique { font-style: oblique 30deg; }
+    .swapped { font-family: "Swapped", monospace; }
+    .installed { font-family: "Installed", monospace; }
+  </style>
+</head>
+<body>
+  <p>Regular 400 x + y = z</p>
+  <p class="w300">Light 300 uses 400</p>
+  <p class="w500">Medium 500 uses 400</p>
+  <p class="w600">Semibold 600 uses 700</p>
+  <p class="w900">Black 900 uses 700</p>
+  <p class="italic">Italic 400 f(x)</p>
+  <p class="oblique">Oblique 30deg uses italic</p>
+  <p class="swapped">Swapped 400 draws bold</p>
+  <p class="swapped w600">Swapped 600 draws regular</p>
+  <p class="swapped italic">Swapped italic draws mono</p>
+  <p class="installed">local() Liberation Sans Bold</p>
+</body>
+</html>

@@ -175,9 +175,9 @@ test("headless Chromium renders smoke/box-and-text.html into target/", async (t)
   }
 });
 
-test("r1 suite has 150 static cases, expected Chromium PNGs, and inline geometry", () => {
+test("r1 suite has 152 static cases, expected Chromium PNGs, and inline geometry", () => {
   const cases = discoverCases(path.join(reftestsRoot, "cases"), "r1");
-  assert.equal(cases.length, 150);
+  assert.equal(cases.length, 152);
 
   for (const c of cases) {
     const html = fs.readFileSync(c.filePath, "utf8");
