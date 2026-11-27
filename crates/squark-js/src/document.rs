@@ -327,8 +327,10 @@ impl<'engine> DocumentRunner<'engine> {
             fonts::install(scope, host).ok_or_else(|| setup("failed to install font bindings"))?;
             platform::install(scope, host, sources.host_requests.take())
                 .ok_or_else(|| setup("failed to install host services"))?;
+            let dev = sources.dev;
             loader::install(scope, url, sources);
-            bindings::install(scope, host)
+            let console = bindings::console_enabled(dev, options.test_control);
+            bindings::install(scope, host, console)
                 .ok_or_else(|| setup("failed to install native bindings"))?;
             navigation::install(scope, host)
                 .ok_or_else(|| setup("failed to install URL bindings"))?;
@@ -448,6 +450,7 @@ impl<'engine> DocumentRunner<'engine> {
             loader::install_dev_fetch(scope, fetch_module);
             let network = function(scope, network, "dispatch")?;
             for name in [
+                "installConsole",
                 "installFiles",
                 "installCrypto",
                 "installFormData",

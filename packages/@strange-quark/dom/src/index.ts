@@ -10,6 +10,7 @@ export { DOMTokenList, HTMLCollection, NodeList } from "./collections.js";
 export { CSSStyleDeclaration } from "./style.js";
 export { MutationObserver, MutationRecord } from "./mutation.js";
 export { installTiming } from "./timing.js";
+export { formatConsole, installConsole } from "./console.js";
 
 export { AbortController, AbortSignal } from "./abort.js";
 

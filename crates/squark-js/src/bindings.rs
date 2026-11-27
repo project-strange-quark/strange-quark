@@ -180,7 +180,11 @@ fn apply_batch(
     Ok(report.applied)
 }
 
-pub(crate) fn install(scope: &mut PinScope<'_, '_>, host: Local<'_, v8::Object>) -> Option<()> {
+pub(crate) fn install(
+    scope: &mut PinScope<'_, '_>,
+    host: Local<'_, v8::Object>,
+    console: bool,
+) -> Option<()> {
     for (name, value) in [
         ("os", std::env::consts::OS),
         ("arch", std::env::consts::ARCH),
@@ -202,7 +206,33 @@ pub(crate) fn install(scope: &mut PinScope<'_, '_>, host: Local<'_, v8::Object>)
     ] {
         set(scope, host, name, callback?.into())?;
     }
+    if console {
+        let write = v8::Function::new(scope, console_write)?;
+        set(scope, host, "consoleWrite", write.into())?;
+    }
     Some(())
+}
+
+/// Whether `console.*` reaches stderr: dev packs, test control, or
+/// `SQUARK_CONSOLE=1`. Shipped apps stay silent unless the user opts in.
+pub(crate) fn console_enabled(dev: bool, test_control: bool) -> bool {
+    dev || test_control
+        || std::env::var_os("SQUARK_CONSOLE").is_some_and(|value| !value.is_empty() && value != "0")
+}
+
+fn console_write(
+    scope: &mut PinScope<'_, '_>,
+    args: v8::FunctionCallbackArguments<'_>,
+    _: v8::ReturnValue<'_>,
+) {
+    let (Some(level), Some(text)) = (string(scope, args.get(0)), string(scope, args.get(1))) else {
+        return;
+    };
+    let prefix = match level.as_str() {
+        "error" | "warn" | "info" | "debug" | "trace" => level.as_str(),
+        _ => "log",
+    };
+    eprintln!("console.{prefix}: {text}");
 }
 
 fn log_error(
