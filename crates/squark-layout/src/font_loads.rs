@@ -7,7 +7,7 @@ use std::{
 use squark_assets::{Pack, RemoteResources, Resource, Resources};
 use squark_mirror::Document;
 use squark_style::Cascade;
-use squark_text::{DocumentFont, FaceAttributes, decode_font};
+use squark_text::{DocumentFont, FaceAttributes, FontRequest, decode_font, matching_faces};
 use squark_types::{
     engine::{DecodedBatch, EngineError, FaceId},
     journal::{FontFaceAction, Record},
@@ -16,7 +16,7 @@ use squark_types::{
 use style::{
     font_face::{DescriptorId, Source},
     properties::ComputedValues,
-    values::computed::{FontStyle, font::SingleFontFamily},
+    values::computed::font::SingleFontFamily,
 };
 use url::Url;
 
@@ -125,6 +125,7 @@ impl FontMutation {
                 let mut values = [
                     (DescriptorId::FontWeight, "font-weight"),
                     (DescriptorId::FontStyle, "font-style"),
+                    (DescriptorId::FontWidth, "font-stretch"),
                     (DescriptorId::UnicodeRange, "unicode-range"),
                 ]
                 .into_iter()
@@ -139,29 +140,7 @@ impl FontMutation {
                     cascade
                         .face_descriptors(document, &base, &values)
                         .and_then(|descriptors| {
-                            let weight = match descriptors.font_weight {
-                                Some(weight) => {
-                                    let weight = weight.compute()?;
-                                    [weight.0.value(), weight.1.value()]
-                                }
-                                None => [400.0; 2],
-                            };
-                            let style = match descriptors.font_style {
-                                Some(style) => {
-                                    let style = style.compute()?;
-                                    [style.0, style.1]
-                                }
-                                None => [FontStyle::NORMAL; 2],
-                            };
-                            let ranges = descriptors
-                                .unicode_range
-                                .map(|ranges| {
-                                    ranges
-                                        .into_iter()
-                                        .map(|range| range.start..=range.end)
-                                        .collect()
-                                })
-                                .unwrap_or_default();
+                            let attributes = FaceAttributes::from_descriptors(&descriptors)?;
                             let sources = match bytes {
                                 Some(bytes) => Sources::Binary(bytes),
                                 None => Sources::Urls(
@@ -180,11 +159,7 @@ impl FontMutation {
                             };
                             (!family.trim().is_empty()).then_some(Definition {
                                 family,
-                                attributes: FaceAttributes {
-                                    weight,
-                                    style,
-                                    ranges,
-                                },
+                                attributes,
                                 sources,
                             })
                         });
@@ -250,9 +225,13 @@ impl FontLoads {
         }
     }
 
+    /// The member faces CSS font matching picks for the font's families
+    /// whose `unicode-range` covers some of the text, for
+    /// `FontFaceSet.load()` and `check()`.
     pub fn matches(&self, font: &ComputedValues, text: &[u16]) -> Vec<FaceId> {
-        let mut selected = BTreeSet::new();
         let font = font.get_font();
+        let request = FontRequest::from_font(font);
+        let mut selected = BTreeSet::new();
         for family in font.font_family.families.list.iter() {
             let SingleFontFamily::FamilyName(family) = family else {
                 continue;
@@ -260,24 +239,18 @@ impl FontLoads {
             let faces = self
                 .faces
                 .values()
-                .rev()
                 .filter_map(|face| {
                     let def = face.definition.as_ref()?;
                     (face.member && def.family.eq_ignore_ascii_case(family.name.as_str()))
                         .then_some((face.token.0, &def.attributes))
                 })
                 .collect::<Vec<_>>();
-            for ch in char::decode_utf16(text.iter().copied())
-                .map(|ch| ch.unwrap_or(char::REPLACEMENT_CHARACTER))
-            {
-                if let Some(&(id, _)) = faces
-                    .iter()
-                    .filter(|(_, attributes)| attributes.covers(ch))
-                    .min_by(|a, b| a.1.compare(b.1, font.font_weight.value(), font.font_style))
-                {
-                    selected.insert(id);
-                }
-            }
+            selected.extend(matching_faces(&faces, request).into_iter().filter(|id| {
+                self.faces[id]
+                    .definition
+                    .as_ref()
+                    .is_some_and(|def| def.attributes.covers_any(text))
+            }));
         }
         selected.into_iter().map(FaceId).collect()
     }

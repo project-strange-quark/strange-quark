@@ -7,21 +7,22 @@ mod editing;
 mod measure;
 mod outline;
 mod raster;
+mod web_fonts;
 pub use css::{
     base_direction, style, text_align, text_align_last, vertical_align, white_space_collapse,
 };
-pub use document_fonts::{DocumentFont, FaceAttributes, decode_font};
+pub use document_fonts::{DocumentFont, FaceAttributes, FontRequest, decode_font, matching_faces};
 pub use editing::{EditText, TextPositions};
 pub use measure::{CanvasAlign, CanvasBaseline, CanvasRun, CanvasText, ControlMetrics};
 pub use raster::GlyphRasterizer;
+pub use web_fonts::{FaceSource, WebFont};
 
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 
 use parley::{FontContext, FontData, LayoutContext, fontique};
 use squark_assets::Resources;
 use squark_types::{NodeId, render::FontInstanceId};
-use url::Url;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TextBrush(pub NodeId);
@@ -30,12 +31,6 @@ impl Default for TextBrush {
     fn default() -> Self {
         Self(NodeId::NONE)
     }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct WebFont {
-    pub family: String,
-    pub urls: Vec<Url>,
 }
 
 #[derive(Clone, Debug)]
@@ -57,7 +52,9 @@ pub struct Fonts {
     pub context: FontContext,
     pub layout: LayoutContext<TextBrush>,
     faces: Vec<WebFont>,
+    web: web_fonts::WebFaces,
     document_fonts: Vec<DocumentFont>,
+    document_coverage: Vec<document_fonts::Coverage>,
     keys: HashMap<InstanceKey, FontInstanceId>,
     instances: Vec<FontInstance>,
     measured_sources: HashMap<u64, fontique::Blob<u8>>,
@@ -77,7 +74,9 @@ impl Default for Fonts {
             context,
             layout: LayoutContext::new(),
             faces: Vec::new(),
+            web: Default::default(),
             document_fonts: Vec::new(),
+            document_coverage: Vec::new(),
             keys: HashMap::new(),
             instances: Vec::new(),
             measured_sources: HashMap::new(),
@@ -96,8 +95,10 @@ impl std::fmt::Debug for Fonts {
 }
 
 impl Fonts {
-    /// Refresh packed font registrations when the effective @font-face rules
-    /// change, including when they cross a media-query boundary.
+    /// Refresh web font registrations when the effective @font-face rules
+    /// or the loaded `document.fonts` faces change, including when rules
+    /// cross a media-query boundary. Rule faces register when text first
+    /// matches them.
     pub fn sync_web_fonts(
         &mut self,
         resources: Resources<'_>,
@@ -110,29 +111,21 @@ impl Fonts {
         // Rebuild registrations when active faces change. Keep the source
         // cache and its backing mappings across the collection replacement.
         self.context.collection = FontContext::new().collection;
-        for face in &faces {
-            for url in &face.urls {
-                let Some(data) = resources.get(url) else {
-                    continue;
-                };
-                let Some(bytes) = decode_font(&data.bytes) else {
-                    continue;
-                };
-                let overrides = fontique::FontInfoOverride {
-                    family_name: Some(&face.family),
-                    ..Default::default()
-                };
-                let registered = self
-                    .context
-                    .collection
-                    .register_fonts(fontique::Blob::new(Arc::new(bytes)), Some(overrides));
-                if !registered.is_empty() {
-                    break;
-                }
-            }
-        }
-        for face in document_fonts {
-            face.register(&mut self.context);
+        let mut coverage = document_fonts::exclusive_coverage(
+            &faces
+                .iter()
+                .map(|face| (face.family.as_str(), &face.attributes))
+                .chain(
+                    document_fonts
+                        .iter()
+                        .map(|face| (face.family.as_str(), &face.attributes)),
+                )
+                .collect::<Vec<_>>(),
+        );
+        self.document_coverage = coverage.split_off(faces.len());
+        self.web.sync(resources, &faces, coverage);
+        for (face, coverage) in document_fonts.iter().zip(&self.document_coverage) {
+            face.register(&mut self.context, coverage);
         }
         self.document_fonts = document_fonts.to_vec();
         self.faces = faces;
@@ -165,43 +158,155 @@ impl Fonts {
 #[cfg(test)]
 mod tests {
     use base64::Engine as _;
+    use parley::{FontFamily, FontFamilyName, GenericFamily, TextStyle};
+    use skrifa::{MetadataProvider, string::StringId};
+    use std::borrow::Cow;
+    use url::Url;
 
     use super::*;
 
+    fn data_url(bytes: &[u8]) -> Url {
+        let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+        Url::parse(&format!("data:font/woff2;base64,{encoded}")).unwrap()
+    }
+
+    fn families(style: &TextStyle<'_, '_, TextBrush>) -> Vec<String> {
+        match &style.font_family {
+            FontFamily::List(names) => names
+                .iter()
+                .map(|name| match name {
+                    FontFamilyName::Named(name) => name.to_string(),
+                    FontFamilyName::Generic(generic) => format!("{generic:?}"),
+                })
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// The registered font's PostScript name, weight, and whether its cmap
+    /// maps each of `chars`.
+    fn registered(
+        fonts: &mut Fonts,
+        family: &str,
+        chars: &str,
+    ) -> Option<(String, f32, Vec<bool>)> {
+        let info = fonts.context.collection.family_by_name(family)?;
+        let font = info.fonts().first()?;
+        let blob = font.load(Some(&mut fonts.context.source_cache))?;
+        let file = skrifa::FontRef::from_index(blob.data(), font.index()).ok()?;
+        let name = file
+            .localized_strings(StringId::POSTSCRIPT_NAME)
+            .english_or_first()?
+            .chars()
+            .collect();
+        let charmap = file.charmap();
+        let mapped = chars.chars().map(|ch| charmap.map(ch).is_some()).collect();
+        Some((name, font.weight().value(), mapped))
+    }
+
     #[test]
-    fn registers_effective_woff2_faces_with_the_css_family_name() {
-        let woff2 = include_bytes!(
-            "../../../tests/reftests/cases/r1/_assets/fonts/LiberationMono-Regular.woff2"
-        );
-        let encoded = base64::engine::general_purpose::STANDARD.encode(woff2);
-        let font_url = Url::parse(&format!("data:font/woff2;base64,{encoded}")).unwrap();
+    fn rule_faces_register_under_their_own_alias_when_text_matches_them() {
         let doc_url = Url::parse("https://app.test/index.html").unwrap();
         let resources = Resources {
             pack: None,
             blob_resolver: None,
             document_url: &doc_url,
         };
+        let regular = data_url(include_bytes!(
+            "../../../tests/reftests/cases/r1/_assets/fonts/LiberationSans-Regular.woff2"
+        ));
+        let bold = data_url(include_bytes!(
+            "../../../tests/reftests/cases/r1/_assets/fonts/LiberationSans-Bold.woff2"
+        ));
+        let mono = data_url(include_bytes!(
+            "../../../tests/reftests/cases/r1/_assets/fonts/LiberationMono-Regular.woff2"
+        ));
+        // The descriptors, not the files, decide the weights: the regular
+        // file is the bold face and the bold file the regular one.
+        let faces = vec![
+            WebFont {
+                family: "Fixture".into(),
+                attributes: FaceAttributes {
+                    weight: [700.0; 2],
+                    ..Default::default()
+                },
+                sources: vec![FaceSource::Url(regular)],
+            },
+            WebFont {
+                family: "Fixture".into(),
+                attributes: FaceAttributes::default(),
+                sources: vec![
+                    FaceSource::Local("Strange Quark Missing Font".into()),
+                    FaceSource::Url(bold),
+                ],
+            },
+            WebFont {
+                family: "fixture".into(),
+                attributes: FaceAttributes {
+                    ranges: vec![std::ops::RangeInclusive::new(0x400, 0x4FF)],
+                    ..Default::default()
+                },
+                sources: vec![FaceSource::Url(mono)],
+            },
+        ];
         let mut fonts = Fonts::default();
-        let face = WebFont {
-            family: "Squark WOFF2 fixture".into(),
-            urls: vec![font_url],
+        assert!(fonts.sync_web_fonts(resources, faces.clone(), &[]));
+        assert!(!fonts.sync_web_fonts(resources, faces.clone(), &[]));
+        let alias = web_fonts::alias;
+        for index in 0..3 {
+            assert!(
+                fonts
+                    .context
+                    .collection
+                    .family_by_name(&alias(index))
+                    .is_none()
+            );
+        }
+        let style = |weight| TextStyle {
+            font_family: FontFamily::List(Cow::Owned(vec![
+                FontFamilyName::Named(Cow::Borrowed("Fixture")),
+                FontFamilyName::Generic(GenericFamily::SansSerif),
+            ])),
+            font_weight: parley::FontWeight::new(weight),
+            ..TextStyle::default()
         };
-        fonts.sync_web_fonts(resources, vec![face.clone()], &[]);
-        assert!(
-            fonts
-                .context
-                .collection
-                .family_by_name(&face.family)
-                .is_some()
+
+        // Only the faces whose coverage meets the text load, and the face
+        // covering a space comes first. The family name itself no longer
+        // reaches installed fonts.
+        let latin = fonts.with_web_fonts("A", style(400.0));
+        assert_eq!(families(&latin), [alias(1), "SansSerif".into()]);
+        assert!(fonts.context.collection.family_by_name(&alias(2)).is_none());
+        let mixed = fonts.with_web_fonts("AЖ", style(400.0));
+        assert_eq!(families(&mixed), [alias(1), alias(2), "SansSerif".into()]);
+        // Each face's cmap keeps only the characters it renders: the
+        // Cyrillic face wins Cyrillic, which the bold file also maps.
+        assert_eq!(
+            registered(&mut fonts, &alias(1), "AЖ"),
+            Some(("LiberationSans-Bold".into(), 400.0, vec![true, false]))
         );
+        assert_eq!(
+            registered(&mut fonts, &alias(2), "AЖ"),
+            Some(("LiberationMono".into(), 400.0, vec![false, true]))
+        );
+        assert!(fonts.context.collection.family_by_name(&alias(0)).is_none());
+
+        let bold = fonts.with_web_fonts("AЖ", style(700.0));
+        assert_eq!(families(&bold), [alias(0), "SansSerif".into()]);
+        assert_eq!(
+            registered(&mut fonts, &alias(0), "AЖ"),
+            Some(("LiberationSans".into(), 700.0, vec![true, true]))
+        );
+
+        // A family without rules keeps resolving to installed fonts.
+        let mut other = style(400.0);
+        other.font_family = FontFamily::List(Cow::Owned(vec![FontFamilyName::Named(
+            Cow::Borrowed("Other"),
+        )]));
+        assert_eq!(families(&fonts.with_web_fonts("A", other)), ["Other"]);
+
         fonts.sync_web_fonts(resources, Vec::new(), &[]);
-        assert!(
-            fonts
-                .context
-                .collection
-                .family_by_name(&face.family)
-                .is_none()
-        );
+        assert!(fonts.context.collection.family_by_name(&alias(0)).is_none());
     }
 }
 
@@ -220,7 +325,7 @@ fn shares_one_font_mapping_across_relayouts_and_contexts() {
     let file = file.canonicalize().unwrap();
     let source = fontique::SourceInfo::new(
         fontique::SourceId::new(),
-        fontique::SourceKind::Path(Arc::from(file.as_path())),
+        fontique::SourceKind::Path(std::sync::Arc::from(file.as_path())),
     );
     let count = || {
         std::fs::read_to_string("/proc/self/maps")

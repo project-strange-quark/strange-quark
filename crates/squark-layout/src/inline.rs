@@ -672,20 +672,15 @@ impl BoxTree<'_> {
                         .segments
                         .iter()
                         .enumerate()
-                        .flat_map(|(index, segment)| {
-                            let start = segment.range.start;
+                        .map(|(index, segment)| {
                             let mut style = text_style(segment.owner, &segment.css);
                             if reuse {
                                 // A shaped layout uses ordinal brushes. Emission
                                 // maps them back to this paragraph's node IDs.
                                 style.brush = TextBrush(NodeId::from_raw(index as u32 + 1));
                             }
-                            fonts
-                                .style_ranges(&inline.text[segment.range.clone()], style)
-                                .into_iter()
-                                .map(move |(range, style)| {
-                                    (start + range.start..start + range.end, style)
-                                })
+                            let text = &inline.text[segment.range.clone()];
+                            (segment.range.clone(), fonts.with_web_fonts(text, style))
                         })
                         .collect();
                     let mut defaults = fonts.primary_style(text_style(owner, &css));
@@ -875,11 +870,12 @@ impl BoxTree<'_> {
                 };
                 if !marker.is_empty() {
                     let fonts = &mut self.fonts;
+                    let style = fonts.with_web_fonts(marker, text_style(owner, &css));
                     let mut builder =
                         fonts
                             .layout
                             .style_run_builder(&mut fonts.context, marker, 1.0, true);
-                    let style = builder.push_style(text_style(owner, &css));
+                    let style = builder.push_style(style);
                     builder.push_style_run(style, ..);
                     let mut marker = builder.build(marker);
                     marker.break_all_lines(None);

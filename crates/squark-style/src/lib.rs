@@ -16,7 +16,6 @@ use squark_mirror::Document;
 use style::context::QuirksMode;
 use style::device::Device;
 use style::device::servo::{FontMetricsProvider, MediaData};
-use style::font_face::Source as FontSource;
 use style::font_metrics::FontMetrics;
 use style::media_queries::{MediaList, MediaType};
 use style::parser::ParserContext;
@@ -390,27 +389,14 @@ impl<'a> Cascade<'a> {
         }
     }
 
-    /// Active @font-face rules, including the stylesheet-relative resolved URLs.
-    pub fn font_faces(&self, document: &Document) -> Vec<(String, Vec<Url>)> {
+    /// The descriptors of the @font-face rules in effect, in cascade order.
+    /// `src` URLs resolve against their stylesheet.
+    pub fn font_faces(&self, document: &Document) -> Vec<style::font_face::Descriptors> {
         let guard = document.style_lock().read();
         self.stylist
             .iter_extra_data_origins()
             .flat_map(|(data, _)| data.font_faces.iter())
-            .filter_map(|(rule, _)| {
-                let font = &rule.read_with(&guard).descriptors;
-                let family = font.font_family.as_ref()?.name.as_str().to_owned();
-                let urls = font
-                    .src
-                    .as_ref()?
-                    .0
-                    .iter()
-                    .filter_map(|source| match source {
-                        FontSource::Url(source) => source.url.url().map(|url| url.as_ref().clone()),
-                        FontSource::Local(_) => None,
-                    })
-                    .collect();
-                Some((family, urls))
-            })
+            .map(|(rule, _)| rule.read_with(&guard).descriptors.clone())
             .collect()
     }
 

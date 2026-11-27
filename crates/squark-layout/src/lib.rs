@@ -198,8 +198,8 @@ impl LayoutEngine {
     fn sync_fonts(&mut self, document: &Document, cascade: &Cascade<'_>) {
         let faces = cascade
             .font_faces(document)
-            .into_iter()
-            .map(|(family, urls)| WebFont { family, urls })
+            .iter()
+            .filter_map(WebFont::from_descriptors)
             .collect();
         if self
             .fonts
