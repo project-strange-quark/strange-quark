@@ -1,0 +1,34 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":260,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>font-variation-settings on a variable font's wght axis</title>
+  <style>
+    @font-face {
+      font-family: "SquarkVar";
+      src: url("../_assets/fonts/SquarkVar.ttf") format("truetype");
+      font-weight: 100 900;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 10px 16px; font: 28px/34px "SquarkVar", monospace; }
+    p { margin: 0 0 4px 0; }
+    .thin { font-variation-settings: "wght" 100; }
+    .mid { font-variation-settings: "wght" 450; }
+    .black { font-variation-settings: "wght" 900; }
+    .weight { font-weight: 700; }
+    .override { font-weight: 700; font-variation-settings: "wght" 250; }
+    .normal { font-weight: 900; font-variation-settings: normal; }
+  </style>
+</head>
+<body>
+  <p class="thin">TILE HELL</p>
+  <p class="mid">TILE HELL</p>
+  <p class="black">TILE HELL</p>
+  <p class="weight">TILE HELL</p>
+  <p class="override">TILE HELL</p>
+  <p class="normal">TILE HELL</p>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>contain: size, inline-size, layout, paint, strict and content</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 12px; font: 14px/18px "TestSans", sans-serif; }
+    .row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+    .box { border: 2px solid #1d4ed8; padding: 4px; background: #dbeafe; }
+    .child { width: 70px; height: 50px; background: #f59e0b; }
+    .size { contain: size; width: 90px; }
+    .inline-size { contain: inline-size; display: inline-block; }
+    .strict { contain: strict; width: 60px; height: 40px; }
+    .content { contain: content; width: 60px; height: 40px; }
+    .paint { contain: paint; width: 60px; height: 40px; border-radius: 12px; }
+    .layout { contain: layout; width: 60px; height: 40px; }
+    .fixed { position: fixed; left: 4px; top: 4px; width: 20px; height: 20px; background: #16a34a; }
+    .abs { position: absolute; right: -10px; bottom: -10px; width: 20px; height: 20px; background: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <div class="box size"><div class="child"></div></div>
+    <div><span class="box inline-size"><span class="child" style="display:block"></span></span></div>
+    <div class="box strict"><div class="child"></div></div>
+  </div>
+  <div class="row">
+    <div class="box content"><div class="child"></div></div>
+    <div class="box paint"><div class="child"></div></div>
+    <div class="box layout"><div class="child"></div><div class="fixed"></div><div class="abs"></div></div>
+  </div>
+  <p>Contained text before the boxes and after them.</p>
+</body>
+</html>

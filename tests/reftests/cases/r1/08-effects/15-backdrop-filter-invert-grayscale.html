@@ -1,0 +1,32 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":240,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>backdrop-filter over a striped backdrop</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; }
+    .stage {
+      position: relative; width: 360px; height: 200px; margin: 20px;
+      background: repeating-linear-gradient(90deg, #ef4444 0 20px, #3b82f6 20px 40px, #facc15 40px 60px);
+    }
+    .glass { position: absolute; top: 20px; width: 100px; height: 70px; border: 2px solid #111827; }
+    .invert { left: 20px; backdrop-filter: invert(1); }
+    .gray { left: 140px; backdrop-filter: grayscale(1); border-radius: 16px; }
+    .both { left: 260px; backdrop-filter: brightness(0.5) sepia(1); background: rgba(255, 255, 255, 0.2); }
+    .under { position: absolute; left: 60px; top: 110px; width: 240px; height: 60px; background: #16a34a; }
+    .over { position: absolute; left: 40px; top: 120px; width: 160px; height: 40px; backdrop-filter: invert(1); }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="glass invert"></div>
+    <div class="glass gray"></div>
+    <div class="glass both"></div>
+    <div class="under"></div>
+    <div class="over"></div>
+  </div>
+</body>
+</html>
