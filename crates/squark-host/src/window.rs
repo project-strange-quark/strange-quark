@@ -81,6 +81,8 @@ pub fn run_window(request: WindowRequest) -> Result<(), HostError> {
     let mut app = App {
         native,
         zoom: 1.0,
+        focused: true,
+        reported_window_state: Some((true, true)),
         proxy: events.create_proxy(),
         clipboard: MemoryClipboard::default(),
         file_dialogs: FileDialogQueue::default(),
@@ -243,6 +245,11 @@ struct App {
     native: Option<NativeRuntime>,
     /// Page zoom, applied on top of the window's scale factor.
     zoom: f64,
+    /// Whether the window has keyboard focus, as winit last reported.
+    focused: bool,
+    /// The (focused, visible) state the page last heard about; pages start
+    /// out focused and visible.
+    reported_window_state: Option<(bool, bool)>,
     proxy: EventLoopProxy<Event>,
     request: WindowRequest,
     pack: Arc<Pack>,
@@ -331,6 +338,21 @@ impl App {
             let _ = threads.tasks.send(DocumentTask::HostReply {
                 request: id,
                 result,
+            });
+        }
+    }
+
+    /// Tell the page about window focus and visibility once either changes.
+    fn report_window_state(&mut self) {
+        let state = (self.focused, !self.occluded);
+        if self.reported_window_state == Some(state) {
+            return;
+        }
+        self.reported_window_state = Some(state);
+        if let Some(threads) = &self.threads {
+            let _ = threads.tasks.send(DocumentTask::WindowState {
+                focused: state.0,
+                visible: state.1,
             });
         }
     }
@@ -647,11 +669,19 @@ impl ApplicationHandler<Event> for App {
                 } else {
                     window.request_redraw();
                 }
+                self.report_window_state();
             }
             WindowEvent::Focused(false) => {
                 if let Some(edit) = self.ime.disable(Instant::now()) {
                     self.send_ime(edit);
                 }
+                self.focused = false;
+                self.report_window_state();
+                self.native_input(&event);
+            }
+            WindowEvent::Focused(true) => {
+                self.focused = true;
+                self.report_window_state();
                 self.native_input(&event);
             }
             event => self.native_input(&event),
