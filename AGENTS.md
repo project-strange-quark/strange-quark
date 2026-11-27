@@ -28,10 +28,10 @@ you can.
 
 | Area | Paths |
 | --- | --- |
-| dom | `packages/@strange-quark/dom` (the JavaScript DOM, events, CSSOM, observers, timers, History and every Web API facade, including Canvas 2D's recorder, FontFace, storage, crypto, clipboard and files, and the journal encoder); `crates/squark-js` (the V8 embedding, module loader, event loop, `__squark` bindings, structuredClone); `crates/squark-journal`; `crates/squark-net` |
+| dom | `packages/@strange-quark/dom` (the JavaScript DOM, events, CSSOM, observers, timers, History and every Web API facade, including Canvas 2D's recorder, FontFace, storage, crypto, clipboard and files, and the journal encoder); `crates/squark-js` (the V8 embedding, module loader, event loop, `__squark` bindings, structuredClone); `crates/squark-journal`; `crates/squark-net`; `crates/squark-native` and `crates/squark-native-macros` (native modules for apps) |
 | engine | `crates/squark-mirror`, `crates/squark-style`, `crates/squark-layout`, `crates/squark-text`, `crates/squark-assets`, and code forked from Blitz |
 | gpu | `crates/squark-paint`, `crates/squark-compositor`, `crates/squark-gpu` (with `shaders/*.wgsl`), `crates/squark-canvas`, `crates/squark-host` (with the `squark-runtime` binary that wires the areas together) |
-| tools | `crates/squark-cli`, `packages/strange-quark`, `packages/@strange-quark/vite-plugin`, `npm/` (the per-platform binary packages), `tests/`, `apps/`, `vendor/`, `.github/`, `scripts/`, `deny.toml`, the root `Cargo.toml` and `package.json`, `rust-toolchain.toml` |
+| tools | `crates/squark-cli`, `packages/strange-quark`, `packages/@strange-quark/vite-plugin`, `packages/@strange-quark/tauri`, `npm/` (the per-platform binary packages), `tests/`, `apps/`, `vendor/`, `.github/`, `scripts/`, `deny.toml`, the root `Cargo.toml` and `package.json`, `rust-toolchain.toml` |
 | docs | `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `NOTICE`, `AGENTS.md`, `docs/`, `skills/` |
 
 **Shared types.** `crates/squark-types` holds one module per seam between
@@ -45,6 +45,7 @@ says how it affects the other area, and review covers both.
 | `engine` | engine | dom |
 | `render` | gpu | engine, dom |
 | `host` | gpu | dom |
+| `native` | dom | gpu |
 | `pack` | tools | engine |
 | `id`, `geometry`, `scroll`, and the rest of the crate | shared | all |
 

@@ -1,46 +1,77 @@
 # Tauri (React frontend) to Strange Quark
 
 A Tauri app has a web frontend, usually Vite and React, plus a Rust core in
-`src-tauri/`. The frontend reaches the core through `invoke()` and
-plugins. Strange Quark replaces the WebView, so it keeps the frontend and loses
-the Rust core unless the core can become an HTTP server. The user's
-standing choice for this skill is to stub the core.
+`src-tauri/`. The frontend reaches the core through `invoke()`, `listen()`
+and plugins. Strange Quark replaces the WebView and keeps both halves:
+
+- the **frontend runs unchanged** through `@strange-quark/tauri`, which
+  provides `window.__TAURI_INTERNALS__` (the surface `@tauri-apps/api` and
+  the official plugins call);
+- the **Rust core becomes a native module** (architecture §13): the same
+  commands, linked into the app's own runtime by `squark build`.
+
+The command model matches Tauri's on purpose (camelCase JSON arguments,
+`AppHandle`, `State<'_, T>`, `Emitter::emit`, close-request interception,
+an exit hook), so the core ports by swapping imports, not by rewriting.
 
 ## Steps
 
 1. **Find the seam.** List every `invoke('<command>', args)` call, every
    `@tauri-apps/api` and `@tauri-apps/plugin-*` import, and every
-   `listen()` or `emit()` event. Map each one to its
-   `#[tauri::command]` in `src-tauri/src` and say what it does.
-2. **Build the frontend alone.** Usually it already is plain Vite. Use
-   `vite build` and check `base`. Remove `@tauri-apps/*` from the frontend
-   only as each use is replaced. Leave `src-tauri/` in the repo, untouched.
-3. **Replace each use, by this table:**
+   `listen()` or `emit()` event. Map each one to its `#[tauri::command]` in
+   `src-tauri/src`, and list what the core uses from Tauri besides commands
+   (`AppHandle` methods, plugins called from Rust, custom URI schemes, menus,
+   window events).
+2. **Make the core build for both shells.** In `src-tauri/Cargo.toml` make
+   `tauri`, `tauri-build` and the plugins optional under a default feature
+   (say `tauri-app`), add `squark-native` under a `squark` feature, and mark
+   the binary `required-features = ["tauri-app"]`. Add a `platform` module
+   that re-exports `command`, `AppHandle`, `State`, `Emitter` and
+   `spawn_blocking` from `tauri` or from `squark_native` (`export as command`,
+   `App as AppHandle`, `type State<'a, T> = squark_native::State<T>`), then
+   replace `#[tauri::command]` and `tauri::AppHandle`/`State`/`Emitter` with
+   the platform names. Move `tauri::Builder` setup into a `tauri-app`-only
+   module, and add a `squark`-only `modules()` that registers the same
+   commands with `squark_native::handlers!`, the managed state,
+   `on_close_requested` and `on_exit`. Every change is *mechanical*; record
+   each in `MIGRATION.md`. The Tauri build must keep passing its tests.
+3. **Map what is left, by this table:**
 
-| Tauri | Strange Quark replacement | Category |
+| Tauri | Strange Quark | Category |
 | --- | --- | --- |
-| `plugin-dialog` `open()` and `plugin-fs` reads of the result | `<input type="file">` and File or FileReader | behavioural (contents, no path) |
-| `plugin-dialog` `save()` and `plugin-fs` writes | Blob and `<a download>` | behavioural |
-| `plugin-clipboard-manager` | `navigator.clipboard` | mechanical |
-| `plugin-shell` `open(url)`, `plugin-opener` | `window.open(url)` | mechanical |
-| `plugin-store`, `appDataDir` with JSON | `localStorage` or IndexedDB | behavioural |
-| `plugin-http` `fetch` | Global `fetch` with `network.allow`. Strange Quark has no CORS | mechanical |
-| `plugin-sql`, `plugin-fs` on arbitrary paths, `plugin-process`, `plugin-shell` `Command`, sidecars | **Stub** | stub |
-| Custom `#[tauri::command]`s | **Stub** each one, unless it is pure computation you can port to TypeScript faithfully (then *behavioural*, with a test proving equal output) | stub or behavioural |
-| `plugin-notification`, `plugin-global-shortcut`, tray, menus, `plugin-updater`, `plugin-deep-link`, window-state | **Stub** | stub |
-| `listen()` events pushed from Rust | **Stub** the source, and keep the UI handler | stub |
+| Custom `#[tauri::command]`s, `listen()` events from Rust | The same commands in the native module | mechanical |
+| `plugin-dialog` called from Rust | `App::dialog(DialogRequest::…)`, off the async workers | mechanical |
+| `plugin-dialog` / `plugin-fs` from the frontend | A native command, or `<input type="file">` / `<a download>` | mechanical or behavioural |
+| `plugin-clipboard-manager` text, `plugin-opener` `open_url`, `webview.setZoom`, `plugin-process` `restart`/`exit` | Handled by `@strange-quark/tauri` | mechanical |
+| `plugin-http` `fetch` | Global `fetch` with `network.allow`, or the core's own client | mechanical |
+| `on_window_event` close interception | `Module::on_close_requested` + `app.window().close()` | mechanical |
+| `RunEvent::Exit` cleanup | `Module::on_exit` | mechanical |
+| `plugin-updater`, tray, global shortcuts, deep links, window-state | Not available; the shim rejects them, so the app's error path runs | stub |
+| Native menus | Not yet (planned) | stub |
+| Custom URI schemes, `convertFileSrc` loads in iframes | Not yet | stub |
 | `tauri.conf.json` window size and title | `squark.config.ts` `window` | mechanical |
 
-4. **Write the stubs** in `src/strange-quark-stubs/tauri.ts`. Export `invoke`
-   and the plugin functions with the same signatures, and route the
-   imports there, by editing the imports or with a Vite alias recorded in
-   `MIGRATION.md`. Each stub starts with `// STRANGE-QUARK STUB:` naming the
-   command or plugin and what the Rust side did.
+4. **Configure the build.** Add `@strange-quark/tauri` to the frontend's
+   devDependencies and a `squark.config.ts`:
+
+   ```ts
+   export default defineConfig({
+     window: { title: 'App', width: 1280, height: 800 },
+     native: { crate: 'src-tauri', modules: ['app'], features: ['squark'],
+               defaultFeatures: false, squarkSource: '../strange-quark' },
+     compat: { tauri: { module: 'app' } },
+   });
+   ```
+
+   `squark build` needs a Strange Quark source checkout to build the app
+   runtime from, with its pinned toolchain.
 5. **Measure the original too,** when you can: `cargo tauri build`, or
    `npm run tauri build`. Tauri renders through the system WebView
    (WebKitGTK on Linux, WKWebView on macOS, WebView2 on Windows), so the
    comparison is:
-   - Strange Quark against Chromium (the skill's standard check);
+   - Strange Quark against Chromium (the skill's standard check), with the
+     frontend on a fixture transport (`compat.tauri.fixture`: canned replies,
+     no native module) so both engines see the same data;
    - Strange Quark against Tauri: startup, memory, package size, and any
      visible rendering differences.
 
@@ -49,6 +80,8 @@ standing choice for this skill is to stub the core.
 
 ## Signs of a blocked verdict
 
-- The core does the app's real work: a file indexer, a local LLM or ML
-  runtime, a database, a hardware bridge.
-- The frontend is mostly a thin view over constant `invoke` traffic.
+- The core's work depends on something with no native-module equivalent:
+  a Tauri plugin the app cannot do without, or a frontend built on WebGL,
+  `contenteditable` or iframes.
+- The core cannot build with the Strange Quark toolchain (Rust 1.98) or
+  links something the target platform lacks.

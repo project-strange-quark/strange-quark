@@ -468,7 +468,7 @@ squark-dom implements what React and popular libraries actually call, in tiers. 
 
 ## §12 Toolchain
 
-`squark build` runs the app’s own build, compiles its `index.html` into `document.bin`, packs the output into a `.sqpak` archive and appends it to the prebuilt `squark-runtime` binary. On macOS it writes an app bundle instead. No Rust is compiled. Debug builds of the runtime warn about every CSS property layout or paint would ignore (§16).
+`squark build` runs the app’s own build, compiles its `index.html` into `document.bin`, packs the output into a `.sqpak` archive and appends it to the prebuilt `squark-runtime` binary. On macOS it writes an app bundle instead. An app without native modules compiles no Rust. An app with native modules (§13) gets its own runtime: `squark build` generates a small binary crate that passes the app's modules to `squark_host::runtime_main`, builds it from a Strange Quark source checkout with the dist profile, and appends the pack to that. Debug builds of the runtime warn about every CSS property layout or paint would ignore (§16).
 
 The `squark` CLI has five commands: `pack` packs a built directory directly, `inspect` dumps a pack, `dev` runs the live-reload loop, `build` builds and packs an app as above, and `screenshot` renders an HTML file, directory or pack headlessly to PNG.
 
@@ -508,16 +508,26 @@ export default defineConfig({
   },
   network: { allow: ['api.acme.dev', 'wss://events.acme.dev'] },
   assets: [{ path: '/fonts/Inter.woff2', file: 'fonts/Inter.woff2' }],  // extra files at exact pack paths
+  native: {                             // §13: the app's own Rust, linked into its runtime
+    crate: 'native',                    // a library whose modules() returns its squark_native::Modules
+    modules: ['acme'],                  // the modules JavaScript may call
+    squarkSource: '../strange-quark',   // the checkout the app runtime builds from
+  },
+  compat: { tauri: { module: 'acme' } }, // run a Tauri 2 frontend unchanged (@strange-quark/tauri)
 });
 ```
 
 ## §13 Native escape hatches
 
-Neither escape hatch is built yet. `@strange-quark/native`, `<GpuView>` and the `squark::` macros below are planned.
+Native modules are built (`squark-native`, below). `<GpuView>` and `@strange-quark/native` are planned.
 
 **`<GpuView>`** reserves a box in layout like any element. Each frame it is visible, the render thread calls a registered Rust renderer to draw into a texture sized to the box in device pixels. The texture is composited as a layer in paint order, so DOM content can overlay it, clip it and round its corners, and pointer events over it still go through squark-dom first.
 
-**Native modules** are Rust functions marked `#[squark::export]`, callable from JavaScript with generated TypeScript types. A module runs only if `squark.config.ts` lists its capability.
+**Native modules** are Rust functions marked `#[squark_native::export]`, grouped in `squark_native::Module`s, and linked into the app's own runtime, so they cost no extra process or IPC. JavaScript calls them by name through the private `Symbol.for("strange-quark.native")` API (`invoke(module, command, args)`, `listen(event, callback)`), and module code pushes events with `app.emit(event, payload)`. Values cross as JSON. A module runs only if `squark.config.ts` lists it under `native.modules`. Sync commands run on a blocking thread and async ones on the runtime squark-net already owns. Generated TypeScript types are planned.
+
+The command and event model follows Tauri's (arguments as one camelCase JSON object, `App`/`AppHandle`, `State<T>`, `Emitter::emit`, close-request interception, an exit hook), so a Tauri backend ports by swapping imports. `@strange-quark/tauri` supplies `window.__TAURI_INTERNALS__` over native modules, so a Tauri frontend runs without source changes.
+
+Linking the app's Rust into its runtime was chosen over a sidecar process, a JavaScript backend on host APIs, and Wasm modules because it adds the least to the binary and to memory: the runtime's std, tokio, TLS and serde are shared, and there is no second process, isolate or serialization hop.
 
 ```tsx
 // TSX: a GPU island inside ordinary layout
@@ -542,9 +552,13 @@ fn render(ctx: &mut GpuViewContext) {
     ctx.state::<Scene>().draw(&mut pass, ctx.size, ctx.frame_time);
 }
 
-#[squark::export]                         // callable from JS: await native.readText(path)
-async fn read_text(path: String) -> Result<String, SquarkError> {
-    Ok(tokio::fs::read_to_string(path).await?)
+#[squark_native::export]                  // JS: invoke("files", "read_text", { path })
+async fn read_text(path: String) -> Result<String, String> {
+    tokio::fs::read_to_string(path).await.map_err(|error| error.to_string())
+}
+
+pub fn modules() -> Vec<squark_native::Module> {
+    vec![squark_native::Module::new("files").commands(squark_native::handlers![read_text])]
 }
 ```
 
@@ -638,6 +652,7 @@ Direct mode, accessibility, native modules and the devtools client (§5, §13, �
 | Threads | Main, document and render, plus pools | One thread; a separate layout thread | Meets the main-thread rule on Apple platforms, answers layout reads on the asking thread, and isolates scrolling from long JS tasks. |
 | Blending | sRGB-encoded space | Linear-light blending | Matches browser output, so designs look as they do in Chrome. |
 | Accessibility | AccessKit (planned) | Per-platform bridges | One tree format, existing adapters for Windows, macOS, Linux and Android. |
+| Native app code | Rust native modules linked into an app runtime that `squark build` compiles (§13) | A sidecar process; a JavaScript backend on host APIs; Wasm modules; dynamically loaded libraries | Smallest binary and memory growth: no duplicated runtime libraries, second process or extra isolate. Dynamic loading needs `unsafe` and duplicates std per library. |
 
 ## §18 Risks and open questions
 
@@ -667,7 +682,7 @@ Libraries branch on `navigator.userAgent`, `CSS.supports` and `'ontouchstart' in
 
 **Security model** (low)
 
-App code is trusted and bundled, as in Electron without remote content, so no site isolation is needed. Network hosts are allowlisted in config (`network.allow`), and native modules will be too once they exist (§13).
+App code is trusted and bundled, as in Electron without remote content, so no site isolation is needed. Network hosts are allowlisted in config (`network.allow`), and native modules in `native.modules` (§13); a native module is trusted app code with the user's full permissions, like a Tauri command.
 
 ### Open questions
 
