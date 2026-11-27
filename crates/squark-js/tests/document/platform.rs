@@ -554,6 +554,9 @@ fn pending_decode_keeps_a_detached_image_alive_until_completion() {
         .unwrap();
     assert_eq!(h.eval("decodeStatus"), "8");
     h.eval("gc()");
+    // The finalizer runs as a V8 platform task. A frame whose commit deadline
+    // has already passed runs only one task, so give it a ready turn first.
+    h.runner.run_ready().unwrap();
     h.runner.frame(tick(h.now, 2, 2)).unwrap();
     assert!(
         h.journal
