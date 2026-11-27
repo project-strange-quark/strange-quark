@@ -12,7 +12,8 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use squark_native::{
-    App, CloseRequest, DialogRequest, Module, State, WindowOp, dispatcher, export, handlers,
+    App, CloseRequest, DialogRequest, Emitter, Module, State, WindowOp, dispatcher, export,
+    handlers,
 };
 use squark_types::native::{NativeCall, NativeDispatcher, NativeEvents, NativeHost};
 

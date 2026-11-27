@@ -8,7 +8,7 @@ use std::{
 };
 
 use serde::Serialize;
-use squark_native::{App, CloseRequest, DialogRequest, Module, State, export, handlers};
+use squark_native::{App, CloseRequest, DialogRequest, Emitter, Module, State, export, handlers};
 
 #[derive(Default)]
 struct Counter(AtomicU32);

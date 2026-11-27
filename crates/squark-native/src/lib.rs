@@ -6,7 +6,7 @@
 //! an app runtime, so it costs no extra process or IPC.
 //!
 //! ```ignore
-//! use squark_native::{App, Module, State, export, handlers};
+//! use squark_native::{App, Emitter, Module, State, export, handlers};
 //!
 //! #[export]
 //! fn greet(name: String) -> String {
@@ -197,23 +197,6 @@ impl App {
         }))
     }
 
-    /// Send an event to JavaScript listeners, with Tauri's `Emitter::emit`
-    /// signature so ported code compiles unchanged. Events before the page
-    /// starts or after it closes are dropped, which is not an error.
-    pub fn emit<P: Serialize>(&self, event: &str, payload: P) -> Result<(), Error> {
-        let json = serde_json::to_string(&payload).map_err(|error| Error(error.to_string()))?;
-        let events = self
-            .0
-            .events
-            .read()
-            .unwrap_or_else(|poison| poison.into_inner())
-            .clone();
-        if let Some(events) = events {
-            events.emit(event, json);
-        }
-        Ok(())
-    }
-
     /// State registered with `Module::manage` or `App::manage`.
     ///
     /// # Panics
@@ -295,6 +278,31 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+/// Sends events to JavaScript listeners. A trait, as Tauri's `Emitter` is,
+/// so ported code's `use tauri::Emitter` maps onto it.
+pub trait Emitter {
+    /// Send `payload`, serialized, to every listener of `event`. Events
+    /// before the page starts or after it closes are dropped, which is not
+    /// an error.
+    fn emit<P: Serialize>(&self, event: &str, payload: P) -> Result<(), Error>;
+}
+
+impl Emitter for App {
+    fn emit<P: Serialize>(&self, event: &str, payload: P) -> Result<(), Error> {
+        let json = serde_json::to_string(&payload).map_err(|error| Error(error.to_string()))?;
+        let events = self
+            .0
+            .events
+            .read()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .clone();
+        if let Some(events) = events {
+            events.emit(event, json);
+        }
+        Ok(())
+    }
+}
 
 /// The app window, for module code.
 #[derive(Clone)]
