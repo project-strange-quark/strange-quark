@@ -1281,3 +1281,565 @@ fn resolves_pointer_events_keywords_through_variables_and_visibility() {
         PointerEvents::None
     );
 }
+
+const TEXT_CSS: &str = "body { margin: 0; font: 16px/20px 'Liberation Mono', monospace }";
+
+type Updates = std::sync::mpsc::Receiver<squark_types::render::ResourceMessage>;
+
+fn text_engine(pack: &squark_assets::Pack) -> (StaticDocument<'_>, Updates) {
+    let (send, updates) = resource_channel();
+    let engine =
+        StaticDocument::from_pack(pack, "https://app.test/index.html".parse().unwrap(), send)
+            .unwrap();
+    (engine, updates)
+}
+
+/// The painted text boxes of a Text node, in line order.
+fn text_boxes(engine: &mut StaticDocument<'_>, node: u32) -> Vec<Rect> {
+    engine.update_layout(&input()).unwrap();
+    let mut boxes: Vec<_> = engine
+        .snapshot()
+        .0
+        .nodes
+        .values()
+        .filter(|fragment| {
+            fragment.owner == id(node)
+                && fragment.kind == squark_types::fragment::FragmentKind::Text
+        })
+        .map(|fragment| fragment.border_box)
+        .collect();
+    boxes.sort_by(|a, b| a.origin.y.total_cmp(&b.origin.y));
+    boxes
+}
+
+fn text_rects(
+    engine: &mut StaticDocument<'_>,
+    frame: &FrameInput<'_>,
+    node: u32,
+    range: [u32; 2],
+) -> Vec<Rect> {
+    match engine
+        .query(
+            frame,
+            Query::TextRects {
+                node: id(node),
+                start_utf16: range[0],
+                end_utf16: range[1],
+            },
+        )
+        .unwrap()
+    {
+        QueryValue::Rects(rects) => rects,
+        other => panic!("expected rects, got {other:?}"),
+    }
+}
+
+fn caret_at(
+    engine: &mut StaticDocument<'_>,
+    frame: &FrameInput<'_>,
+    hit: u32,
+    x: f32,
+    y: f32,
+) -> Option<(u32, u32)> {
+    match engine
+        .query(
+            frame,
+            Query::CaretAtHit {
+                hit: id(hit),
+                point: Point { x, y },
+            },
+        )
+        .unwrap()
+    {
+        QueryValue::Caret(caret) => caret.map(|(node, offset)| (node.raw(), offset)),
+        other => panic!("expected a caret, got {other:?}"),
+    }
+}
+
+#[track_caller]
+fn assert_rects(actual: &[Rect], expected: &[Rect]) {
+    let close = |a: &Rect, b: &Rect| {
+        [
+            (a.origin.x, b.origin.x),
+            (a.origin.y, b.origin.y),
+            (a.size.width, b.size.width),
+            (a.size.height, b.size.height),
+        ]
+        .iter()
+        .all(|(a, b)| (a - b).abs() < 0.01)
+    };
+    assert!(
+        actual.len() == expected.len() && actual.iter().zip(expected).all(|(a, b)| close(a, b)),
+        "{actual:?} != {expected:?}"
+    );
+}
+
+/// The advance of one character, checked against Liberation Mono's
+/// 1229/2048 em where the test font is installed.
+fn advance(text: Rect, chars: f32) -> f32 {
+    let advance = text.size.width / chars;
+    if !super::liberation_mono_missing_on_windows() {
+        assert!((advance - 16.0 * 1229.0 / 2048.0).abs() < 0.01, "{advance}");
+    }
+    advance
+}
+
+#[test]
+fn text_rects_cover_one_box_per_line_and_collapse_to_carets() {
+    let mut f = Fixture::new(&format!(
+        "{TEXT_CSS}
+        #tall {{ width: 300px; padding: 10px; line-height: 40px }}
+        #narrow {{ width: 60px }}
+        #spans {{ width: 300px }}
+        #gap {{ padding-left: 5px }}
+        #spaces {{ width: 300px; padding-left: 20px }}
+        #hidden {{ display: none }}"
+    ));
+    let tall = f.element(BODY, "div", &[("id", "tall")]);
+    f.text(tall, "hello world");
+    let narrow = f.element(BODY, "div", &[("id", "narrow")]);
+    f.text(narrow, "hello world");
+    let spans = f.element(BODY, "div", &[("id", "spans")]);
+    f.text(spans, "ab");
+    let gap = f.element(spans, "span", &[("id", "gap")]);
+    f.text(gap, "cd");
+    f.text(spans, "ef");
+    let spaces = f.element(BODY, "div", &[("id", "spaces")]);
+    f.text(spaces, "x   y");
+    let hidden = f.element(BODY, "div", &[("id", "hidden")]);
+    f.text(hidden, "gone");
+    let pack = f.pack();
+    let (mut engine, _updates) = text_engine(&pack);
+    let frame = input();
+    let [tall_text, narrow_text, ab, cd, x_y, gone] = [
+        tall + 1,
+        narrow + 1,
+        spans + 1,
+        gap + 1,
+        spaces + 1,
+        hidden + 1,
+    ];
+
+    let [text] = text_boxes(&mut engine, tall_text)[..] else {
+        panic!("one text box");
+    };
+    let em = advance(text, 11.0);
+    let (x, y, height) = (text.origin.x, text.origin.y, text.size.height);
+    // Chromium sizes a range's rects, collapsed or not, to the text box of
+    // the font rather than the 40px line box.
+    assert!(height < 40.0 && y > 10.0);
+    assert_rects(
+        &text_rects(&mut engine, &frame, tall_text, [1, 4]),
+        &[Rect::new(x + em, y, 3.0 * em, height)],
+    );
+    assert_rects(
+        &text_rects(&mut engine, &frame, tall_text, [2, 2]),
+        &[Rect::new(x + 2.0 * em, y, 0.0, height)],
+    );
+    assert_rects(
+        &text_rects(&mut engine, &frame, tall_text, [11, 11]),
+        &[Rect::new(x + 11.0 * em, y, 0.0, height)],
+    );
+    assert_rects(
+        &text_rects(&mut engine, &frame, tall_text, [0, 99]),
+        &[Rect::new(x, y, 11.0 * em, height)],
+    );
+
+    // The space a soft wrap leaves at the end of a line takes no width.
+    let [first, second] = text_boxes(&mut engine, narrow_text)[..] else {
+        panic!("two lines");
+    };
+    assert!(second.origin.y > first.origin.y);
+    assert_rects(
+        &text_rects(&mut engine, &frame, narrow_text, [0, 11]),
+        &[
+            Rect::new(first.origin.x, first.origin.y, 5.0 * em, height),
+            Rect::new(second.origin.x, second.origin.y, 5.0 * em, height),
+        ],
+    );
+    assert_rects(
+        &text_rects(&mut engine, &frame, narrow_text, [3, 8]),
+        &[
+            Rect::new(first.origin.x + 3.0 * em, first.origin.y, 2.0 * em, height),
+            Rect::new(second.origin.x, second.origin.y, 2.0 * em, height),
+        ],
+    );
+    assert_rects(
+        &text_rects(&mut engine, &frame, narrow_text, [5, 5]),
+        &[Rect::new(
+            first.origin.x + 5.0 * em,
+            first.origin.y,
+            0.0,
+            height,
+        )],
+    );
+    assert_rects(
+        &text_rects(&mut engine, &frame, narrow_text, [6, 6]),
+        &[Rect::new(second.origin.x, second.origin.y, 0.0, height)],
+    );
+
+    // A caret at the end of a node stays before the next inline's padding.
+    let line = text_boxes(&mut engine, ab)[0];
+    assert_rects(
+        &text_rects(&mut engine, &frame, ab, [2, 2]),
+        &[Rect::new(
+            line.origin.x + 2.0 * em,
+            line.origin.y,
+            0.0,
+            height,
+        )],
+    );
+    assert_rects(
+        &text_rects(&mut engine, &frame, cd, [0, 0]),
+        &[Rect::new(
+            line.origin.x + 2.0 * em + 5.0,
+            line.origin.y,
+            0.0,
+            height,
+        )],
+    );
+    assert_rects(
+        &text_rects(&mut engine, &frame, cd, [0, 2]),
+        &[Rect::new(
+            line.origin.x + 2.0 * em + 5.0,
+            line.origin.y,
+            2.0 * em,
+            height,
+        )],
+    );
+
+    // Collapsed white space maps to the one space that renders.
+    let line = text_boxes(&mut engine, x_y)[0];
+    assert_eq!(line.origin.x, 20.0);
+    assert_rects(
+        &text_rects(&mut engine, &frame, x_y, [1, 4]),
+        &[Rect::new(20.0 + em, line.origin.y, em, height)],
+    );
+    assert_rects(
+        &text_rects(&mut engine, &frame, x_y, [2, 4]),
+        &[Rect::new(20.0 + 2.0 * em, line.origin.y, 0.0, height)],
+    );
+
+    assert!(text_rects(&mut engine, &frame, gone, [0, 4]).is_empty());
+    assert!(text_rects(&mut engine, &frame, spans, [0, 1]).is_empty());
+    flush(&mut engine, &[record(Opcode::Remove, tall, tall_text, 0)]);
+    assert!(text_rects(&mut engine, &frame, tall_text, [0, 4]).is_empty());
+}
+
+#[test]
+fn text_rects_and_carets_follow_transforms_and_scroll_offsets() {
+    let mut f = Fixture::new(&format!(
+        "{TEXT_CSS}
+        #box {{ position: absolute; left: 400px; top: 0; width: 100px;
+                transform: translate(10px, 20px) scale(2); transform-origin: 0 0 }}
+        #scroller {{ position: absolute; left: 400px; top: 200px; width: 200px; height: 40px;
+                     overflow: auto }}
+        #spacer {{ height: 60px }}
+        #after {{ height: 100px }}"
+    ));
+    let transformed = f.element(BODY, "div", &[("id", "box")]);
+    f.text(transformed, "abcdef");
+    let scroller = f.element(BODY, "div", &[("id", "scroller")]);
+    f.element(scroller, "div", &[("id", "spacer")]);
+    let span = f.element(scroller, "span", &[]);
+    f.text(span, "scrolled text");
+    f.element(scroller, "div", &[("id", "after")]);
+    let pack = f.pack();
+    let (mut engine, _updates) = text_engine(&pack);
+    let offsets = [squark_types::ScrollOffset {
+        owner: id(scroller),
+        offset: Point { x: 0.0, y: 50.0 },
+        generation: 1,
+    }];
+    let mut frame = input();
+    frame.scroll = ScrollSync {
+        frame: 2,
+        tick: 3,
+        offsets: &offsets,
+    };
+
+    let [text] = text_boxes(&mut engine, transformed + 1)[..] else {
+        panic!("one text box");
+    };
+    let em = advance(text, 6.0);
+    assert_eq!(text.origin.x, 400.0);
+    let client = |x: f32, y: f32| (410.0 + 2.0 * (x - 400.0), 20.0 + 2.0 * y);
+    let (left, top) = client(text.origin.x + em, text.origin.y);
+    assert_rects(
+        &text_rects(&mut engine, &frame, transformed + 1, [1, 3]),
+        &[Rect::new(left, top, 4.0 * em, 2.0 * text.size.height)],
+    );
+    let middle = text.origin.y + text.size.height / 2.0;
+    for (column, offset) in [(1.3, 1), (1.7, 2)] {
+        let (x, y) = client(400.0 + column * em, middle);
+        assert_eq!(
+            caret_at(&mut engine, &frame, transformed, x, y),
+            Some((transformed + 1, offset))
+        );
+    }
+
+    let [text] = text_boxes(&mut engine, span + 1)[..] else {
+        panic!("one text box");
+    };
+    assert!(text.origin.y > 250.0);
+    let top = text.origin.y - 50.0;
+    assert_rects(
+        &text_rects(&mut engine, &frame, span + 1, [0, 3]),
+        &[Rect::new(400.0, top, 3.0 * em, text.size.height)],
+    );
+    for (hit, column, offset) in [(span, 1.3, 1), (scroller, 4.6, 5)] {
+        assert_eq!(
+            caret_at(
+                &mut engine,
+                &frame,
+                hit,
+                400.0 + column * em,
+                top + text.size.height / 2.0
+            ),
+            Some((span + 1, offset))
+        );
+    }
+}
+
+#[test]
+fn caret_positions_round_to_glyph_edges_and_clamp_to_line_boundaries() {
+    let mut f = Fixture::new(&format!(
+        "{TEXT_CSS}
+        #tall {{ width: 300px; padding: 10px; line-height: 40px }}
+        #narrow {{ width: 60px }}
+        #spans {{ width: 300px }}
+        #gap {{ padding-left: 5px }}
+        #empty {{ width: 50px; height: 30px }}
+        #outer {{ padding: 10px 0 30px }}
+        p {{ margin: 0 0 20px }}
+        #block {{ display: inline-block; width: 30px; height: 10px }}
+        canvas {{ width: 20px; height: 10px }}"
+    ));
+    let tall = f.element(BODY, "div", &[("id", "tall")]);
+    f.text(tall, "hello world");
+    let narrow = f.element(BODY, "div", &[("id", "narrow")]);
+    f.text(narrow, "hello world");
+    let spans = f.element(BODY, "div", &[("id", "spans")]);
+    f.text(spans, "ab");
+    let gap = f.element(spans, "span", &[("id", "gap")]);
+    f.text(gap, "cd");
+    f.text(spans, "ef");
+    f.element(spans, "br", &[]);
+    f.text(spans, "gh");
+    let empty = f.element(BODY, "div", &[("id", "empty")]);
+    let objects = f.element(BODY, "div", &[]);
+    f.text(objects, "ab");
+    let canvas = f.element(objects, "canvas", &[]);
+    f.text(objects, "cd");
+    let block = f.element(objects, "span", &[("id", "block")]);
+    let outer = f.element(BODY, "div", &[("id", "outer")]);
+    let first = f.element(outer, "p", &[]);
+    f.text(first, "first para");
+    let second = f.element(outer, "p", &[]);
+    f.text(second, "second");
+    let pack = f.pack();
+    let (mut engine, _updates) = text_engine(&pack);
+    let frame = input();
+    let [text] = text_boxes(&mut engine, tall + 1)[..] else {
+        panic!("one text box");
+    };
+    let em = advance(text, 11.0);
+    let tree = engine.snapshot().0;
+    let border_box = |node| {
+        tree.nodes
+            .values()
+            .find(|fragment| {
+                fragment.owner == id(node)
+                    && matches!(
+                        fragment.kind,
+                        squark_types::fragment::FragmentKind::Box
+                            | squark_types::fragment::FragmentKind::Replaced
+                    )
+            })
+            .unwrap()
+            .border_box
+    };
+    let canvas_box = border_box(canvas);
+    let outer_top = border_box(outer).origin.y;
+    let mut at = |hit, x, y| caret_at(&mut engine, &frame, hit, x, y);
+
+    // Over a glyph the caret goes to its nearer edge.
+    let middle = text.origin.y + text.size.height / 2.0;
+    for (column, offset) in [(0.2, 0), (1.3, 1), (1.7, 2), (4.49, 4), (10.6, 11)] {
+        assert_eq!(
+            at(tall, 10.0 + column * em, middle),
+            Some((tall + 1, offset))
+        );
+    }
+    // Beside a line the caret takes its nearer end, and past the top or
+    // bottom of the paragraph its first or last position.
+    assert_eq!(at(tall, 5.0, middle), Some((tall + 1, 0)));
+    assert_eq!(at(tall, 250.0, middle), Some((tall + 1, 11)));
+    assert_eq!(at(tall, 250.0, 12.0), Some((tall + 1, 11)));
+    assert_eq!(at(tall, 30.0, 2.0), Some((tall + 1, 0)));
+    assert_eq!(at(tall, 30.0, 55.0), Some((tall + 1, 11)));
+
+    // Right of a soft-wrapped line is before the space the wrap removed.
+    let narrow_lines = [70.0, 90.0];
+    assert_eq!(at(narrow, 55.0, narrow_lines[0]), Some((narrow + 1, 5)));
+    assert_eq!(at(narrow, 55.0, narrow_lines[1]), Some((narrow + 1, 11)));
+    assert_eq!(at(narrow, 2.0, narrow_lines[1]), Some((narrow + 1, 6)));
+
+    // Inline padding belongs to the text after it, and a forced break ends
+    // the line at the text before it.
+    let lines = [110.0, 130.0];
+    let [ab, cd, ef, gh] = [spans + 1, gap + 1, gap + 2, gap + 4];
+    assert_eq!(at(spans, 1.7 * em, lines[0]), Some((ab, 2)));
+    for hit in [spans, gap] {
+        assert_eq!(at(hit, 2.0 * em + 2.0, lines[0]), Some((cd, 0)));
+    }
+    assert_eq!(at(gap, 2.0 * em + 5.0 + 1.6 * em, lines[0]), Some((cd, 2)));
+    assert_eq!(at(spans, 250.0, lines[0]), Some((ef, 2)));
+    assert_eq!(at(spans, 250.0, lines[1]), Some((gh, 2)));
+    assert_eq!(at(spans, 2.0, lines[1]), Some((gh, 0)));
+
+    // Elements without text give a child index.
+    assert_eq!(at(empty, 25.0, 155.0), Some((empty, 0)));
+    let line = canvas_box.origin.y + canvas_box.size.height / 2.0;
+    let canvas_start = 2.0 * em;
+    assert_eq!(canvas_box.origin.x, canvas_start);
+    assert_eq!(at(canvas, canvas_start + 4.0, line), Some((objects, 1)));
+    assert_eq!(at(canvas, canvas_start + 16.0, line), Some((objects, 2)));
+    assert_eq!(at(objects, canvas_start + 16.0, line), Some((objects, 2)));
+    let block_start = canvas_start + 20.0 + 2.0 * em;
+    assert_eq!(at(block, block_start + 5.0, line), Some((block, 0)));
+    assert_eq!(at(objects, block_start + 25.0, line), Some((block, 0)));
+
+    // Block children: the first one that ends below the point.
+    assert_eq!(at(outer, 30.0, outer_top + 5.0), Some((first + 1, 0)));
+    assert_eq!(at(outer, 30.0, outer_top + 35.0), Some((second + 1, 0)));
+    assert_eq!(at(outer, 30.0, outer_top + 45.0), Some((second + 1, 0)));
+    assert_eq!(at(outer, 500.0, outer_top + 80.0), Some((second + 1, 6)));
+    // A point that misses every element resolves against the document.
+    assert_eq!(at(1, 30.0, 470.0), Some((second + 1, 6)));
+}
+
+#[test]
+fn measures_and_hits_editor_tokens_preserved_spaces_and_rtl_lines() {
+    let mut f = Fixture::new(&format!(
+        "{TEXT_CSS}
+        .lines {{ position: absolute; left: 30px; top: 0; width: 400px; height: 100px;
+                  transform: translate3d(0px, 0px, 0px); contain: strict }}
+        .line {{ position: absolute; left: 0; width: 100%; height: 19px; line-height: 19px;
+                 white-space: pre }}
+        #wrap {{ position: absolute; top: 100px; width: 60px; white-space: pre-wrap }}
+        #rtl {{ position: absolute; top: 200px; width: 300px; direction: rtl }}"
+    ));
+    // Monaco's view lines: a line span of token spans in a pre line.
+    let lines = f.element(BODY, "div", &[("class", "lines")]);
+    let mut tokens = Vec::new();
+    for (top, words) in [(0, ["const", " x = ", "1;"]), (19, ["let", "  ", "y"])] {
+        let line = f.element(
+            lines,
+            "div",
+            &[("class", "line"), ("style", &format!("top: {top}px"))],
+        );
+        let content = f.element(line, "span", &[]);
+        for word in words {
+            let token = f.element(content, "span", &[("class", "token")]);
+            f.text(token, word);
+            tokens.push(token + 1);
+        }
+        tokens.push(line);
+    }
+    let wrap = f.element(BODY, "div", &[("id", "wrap")]);
+    f.text(wrap, "hello world");
+    let rtl = f.element(BODY, "div", &[("id", "rtl")]);
+    f.text(rtl, "abc");
+    let pack = f.pack();
+    let (mut engine, _updates) = text_engine(&pack);
+    let frame = input();
+    let [konst, assign, one, first_line, _, spaces, y, second_line] = tokens[..] else {
+        unreachable!()
+    };
+    let [text] = text_boxes(&mut engine, konst)[..] else {
+        panic!("one text box");
+    };
+    let em = advance(text, 5.0);
+    let (top, height) = (text.origin.y, text.size.height);
+    assert_eq!(text.origin.x, 30.0);
+    assert_rects(
+        &text_rects(&mut engine, &frame, assign, [0, 5]),
+        &[Rect::new(30.0 + 5.0 * em, top, 5.0 * em, height)],
+    );
+    assert_rects(
+        &text_rects(&mut engine, &frame, assign, [1, 2]),
+        &[Rect::new(30.0 + 6.0 * em, top, em, height)],
+    );
+    assert_rects(
+        &text_rects(&mut engine, &frame, spaces, [0, 2]),
+        &[Rect::new(30.0 + 3.0 * em, top + 19.0, 2.0 * em, height)],
+    );
+    let middle = top + height / 2.0;
+    assert_eq!(
+        caret_at(&mut engine, &frame, one - 1, 30.0 + 10.3 * em, middle),
+        Some((one, 0))
+    );
+    assert_eq!(
+        caret_at(&mut engine, &frame, one - 1, 30.0 + 10.6 * em, middle),
+        Some((one, 1))
+    );
+    assert_eq!(
+        caret_at(&mut engine, &frame, assign - 1, 30.0 + 9.7 * em, middle),
+        Some((assign, 5))
+    );
+    assert_eq!(
+        caret_at(&mut engine, &frame, first_line, 300.0, middle),
+        Some((one, 2))
+    );
+    assert_eq!(
+        caret_at(
+            &mut engine,
+            &frame,
+            second_line,
+            30.0 + 4.4 * em,
+            middle + 19.0
+        ),
+        Some((spaces, 1))
+    );
+    assert_eq!(
+        caret_at(&mut engine, &frame, second_line, 300.0, middle + 19.0),
+        Some((y, 1))
+    );
+
+    // A preserved space hangs past a soft wrap with its width, in a box of
+    // its own, and the caret can go after it.
+    let [first, second] = text_boxes(&mut engine, wrap + 1)[..] else {
+        panic!("two lines");
+    };
+    assert_rects(
+        &text_rects(&mut engine, &frame, wrap + 1, [0, 11]),
+        &[
+            Rect::new(0.0, first.origin.y, 5.0 * em, height),
+            Rect::new(5.0 * em, first.origin.y, em, height),
+            Rect::new(0.0, second.origin.y, 5.0 * em, height),
+        ],
+    );
+    assert_eq!(
+        caret_at(&mut engine, &frame, wrap, 59.0, 110.0),
+        Some((wrap + 1, 6))
+    );
+
+    // Left of an RTL line is its end.
+    let [text] = text_boxes(&mut engine, rtl + 1)[..] else {
+        panic!("one text box");
+    };
+    assert!((text.max_x() - 300.0).abs() < 0.01);
+    assert_rects(
+        &text_rects(&mut engine, &frame, rtl + 1, [0, 1]),
+        &[Rect::new(300.0 - 3.0 * em, text.origin.y, em, height)],
+    );
+    assert_eq!(
+        caret_at(&mut engine, &frame, rtl, 10.0, 210.0),
+        Some((rtl + 1, 3))
+    );
+    assert_eq!(
+        caret_at(&mut engine, &frame, rtl, 300.0 - 0.6 * em, 210.0),
+        Some((rtl + 1, 2))
+    );
+}

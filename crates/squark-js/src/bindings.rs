@@ -444,6 +444,12 @@ fn query_value<'s>(scope: &mut PinScope<'s, '_>, response: QueryValue) -> Option
         })?
         .into(),
         QueryValue::Number(value) => v8::Number::new(scope, value).into(),
+        QueryValue::Caret(Some((node, offset))) => {
+            let node = v8::Integer::new_from_unsigned(scope, node.raw());
+            let offset = v8::Integer::new_from_unsigned(scope, offset);
+            v8::Array::new_with_elements(scope, &[node.into(), offset.into()]).into()
+        }
+        QueryValue::Caret(None) => v8::null(scope).into(),
         QueryValue::Void => v8::undefined(scope).into(),
         QueryValue::BoxMetrics(metrics) => {
             let object = v8::Object::new(scope);

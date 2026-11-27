@@ -40,10 +40,13 @@ struct Segment {
     css: Css,
 }
 
+/// The DOM text behind one character of the layout text. The byte offset
+/// is 32-bit because paragraphs keep their sources after layout for range
+/// and caret queries.
 #[derive(Debug)]
-struct Source {
-    byte: usize,
-    range: TextRange,
+pub(crate) struct Source {
+    pub byte: u32,
+    pub range: TextRange,
 }
 
 pub(crate) struct Inline {
@@ -355,7 +358,7 @@ impl Inline {
         self.text.push_str(value);
         self.sources
             .extend(value.char_indices().map(|(offset, _)| Source {
-                byte: start + offset,
+                byte: (start + offset) as u32,
                 range: source,
             }));
         if let Some(last) = self.segments.last_mut()
@@ -375,6 +378,18 @@ impl Inline {
 
     pub(crate) fn is_empty(&self) -> bool {
         self.sources.is_empty() && self.objects.is_empty()
+    }
+
+    /// Hands over the layout text and its sources once fragments are built,
+    /// so queries can map DOM text to the layout. Form control text maps to
+    /// the control's value rather than to Text nodes, so it keeps neither.
+    pub(crate) fn take_sources(&mut self) -> Option<(String, Vec<Source>)> {
+        (!self.is_control && !self.sources.is_empty()).then(|| {
+            (
+                std::mem::take(&mut self.text),
+                std::mem::take(&mut self.sources),
+            )
+        })
     }
 
     pub(crate) fn line_count(&self, layout: &TextLayout<TextBrush>) -> usize {
@@ -400,7 +415,7 @@ impl Inline {
                 edit,
                 self.sources
                     .iter()
-                    .map(|source| (source.range.start_utf16, source.byte)),
+                    .map(|source| (source.range.start_utf16, source.byte as usize)),
                 self.text.len(),
                 placeholder,
             )
@@ -441,10 +456,10 @@ impl Inline {
     pub(crate) fn ranges(&self, bytes: Range<usize>) -> Vec<TextRange> {
         let start = self
             .sources
-            .partition_point(|source| source.byte < bytes.start);
+            .partition_point(|source| (source.byte as usize) < bytes.start);
         let end = self
             .sources
-            .partition_point(|source| source.byte < bytes.end);
+            .partition_point(|source| (source.byte as usize) < bytes.end);
         let mut ranges: Vec<TextRange> = Vec::new();
         for source in &self.sources[start..end] {
             let range = source.range;
