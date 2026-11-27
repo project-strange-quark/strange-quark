@@ -262,3 +262,9 @@ test("active listener removal, duplicates and stopImmediatePropagation follow di
   target.dispatchEvent(new Event("x"));
   assert.deepEqual(log, ["action", "last"]);
 });
+
+test("DOMException reports the legacy codes of named errors", () => {
+  for (const [name, code] of [["SyntaxError", 12], ["SecurityError", 18], ["NetworkError", 19], ["AbortError", 20], ["DataCloneError", 25], ["OperationError", 0]]) {
+    assert.equal(new DOMException("", name).code, code, name);
+  }
+});
