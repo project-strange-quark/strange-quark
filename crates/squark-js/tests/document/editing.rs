@@ -782,3 +782,84 @@ fn pointer_selects_text_using_the_engine_caret_geometry() {
         r#"["bcd",[[1,4,"backward"]]]"#
     );
 }
+
+#[test]
+fn text_rect_and_caret_queries_hit_test_through_the_painter() {
+    support::initialize_v8();
+    let pack = fixture_pack();
+    let origin = Instant::now();
+    let bytes = pack.entry(DOCUMENT_PATH).unwrap().bytes;
+    let (resources, _receiver) = resource_channel();
+    let engine = StaticDocument::from_pack(&pack, URL.parse().unwrap(), resources.clone()).unwrap();
+    let painter = Painter::new(Arc::new(FrameMailbox::default()), resources);
+    let lookup = pack.clone();
+    let mut runner = DocumentRunner::new(
+        options(origin, true),
+        bytes,
+        sources(move |path| {
+            let asset = lookup.entry(path)?;
+            Some((asset.mime.into(), asset.bytes.to_vec()))
+        }),
+        Box::new(engine),
+        Box::new(painter),
+        move || origin,
+    )
+    .unwrap();
+    runner
+        .eval(
+            r#"
+        document.body.replaceChildren();
+        document.body.style.cssText = "margin: 0; font: 16px/20px 'Liberation Mono', monospace";
+        const line = document.body.appendChild(document.createElement("div"));
+        line.id = "line";
+        line.style.cssText = "position: absolute; left: 30px; top: 10px; width: 200px; white-space: pre";
+        line.appendChild(document.createElement("span")).textContent = "const x";
+        const cover = document.body.appendChild(document.createElement("div"));
+        cover.id = "cover";
+        cover.style.cssText = "position: absolute; left: 200px; top: 100px; width: 40px; height: 40px";
+    "#,
+        )
+        .unwrap();
+    runner.frame(tick(origin, 1, 0)).unwrap();
+    let line = get_node(&mut runner, &pack, "line");
+    let cover = get_node(&mut runner, &pack, "cover");
+    // The caret query names the Text node, which the rect query then measures.
+    let caret: (u32, u32) = serde_json::from_str(
+        &runner
+            .eval("__squark.query(15, 1, [30 + 9.6 * 2.3, 20])")
+            .unwrap(),
+    )
+    .unwrap();
+    let text = caret.0;
+    assert_eq!(caret.1, 2);
+    assert!(text != line.raw() && text != cover.raw());
+    let rects: Vec<[f32; 4]> = serde_json::from_str(
+        &runner
+            .eval(&format!(
+                "[[0, 1], [0, 2], [2, 2]].map(range => __squark.query(14, {text}, range))
+                    .map(([r]) => [r.x, r.y, r.width, r.height])"
+            ))
+            .unwrap(),
+    )
+    .unwrap();
+    let [one, two, caret] = rects[..] else {
+        unreachable!()
+    };
+    assert_eq!(one[0], 30.0);
+    assert!((two[2] - 2.0 * one[2]).abs() < 0.01 && one[2] > 9.0);
+    assert!(one[1] > 5.0 && one[1] < 15.0 && one[3] > 15.0);
+    assert_eq!(caret, [30.0 + two[2], one[1], 0.0, one[3]]);
+    assert_eq!(
+        runner
+            .eval(&format!(
+                "[
+                    __squark.query(15, 1, [220, 20]), __squark.query(15, 1, [220, 120]),
+                    __squark.query(15, 1, [-5, 20]), __squark.query(14, {cover}, [0, 1]),
+                ]",
+                cover = cover.raw()
+            ))
+            .unwrap(),
+        format!("[[{text},7],[{},0],null,[]]", cover.raw())
+    );
+    assert!(runner.eval("__squark.query(15, 1, [NaN, 20])").is_err());
+}

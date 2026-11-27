@@ -17,7 +17,12 @@ use squark_types::{
 };
 use style::values::specified::box_::{Contain, Overflow};
 
-use crate::{BoxTree, Content, Id, decorations, editing, inline_paint::Slices, paint};
+use crate::{
+    BoxTree, Content, Id, decorations, editing,
+    inline_paint::Slices,
+    paint,
+    text_flow::{Flow, Flows},
+};
 
 type IdKey = (NodeId, u8, u32);
 
@@ -49,7 +54,7 @@ pub(crate) fn emit(
     images: &mut ImageCatalog,
     ids: &mut FragmentIds,
     dpr: f64,
-) -> (FragmentTree, Margins, editing::Fields, crate::table::Parts) {
+) -> Emitted {
     let mut emit = Emitter::new(tree, root, document, resources, images, ids, dpr);
     let root_style = emit.tree[root]
         .children
@@ -124,16 +129,25 @@ pub(crate) fn emit(
     let root_id = emit.ids_by_box[&root];
     emit.emit_box(root, None, None, document.root(), Some(canvas));
     emit.ids.previous = emit.keys;
-    (
-        FragmentTree {
+    Emitted {
+        tree: FragmentTree {
             root: root_id,
             ime_area: None,
             nodes: emit.nodes,
         },
-        emit.margins,
-        emit.editing,
-        emit.table_parts,
-    )
+        margins: emit.margins,
+        editing: emit.editing,
+        table_parts: emit.table_parts,
+        flows: emit.flows,
+    }
+}
+
+pub(crate) struct Emitted {
+    pub tree: FragmentTree,
+    pub margins: Margins,
+    pub editing: editing::Fields,
+    pub table_parts: crate::table::Parts,
+    pub flows: Flows,
 }
 
 struct Positions {
@@ -175,6 +189,7 @@ pub(crate) struct Emitter<'a, 'b> {
     margins: Margins,
     editing: editing::Fields,
     table_parts: crate::table::Parts,
+    flows: Flows,
     ids_by_box: HashMap<Id, FragmentId>,
     propagation: Option<Id>,
     raster_scale: f64,
@@ -214,6 +229,7 @@ impl<'a, 'b> Emitter<'a, 'b> {
             margins: BTreeMap::new(),
             editing: BTreeMap::new(),
             table_parts: BTreeMap::new(),
+            flows: Flows::default(),
             ids_by_box: HashMap::new(),
             propagation: None,
             raster_scale: (dpr * 1024.0).round().max(1.0) / 1024.0,
@@ -657,6 +673,7 @@ impl<'a, 'b> Emitter<'a, 'b> {
             }
         }
         let mut last_paint: Option<(&crate::Css, Arc<PaintValues>)> = None;
+        let mut line_ids = Vec::new();
         for (line_index, line) in layout.lines().take(inline.line_count(&layout)).enumerate() {
             let metrics = line.metrics();
             let line_box = Rect::new(
@@ -1005,6 +1022,35 @@ impl<'a, 'b> Emitter<'a, 'b> {
             fragment.children = decorated.into_boxed_slice();
             self.nodes.insert(line_id, fragment);
             fragments.push(line_id);
+            line_ids.push(line_id);
+        }
+        let generated = matches!(
+            self.nodes[&parent].kind,
+            FragmentKind::Before | FragmentKind::After | FragmentKind::Marker
+        );
+        if text_positions.is_none()
+            && !generated
+            && let Some((text, sources)) = inline.take_sources()
+        {
+            use style::computed_values::white_space_collapse::T as Collapse;
+            let collapsible = edit_style.as_ref().is_some_and(|css| {
+                matches!(
+                    css.get_inherited_text().white_space_collapse,
+                    Collapse::Collapse | Collapse::PreserveBreaks
+                )
+            });
+            // Keep the paragraph for text range and caret queries. It moves
+            // the layout and sources that would be dropped here.
+            self.flows.push(Flow {
+                fragment: parent,
+                origin,
+                lines: line_ids.into_boxed_slice(),
+                layout,
+                text,
+                sources,
+                collapsible,
+            });
+            return;
         }
         if let Some(positions) = text_positions {
             let field = editing::Field {

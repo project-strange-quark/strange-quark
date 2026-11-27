@@ -362,7 +362,12 @@ impl<'pack> StaticDocument<'pack> {
     }
 
     fn field_client_rect(&self, field: &crate::editing::Field, rect: Rect) -> Rect {
-        let fragment = &self.snapshot.nodes[&field.fragment];
+        self.content_client_rect(field.fragment, rect)
+    }
+
+    /// Maps a rect in a box's unscrolled content to client coordinates.
+    fn content_client_rect(&self, fragment: FragmentId, rect: Rect) -> Rect {
+        let fragment = &self.snapshot.nodes[&fragment];
         let scroll = fragment
             .scroll
             .map_or(Point::default(), |frame| frame.offset);
@@ -649,11 +654,13 @@ impl DocumentEngine for StaticDocument<'_> {
             | Query::FocusScroll(id)
             | Query::CaretRect(id, _)
             | Query::OffsetFromPoint(id, _) => id,
-            Query::ComputedStyle { node, .. } => node,
+            Query::ComputedStyle { node, .. } | Query::TextRects { node, .. } => node,
             Query::Selector { scope, .. } => scope,
-            // The document-thread bridge owns FramePainter, and handles this query
-            // against the fresh snapshot without reversing the engine-to-paint seam.
-            Query::ElementFromPoint(_) => {
+            Query::CaretAtHit { hit, .. } => hit,
+            // The document-thread bridge owns FramePainter, and handles these
+            // queries against the fresh snapshot without reversing the
+            // engine-to-paint seam. It asks for CaretAtHit with the hit element.
+            Query::ElementFromPoint(_) | Query::CaretFromPoint(_) => {
                 return Err(EngineError::Unsupported("hit test without a frame painter"));
             }
             Query::SheetRules(id) | Query::SheetLoaded(id) => id,
@@ -754,7 +761,30 @@ impl DocumentEngine for StaticDocument<'_> {
                     y: point.y + scroll.y,
                 })))
             }
+            Query::TextRects {
+                start_utf16,
+                end_utf16,
+                ..
+            } => {
+                self.layout.flows.prepare();
+                let rects = if self.document.is_text(node) {
+                    self.layout.flows.text_rects(node, start_utf16, end_utf16)
+                } else {
+                    Vec::new()
+                };
+                QueryValue::Rects(
+                    rects
+                        .into_iter()
+                        .map(|(fragment, rect)| self.content_client_rect(fragment, rect))
+                        .collect(),
+                )
+            }
+            Query::CaretAtHit { point, .. } => {
+                self.layout.flows.prepare();
+                QueryValue::Caret(self.layout.flows.caret_at(&self.geometry(), node, point))
+            }
             Query::ElementFromPoint(_)
+            | Query::CaretFromPoint(_)
             | Query::Selector { .. }
             | Query::SheetRules(_)
             | Query::SheetLoaded(_) => {

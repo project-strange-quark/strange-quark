@@ -27,6 +27,7 @@ mod observers;
 mod paint;
 mod table;
 mod taffy_tree;
+mod text_flow;
 
 use std::{
     ops::{Index, IndexMut},
@@ -60,6 +61,7 @@ pub struct LayoutEngine {
     margins: fragments::Margins,
     editing: editing::Fields,
     table_parts: table::Parts,
+    flows: text_flow::Flows,
     measure_timings: bool,
 }
 
@@ -99,7 +101,7 @@ impl LayoutEngine {
         );
         tree.lines.finish_layout();
         let taffy_done = self.measure_timings.then(std::time::Instant::now);
-        let (tree, margins, editing, table_parts) = fragments::emit(
+        let emitted = fragments::emit(
             tree,
             root,
             document,
@@ -116,10 +118,11 @@ impl LayoutEngine {
                 taffy_done.elapsed().as_micros()
             );
         }
-        self.margins = margins;
-        self.editing = editing;
-        self.table_parts = table_parts;
-        tree
+        self.margins = emitted.margins;
+        self.editing = emitted.editing;
+        self.table_parts = emitted.table_parts;
+        self.flows = emitted.flows;
+        emitted.tree
     }
 
     fn edit_textarea(

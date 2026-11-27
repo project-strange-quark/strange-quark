@@ -337,6 +337,25 @@ pub enum Query<'a> {
     SheetLoaded(NodeId),
     CaretRect(NodeId, u32),
     OffsetFromPoint(NodeId, Point),
+    /// Client rects of the rendered text that the UTF-16 range of a Text node
+    /// covers, one per text box piece per line, as Chromium's
+    /// `Range.getClientRects()` gives for a range inside one Text node.
+    TextRects {
+        node: NodeId,
+        start_utf16: u32,
+        end_utf16: u32,
+    },
+    /// The caret position nearest a client point, as `caretPositionFromPoint`.
+    /// The document-thread bridge answers it: the painter's hit test resolves
+    /// the element, and the engine answers `CaretAtHit` for it.
+    CaretFromPoint(Point),
+    /// The caret position for a client point that the painter's hit test
+    /// resolved to `hit`. `hit` is the document node when the point is inside
+    /// the viewport but misses every element.
+    CaretAtHit {
+        hit: NodeId,
+        point: Point,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -404,6 +423,9 @@ pub enum QueryValue {
     Node(Option<NodeId>),
     Nodes(Vec<NodeId>),
     Number(f64),
+    /// A DOM position: a Text node and a UTF-16 offset in its data, or any
+    /// other node and a child index. `None` when no position applies.
+    Caret(Option<(NodeId, u32)>),
     Void,
 }
 

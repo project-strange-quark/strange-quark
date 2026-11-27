@@ -55,6 +55,30 @@ impl Bridge<'_> {
             self.shutdown.check()?;
             return Ok(QueryValue::Node(hit));
         }
+        if let Query::CaretFromPoint(point) = query {
+            // The painter finds the element under the point and the engine
+            // maps the point inside that element's layout. A point inside
+            // the viewport that misses every element resolves against the
+            // document, as Chromium's does.
+            self.layout()?;
+            let (fragments, mirror) = self.engine.snapshot();
+            let inside = fragments
+                .nodes
+                .get(&fragments.root)
+                .is_some_and(|root| root.border_box.contains(point));
+            let hit = self
+                .painter
+                .hit_test(fragments, mirror, point)
+                .or_else(|| inside.then(|| mirror.document()));
+            self.shutdown.check()?;
+            let Some(hit) = hit else {
+                return Ok(QueryValue::Caret(None));
+            };
+            return self.shutdown.engine(
+                self.engine
+                    .query(&self.input.as_input(), Query::CaretAtHit { hit, point }),
+            );
+        }
         self.update_scroll()?;
         self.shutdown
             .engine(self.engine.query(&self.input.as_input(), query))
@@ -416,6 +440,27 @@ fn prepare_query(
         10 => Query::SheetRules(id),
         11 => Query::CaretRect(id, unsigned(arg)?),
         13 => Query::SheetLoaded(id),
+        14 => {
+            let range = Local::<v8::Array>::try_from(arg).ok()?;
+            let start = unsigned(range.get_index(scope, 0)?)?;
+            let end = unsigned(range.get_index(scope, 1)?)?;
+            Query::TextRects {
+                node: id,
+                start_utf16: start,
+                end_utf16: end,
+            }
+        }
+        15 => {
+            let point = Local::<v8::Array>::try_from(arg).ok()?;
+            let coordinate = |index| {
+                let value = Local::<v8::Number>::try_from(point.get_index(scope, index)?).ok()?;
+                Some(value.value() as f32).filter(|value| value.is_finite())
+            };
+            Query::CaretFromPoint(Point {
+                x: coordinate(0)?,
+                y: coordinate(1)?,
+            })
+        }
         _ => return None,
     };
     Some(Request::Plain(plain))
@@ -475,6 +520,12 @@ fn query_value<'s>(scope: &mut PinScope<'s, '_>, response: QueryValue) -> Option
         })?
         .into(),
         QueryValue::Number(value) => v8::Number::new(scope, value).into(),
+        QueryValue::Caret(Some((node, offset))) => {
+            let node = v8::Integer::new_from_unsigned(scope, node.raw());
+            let offset = v8::Integer::new_from_unsigned(scope, offset);
+            v8::Array::new_with_elements(scope, &[node.into(), offset.into()]).into()
+        }
+        QueryValue::Caret(None) => v8::null(scope).into(),
         QueryValue::Void => v8::undefined(scope).into(),
         QueryValue::BoxMetrics(metrics) => {
             let object = v8::Object::new(scope);
