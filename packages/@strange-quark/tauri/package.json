@@ -1,0 +1,47 @@
+{
+  "name": "@strange-quark/tauri",
+  "version": "0.1.0",
+  "description": "Tauri 2 frontend compatibility for Strange Quark: window.__TAURI_INTERNALS__ over native modules.",
+  "keywords": [
+    "tauri",
+    "react",
+    "desktop",
+    "strange-quark"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/project-strange-quark/strange-quark#readme",
+  "bugs": {
+    "url": "https://github.com/project-strange-quark/strange-quark/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/project-strange-quark/strange-quark.git",
+    "directory": "packages/@strange-quark/tauri"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./classic": "./dist/tauri.classic.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/classic.mjs",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "2.12.5",
+    "typescript": "6.0.3"
+  }
+}
