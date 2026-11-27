@@ -13,8 +13,9 @@ type Host = {
   postTask(callback: () => void): void;
 };
 
+// The @font-face descriptor names the engine parses each value as.
 const cssNames = {
-  style: "style", weight: "weight", stretch: "stretch", unicodeRange: "unicode-range",
+  style: "font-style", weight: "font-weight", stretch: "font-stretch", unicodeRange: "unicode-range",
   variant: "variant", featureSettings: "font-feature-settings", variationSettings: "font-variation-settings",
   display: "font-display", ascentOverride: "ascent-override", descentOverride: "descent-override",
   lineGapOverride: "line-gap-override",

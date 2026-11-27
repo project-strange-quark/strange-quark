@@ -1245,3 +1245,272 @@ fn reuses_paragraph_shapes_without_reusing_paint_owners() {
         assert_eq!(fragment.style.art.color, color);
     }
 }
+
+#[test]
+fn matches_stylesheet_faces_by_their_descriptors_and_unicode_ranges() {
+    let regular: &[u8] = include_bytes!(
+        "../../../tests/reftests/cases/r1/_assets/fonts/LiberationSans-Regular.woff2"
+    );
+    let bold: &[u8] =
+        include_bytes!("../../../tests/reftests/cases/r1/_assets/fonts/LiberationSans-Bold.woff2");
+    let italic: &[u8] = include_bytes!(
+        "../../../tests/reftests/cases/r1/_assets/fonts/LiberationSans-Italic.woff2"
+    );
+    let mono: &[u8] = include_bytes!(
+        "../../../tests/reftests/cases/r1/_assets/fonts/LiberationMono-Regular.woff2"
+    );
+    // KaTeX's pattern: one family, a face per weight and style. The
+    // descriptors, not the files, decide which face is which, so these swap
+    // the regular and bold files. The split family is @fontsource's pattern:
+    // one face per unicode-range subset.
+    let mut fixture = Fixture::new(
+        "@font-face { font-family: Swap; src: url(/regular.woff2); font-weight: 700 }
+         @font-face { font-family: Swap; src: url(/missing.woff2), url(/bold.woff2) }
+         @font-face { font-family: Swap; src: url(/italic.woff2); font-style: italic;
+                      font-weight: 100 900 }
+         @font-face { font-family: Split; src: url(/mono.woff2); unicode-range: U+30-39 }
+         @font-face { font-family: Split; src: url(/regular.woff2);
+                      unicode-range: U+0-2F, U+3A-FF }
+         @font-face { font-family: Missing; src: local(Strange Quark Missing Font) }
+         body { margin: 0; font: 16px/20px Swap, monospace }
+         #bold { font-weight: 600 } #italic { font-style: italic; font-weight: 700 }
+         #split { font-family: Split } #missing { font-family: Missing, Split }",
+    );
+    let mut paragraphs = Vec::new();
+    for (id, text) in [
+        ("regular", "Regular"),
+        ("bold", "Bold"),
+        ("italic", "Italic"),
+        ("split", "ab12"),
+        ("missing", "x"),
+    ] {
+        let p = fixture.element(BODY, "p", &[("id", id)]);
+        fixture.text(p, text);
+        paragraphs.push(p + 1);
+    }
+    let pack = fixture.pack_with_assets(&[
+        ("/regular.woff2", 5, regular),
+        ("/bold.woff2", 5, bold),
+        ("/italic.woff2", 5, italic),
+        ("/mono.woff2", 5, mono),
+    ]);
+    let media = screen(VIEWPORT.width, VIEWPORT.height, 1.0);
+    let (mut doc, _, mut cascade) = Cascade::from_pack(
+        &pack,
+        Url::parse("https://app.test/index.html").unwrap(),
+        media.clone(),
+    )
+    .unwrap();
+    cascade.update(&mut doc, media).unwrap();
+    let mut engine = LayoutEngine::default();
+    let tree = engine.layout(&doc, &cascade, VIEWPORT);
+    // Faces register with their cmap cut to their coverage, so identify the
+    // file a run used by the family, weight and style it declares itself.
+    let identify = |data: &[u8]| {
+        use parley::fontique::{Blob, Collection, CollectionOptions, FontStyle};
+        let mut collection = Collection::new(CollectionOptions {
+            shared: false,
+            system_fonts: false,
+        });
+        let registered =
+            collection.register_fonts(Blob::new(std::sync::Arc::new(data.to_vec())), None);
+        let (family, fonts) = registered.first()?;
+        let font = fonts.first()?;
+        let name = collection.family_name(*family)?.to_owned();
+        Some(
+            match (
+                name.as_str(),
+                font.weight().value(),
+                font.style() == FontStyle::Italic,
+            ) {
+                ("Liberation Sans", 400.0, false) => "regular",
+                ("Liberation Sans", 700.0, false) => "bold",
+                ("Liberation Sans", 400.0, true) => "italic",
+                ("Liberation Mono", 400.0, false) => "mono",
+                _ => "other",
+            },
+        )
+    };
+    let fonts_of = |owner: u32| {
+        tree.nodes
+            .values()
+            .filter(|fragment| fragment.owner.raw() == owner)
+            .filter_map(|fragment| match &fragment.content {
+                FragmentContent::Text(runs) => Some(runs),
+                _ => None,
+            })
+            .flatten()
+            .map(|run| {
+                let data = engine.fonts().instance(run.font).unwrap().font.data.data();
+                identify(data).unwrap_or("unreadable")
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(fonts_of(paragraphs[0]), ["bold"]);
+    assert_eq!(fonts_of(paragraphs[1]), ["regular"]);
+    assert_eq!(fonts_of(paragraphs[2]), ["italic"]);
+    assert_eq!(fonts_of(paragraphs[3]), ["regular", "mono"]);
+    // A face whose only source is missing gives way to the next family.
+    assert_eq!(fonts_of(paragraphs[4]), ["regular"]);
+    // Faces other than the first available font do not size the line.
+    for text in paragraphs {
+        assert_eq!(find(&tree, text - 1).border_box.size.height, 20.0);
+    }
+}
+
+#[test]
+fn shapes_text_with_font_variation_settings_and_optical_sizing() {
+    let mut fixture = Fixture::new(
+        "body { font: 20px monospace }
+         #axes { font-variation-settings: 'wght' 700, 'wdth' 80 }
+         #fixed { font-optical-sizing: none; font-variation-settings: 'wght' 300 }",
+    );
+    let axes = fixture.element(BODY, "p", &[("id", "axes")]);
+    let fixed = fixture.element(BODY, "p", &[("id", "fixed")]);
+    let pack = fixture.pack();
+    let media = screen(VIEWPORT.width, VIEWPORT.height, 1.0);
+    let (mut doc, _, mut cascade) = Cascade::from_pack(
+        &pack,
+        Url::parse("https://app.test/index.html").unwrap(),
+        media.clone(),
+    )
+    .unwrap();
+    cascade.update(&mut doc, media).unwrap();
+    let variations = |id: u32| {
+        let css = cascade
+            .computed_style(&doc, NodeId::from_raw(id), None)
+            .unwrap();
+        let parley::FontVariations::List(list) =
+            squark_text::style(NodeId::NONE, &css).font_variations
+        else {
+            panic!("expected a variation list");
+        };
+        list.iter()
+            .map(|variation| (variation.tag.to_bytes(), variation.value))
+            .collect::<Vec<_>>()
+    };
+    // Stylo sorts the settings by tag. Optical sizing adds an `opsz` axis
+    // at the font size unless it is off.
+    assert_eq!(
+        variations(axes),
+        [(*b"opsz", 20.0), (*b"wdth", 80.0), (*b"wght", 700.0)]
+    );
+    assert_eq!(variations(fixed), [(*b"wght", 300.0)]);
+}
+
+#[test]
+fn projects_overscroll_behavior_from_css() {
+    use squark_types::fragment::OverscrollBehavior;
+    let mut fixture = Fixture::new(
+        "div { overflow: auto; height: 20px }
+         #contain { overscroll-behavior: contain none }
+         #block { overscroll-behavior-y: contain }",
+    );
+    let contain = fixture.element(BODY, "div", &[("id", "contain")]);
+    let block = fixture.element(BODY, "div", &[("id", "block")]);
+    let plain = fixture.element(BODY, "div", &[]);
+    let tree = layout(&fixture.pack());
+    let overscroll = |id| find(&tree, id).style.box_paint.overscroll;
+    assert_eq!(
+        overscroll(contain),
+        [OverscrollBehavior::Contain, OverscrollBehavior::None]
+    );
+    assert_eq!(
+        overscroll(block),
+        [OverscrollBehavior::Auto, OverscrollBehavior::Contain]
+    );
+    assert_eq!(overscroll(plain), [OverscrollBehavior::Auto; 2]);
+}
+
+#[test]
+fn projects_backdrop_filters_from_css() {
+    use squark_types::fragment::Filter;
+    let mut fixture = Fixture::new(
+        "#glass { width: 20px; height: 20px; backdrop-filter: invert(1) grayscale(50%) }",
+    );
+    let glass = fixture.element(BODY, "div", &[("id", "glass")]);
+    let pack = fixture.pack();
+    let media = screen(VIEWPORT.width, VIEWPORT.height, 1.0);
+    let (mut doc, _, mut cascade) = Cascade::from_pack(
+        &pack,
+        Url::parse("https://app.test/index.html").unwrap(),
+        media.clone(),
+    )
+    .unwrap();
+    cascade.update(&mut doc, media).unwrap();
+    let units: Vec<u16> = "backdrop-filter: blur(2px)".encode_utf16().collect();
+    assert!(cascade.css_supports(&units));
+    let tree = LayoutEngine::default().layout(&doc, &cascade, VIEWPORT);
+    assert_eq!(
+        *find(&tree, glass).style.properties.backdrop_filters,
+        [Filter::Invert(1.0), Filter::Grayscale(0.5)]
+    );
+}
+
+#[test]
+fn sizes_lays_out_and_clips_contained_boxes() {
+    let mut fixture = Fixture::new(
+        "body { margin: 0; font: 16px/20px monospace }
+         div { padding: 2px; border: 1px solid }
+         .tall { height: 50px; width: 70px }
+         #size { contain: size; width: 100px }
+         #inline { display: inline-block; contain: inline-size }
+         #float { position: absolute; top: 300px; contain: size; min-height: 12px }
+         #strict { contain: strict; width: 30px; height: 10px }
+         #paint { contain: paint; width: 40px; height: 10px }
+         #layout { contain: layout; width: 40px; height: 10px }
+         span { contain: paint }",
+    );
+    let mut boxes = Vec::new();
+    for id in ["size", "inline", "float", "strict", "paint", "layout"] {
+        let contained = fixture.element(BODY, "div", &[("id", id)]);
+        let child = fixture.element(contained, "div", &[("class", "tall")]);
+        fixture.text(child, "contents");
+        boxes.push(contained);
+    }
+    let inline = fixture.element(BODY, "span", &[]);
+    fixture.text(inline, "inline");
+    let pack = fixture.pack();
+    let media = screen(VIEWPORT.width, VIEWPORT.height, 1.0);
+    let (mut doc, _, mut cascade) = Cascade::from_pack(
+        &pack,
+        Url::parse("https://app.test/index.html").unwrap(),
+        media.clone(),
+    )
+    .unwrap();
+    cascade.update(&mut doc, media).unwrap();
+    for condition in ["contain: strict", "contain: inline-size layout"] {
+        let units: Vec<u16> = condition.encode_utf16().collect();
+        assert!(cascade.css_supports(&units), "{condition}");
+    }
+    let tree = LayoutEngine::default().layout(&doc, &cascade, VIEWPORT);
+    let size = |id: u32| {
+        let size = find(&tree, id).border_box.size;
+        [size.width, size.height]
+    };
+    // Size containment sizes the box as if it were empty: padding and
+    // border only, in both axes or the inline one.
+    assert_eq!(size(boxes[0]), [106.0, 6.0]);
+    assert_eq!(size(boxes[1])[0], 6.0);
+    assert_eq!(size(boxes[1])[1], 62.0);
+    assert_eq!(size(boxes[2]), [6.0, 18.0]);
+    assert_eq!(size(boxes[3]), [36.0, 16.0]);
+    // The contents still lay out, overflowing the contained box.
+    assert_eq!(size(boxes[0] + 1), [76.0, 56.0]);
+    // Paint containment clips without scrolling; layout containment alone
+    // does not clip. Neither applies to a non-atomic inline box.
+    for (id, clips) in [(boxes[3], true), (boxes[4], true), (boxes[5], false)] {
+        let scroll = find(&tree, id).scroll;
+        assert_eq!(
+            scroll.map(|frame| (frame.clip_x, frame.clip_y, frame.scroll_x, frame.scroll_y)),
+            clips.then_some((true, true, false, false)),
+            "{id}"
+        );
+    }
+    assert!(
+        tree.nodes
+            .values()
+            .filter(|fragment| fragment.owner.raw() == inline)
+            .all(|fragment| fragment.scroll.is_none())
+    );
+}

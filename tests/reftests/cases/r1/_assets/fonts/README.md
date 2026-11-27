@@ -17,3 +17,10 @@ headless Chromium and `strange-quark` shape identical font bytes during R1 refte
 The fonts are unmodified apart from lossless WOFF2 compression. Each
 family's licence file holds its copyright notice and the full SIL Open Font
 License 1.1, which must travel with the fonts.
+
+`SquarkVar.ttf` is a variable font made for these tests, under the
+project's MIT licence: `squark-var.py` writes it with fontTools 4. Its
+capitals E, H, I, L and T are bars whose stems and advances grow along
+one `wght` axis from 100 to 900, so a case sees which axis value a
+renderer applied. `01-inline/21-font-variation-settings` declares it in
+its own `@font-face` rule.

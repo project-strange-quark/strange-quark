@@ -349,12 +349,21 @@ impl<'a, 'b> Emitter<'a, 'b> {
             (overflow_rect.right - overflow_rect.left).max(scrollport.size.width),
             (overflow_rect.bottom - overflow_rect.top).max(scrollport.size.height),
         );
-        let (mut overflow_x, mut overflow_y) = data
-            .css
-            .as_ref()
-            .map_or((Overflow::Visible, Overflow::Visible), |css| {
-                (*css.get_overflow_x(), *css.get_overflow_y())
-            });
+        let (mut overflow_x, mut overflow_y) =
+            data.css
+                .as_ref()
+                .map_or((Overflow::Visible, Overflow::Visible), |css| {
+                    // Paint containment clips to the padding box like
+                    // `overflow: clip`.
+                    let contained = |overflow| match overflow {
+                        Overflow::Visible if crate::css::paint_containment(css) => Overflow::Clip,
+                        overflow => overflow,
+                    };
+                    (
+                        contained(*css.get_overflow_x()),
+                        contained(*css.get_overflow_y()),
+                    )
+                });
         if overflow_y.is_scrollable()
             && padding.bottom > 0.0
             && matches!(data.content, Content::Container | Content::Table(_))

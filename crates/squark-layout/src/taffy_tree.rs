@@ -165,10 +165,21 @@ impl BoxTree<'_> {
         input: LayoutInput,
         block: Option<&mut BlockContext<'_>>,
     ) -> LayoutOutput {
-        taffy::compute_cached_layout(self, id, input, |tree, id, input| {
+        taffy::compute_cached_layout(self, id, input, |tree, id, mut input| {
             let display = tree[id].style.display;
             if display == Display::None || input.run_mode == taffy::RunMode::PerformHiddenLayout {
                 return taffy::compute_hidden_layout(tree, id);
+            }
+            if let Some(known) = tree.size_contained(id, &input) {
+                if input.run_mode == taffy::RunMode::ComputeSize
+                    && known.width.is_some()
+                    && known.height.is_some()
+                {
+                    return LayoutOutput::from_outer_size(known.map(Option::unwrap_or_default));
+                }
+                // The contents lay out inside the empty box's size and
+                // overflow it.
+                input.known_dimensions = known;
             }
             let mut output = match tree[id].content {
                 Content::Inline(_) => tree.inline_layout(id, input),
@@ -236,6 +247,36 @@ impl BoxTree<'_> {
             output
         })
     }
+    /// Size containment: a box contained in an axis takes the size it would
+    /// have with no contents in that axis (CSS Contain 2 § 3.2). Returns the
+    /// known dimensions to lay the contents out at, or `None` when the box
+    /// is not size contained.
+    fn size_contained(&self, id: Id, input: &LayoutInput) -> Option<Size<Option<f32>>> {
+        if !matches!(
+            self[id].content,
+            Content::Container | Content::Inline(_) | Content::Replaced(..) | Content::Control(_)
+        ) {
+            return None;
+        }
+        let [inline, block] = crate::css::size_containment(self[id].css.as_deref()?);
+        if !inline && !block {
+            return None;
+        }
+        let calcs = Rc::clone(&self.calcs);
+        let resolve = |handle, basis| calcs.resolve(handle, basis);
+        let empty = taffy::compute_leaf_layout(*input, &self[id].style, resolve, |_, _| Size::ZERO);
+        Some(Size {
+            width: input
+                .known_dimensions
+                .width
+                .or(inline.then_some(empty.size.width)),
+            height: input
+                .known_dimensions
+                .height
+                .or(block.then_some(empty.size.height)),
+        })
+    }
+
     fn compute_flex(&mut self, id: Id, input: LayoutInput) -> LayoutOutput {
         use taffy::{AvailableSpace, RunMode, SizingMode};
 

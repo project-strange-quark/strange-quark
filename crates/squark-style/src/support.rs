@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
-//! Source-located declarations whose effect the current consumers skip.
+//! Source-located declarations whose effect the current consumers skip:
+//! ones Stylo drops because a preference keeps the property off, ones layout
+//! or paint ignore, and rules Stylo drops for a selector it cannot parse.
 
 use cssparser::{
     AtRuleParser, CowRcStr, DeclarationParser, ParseError, Parser, ParserState,
@@ -10,6 +12,9 @@ use url::Url;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Consumer {
+    /// Stylo drops the declaration or rule while parsing, so it never
+    /// applies and `CSS.supports` reports it unsupported.
+    Style,
     Layout,
     Paint,
 }
@@ -17,6 +22,7 @@ pub enum Consumer {
 impl std::fmt::Display for Consumer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Style => f.write_str("style"),
             Self::Layout => f.write_str("layout"),
             Self::Paint => f.write_str("paint"),
         }
@@ -31,7 +37,9 @@ pub struct CssWarning {
     pub style_attribute: bool,
     pub line: u32,
     pub column: u32,
+    /// The declaration's property, or the selector of a dropped rule.
     pub property: String,
+    /// The declaration's value, or empty for a dropped rule.
     pub value: String,
     pub consumer: Consumer,
 }
@@ -47,11 +55,12 @@ impl std::fmt::Display for CssWarning {
             };
             write!(f, " {source} node {}", owner.raw())?;
         }
-        write!(
-            f,
-            ":{}:{}: {} ignores `{}: {}`",
-            self.line, self.column, self.consumer, self.property, self.value
-        )
+        write!(f, ":{}:{}: {} ", self.line, self.column, self.consumer)?;
+        if self.value.is_empty() {
+            write!(f, "drops the rule `{} {{ … }}`", self.property)
+        } else {
+            write!(f, "ignores `{}: {}`", self.property, self.value)
+        }
     }
 }
 
@@ -129,7 +138,27 @@ impl<'i> QualifiedRuleParser<'i> for Scan<'_> {
     type Error = ();
 
     fn parse_prelude(&mut self, input: &mut Parser<'i>) -> Result<(), ParseError<()>> {
+        let location = input.current_source_location();
+        let start = input.position();
         while input.next().is_ok() {}
+        let selector = input.slice_from(start).trim();
+        // Stylo has no ::-webkit-scrollbar pseudo-elements, and one selector
+        // it cannot parse drops the whole rule, other selectors included.
+        if selector
+            .to_ascii_lowercase()
+            .contains("::-webkit-scrollbar")
+        {
+            self.warnings.push(CssWarning {
+                stylesheet: self.url.clone(),
+                inline_owner: self.inline_owner,
+                style_attribute: self.style_attribute,
+                line: location.line + 1,
+                column: location.column,
+                property: selector.to_owned(),
+                value: String::new(),
+                consumer: Consumer::Style,
+            });
+        }
         Ok(())
     }
 
@@ -184,7 +213,7 @@ impl RuleBodyItemParser<'_, (), ()> for Scan<'_> {
 }
 
 fn ignored(property: &str, value: &str) -> Option<Consumer> {
-    use Consumer::{Layout, Paint};
+    use Consumer::{Layout, Paint, Style};
     let value = value.to_ascii_lowercase();
     let value = value
         .split_once('!')
@@ -196,20 +225,13 @@ fn ignored(property: &str, value: &str) -> Option<Consumer> {
     ) {
         return None;
     }
-    if property.starts_with("--") {
+    if property.starts_with("--") || matches_engine(property, value) {
         return None;
     }
+    if dropped_by_style(property) {
+        return Some(Style);
+    }
     Some(match (property, value) {
-        ("hyphens", "none" | "manual")
-        | ("column-width" | "column-count" | "columns", "auto")
-        | ("clip", "auto")
-        | ("transform-box", "border-box")
-        | ("backface-visibility", "visible")
-        | ("text-shadow", "none") => return None,
-        (
-            "float" | "clear" | "shape-outside" | "container-type" | "container-name" | "container",
-            "none" | "normal",
-        ) => return None,
         (
             "float"
             | "clear"
@@ -232,7 +254,8 @@ fn ignored(property: &str, value: &str) -> Option<Consumer> {
             | "line-clamp",
             _,
         ) => Layout,
-        ("writing-mode", value) if value != "horizontal-tb" => Layout,
+        ("tab-size" | "-moz-tab-size", _) => Layout,
+        ("writing-mode", _) => Layout,
         ("display", value) if value.contains("table") || value.contains("ruby") => Layout,
         ("grid-template" | "grid-template-columns" | "grid-template-rows", value)
             if value.contains("subgrid") =>
@@ -243,7 +266,6 @@ fn ignored(property: &str, value: &str) -> Option<Consumer> {
         ("background-attachment", value) if value != "scroll" => Paint,
         ("background-clip", "text") => Paint,
         ("background-blend-mode", value) if value != "normal" => Paint,
-        ("mask" | "mask-image" | "border-image" | "border-image-source", "none") => return None,
         (
             "mask"
             | "mask-image"
@@ -256,8 +278,7 @@ fn ignored(property: &str, value: &str) -> Option<Consumer> {
             | "border-image-width"
             | "backface-visibility"
             | "transform-box"
-            | "clip"
-            | "text-shadow",
+            | "clip",
             _,
         ) => Paint,
         ("filter" | "backdrop-filter", value) if value.contains("url(") => Paint,
@@ -272,12 +293,52 @@ fn ignored(property: &str, value: &str) -> Option<Consumer> {
     })
 }
 
+/// Values that ask for what the engine does anyway, so leaving them out
+/// changes nothing: the keyword that turns an unsupported feature off, or
+/// its initial value.
+fn matches_engine(property: &str, value: &str) -> bool {
+    matches!(
+        (property, value),
+        ("hyphens", "none" | "manual")
+            | ("column-width" | "column-count" | "columns", "auto")
+            | ("clip", "auto")
+            | ("transform-box", "border-box")
+            | ("backface-visibility", "visible")
+            | ("writing-mode", "horizontal-tb")
+            | ("text-orientation", "mixed")
+            | ("zoom", "1" | "100%")
+            | ("tab-size" | "-moz-tab-size", "8")
+            | (
+                "float"
+                    | "clear"
+                    | "shape-outside"
+                    | "container-type"
+                    | "container-name"
+                    | "container",
+                "none" | "normal",
+            )
+            | (
+                "mask" | "mask-image" | "border-image" | "border-image-source",
+                "none"
+            )
+    ) || dropped_by_style(property) && matches!(value, "none" | "auto" | "normal")
+}
+
+/// Whether Stylo knows the property but drops it because its preference is
+/// off. Properties the Servo build lacks altogether are dropped too, but
+/// as silently as browsers drop unknown properties.
+fn dropped_by_style(property: &str) -> bool {
+    style::properties::PropertyId::parse_unchecked(property, None)
+        .is_ok_and(|id| !id.enabled_for_all_content())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn reports_declaration_positions_inside_rules_and_skips_supported_values() {
+        crate::enable_preferences();
         let url = Url::parse("https://example.test/css/limited.css").unwrap();
         let css = "\
 @font-face { font-family: Demo; src: url(font.woff2); }
@@ -290,7 +351,11 @@ mod tests {
     & > b { writing-mode: vertical-rl; }
   }
 }
-p { clear: none; writing-mode: horizontal-tb; }";
+p { clear: none; writing-mode: horizontal-tb; }
+.code { tab-size: 4; text-shadow: 0 1px red; contain: strict; scroll-behavior: auto; }
+.list { scroll-behavior: smooth; scrollbar-width: thin; scrollbar-color: red blue;
+  mask-image: url(fade.svg); overscroll-behavior: contain; }
+.list, .list::-webkit-scrollbar-thumb { background: gray; }";
         let warnings = stylesheet(css, &url, None);
         let actual: Vec<_> = warnings
             .iter()
@@ -305,13 +370,33 @@ p { clear: none; writing-mode: horizontal-tb; }";
                 )
             })
             .collect();
+        // Stylo drops the properties whose preference is off, and the whole
+        // rule for a selector it cannot parse. Text shadows paint, and
+        // containment lays out.
         assert_eq!(
             actual,
             [
                 ("float", "left !important", 4, 5, Consumer::Layout),
                 ("background-clip", "text", 6, 5, Consumer::Paint),
-                ("writing-mode", "vertical-rl", 8, 13, Consumer::Layout),
+                ("writing-mode", "vertical-rl", 8, 13, Consumer::Style),
+                ("tab-size", "4", 12, 9, Consumer::Layout),
+                ("scroll-behavior", "smooth", 13, 9, Consumer::Style),
+                ("scrollbar-width", "thin", 13, 34, Consumer::Style),
+                ("scrollbar-color", "red blue", 13, 57, Consumer::Style),
+                ("mask-image", "url(fade.svg)", 14, 3, Consumer::Style),
+                (
+                    ".list, .list::-webkit-scrollbar-thumb",
+                    "",
+                    15,
+                    1,
+                    Consumer::Style
+                ),
             ]
+        );
+        assert_eq!(
+            warnings.last().unwrap().to_string(),
+            "https://example.test/css/limited.css:15:1: style drops the rule \
+             `.list, .list::-webkit-scrollbar-thumb { … }`"
         );
     }
 }

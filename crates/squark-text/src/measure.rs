@@ -315,7 +315,7 @@ impl Fonts {
     ) -> Layout<crate::TextBrush> {
         style.white_space_collapse = WhiteSpaceCollapse::Preserve;
         style.text_wrap_mode = TextWrapMode::NoWrap;
-        let spans = self.style_ranges(text, style);
+        let spans = [(0..text.len(), self.with_web_fonts(text, style))];
         let mut builder = self
             .layout
             .style_run_builder(&mut self.context, text, 1.0, false);
