@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use parley::{FontContext, fontique};
 use squark_assets::Resources;
@@ -13,7 +13,7 @@ use style::font_face::{Descriptors, Source};
 use url::Url;
 
 use crate::FaceAttributes;
-use crate::document_fonts::Coverage;
+use crate::document_fonts::{Coverage, FaceSet};
 
 /// Where an `@font-face` rule's `src` finds a font.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -189,35 +189,96 @@ fn checksum(bytes: &[u8]) -> u32 {
     })
 }
 
-enum Fetched {
-    /// Bytes that look like a font, not yet decoded.
-    Raw(Arc<[u8]>),
-    Decoded(fontique::Blob<u8>),
+/// A `src` URL's bytes. A font is decoded the first time it is used, and
+/// clones share the decoded font, so text layout and the font metrics
+/// provider decode a face once.
+#[derive(Clone)]
+pub(crate) enum Fetched {
+    /// Bytes that look like a font.
+    Font(Arc<LazyFont>),
     Invalid,
+}
+
+pub(crate) struct LazyFont {
+    bytes: Arc<[u8]>,
+    decoded: OnceLock<Option<fontique::Blob<u8>>>,
 }
 
 impl Fetched {
     fn new(bytes: &[u8]) -> Self {
         const MAGIC: [&[u8; 4]; 5] = [b"wOF2", b"\0\x01\0\0", b"OTTO", b"true", b"ttcf"];
         if MAGIC.iter().any(|magic| bytes.starts_with(*magic)) {
-            Self::Raw(Arc::from(bytes))
+            Self::Font(Arc::new(LazyFont {
+                bytes: Arc::from(bytes),
+                decoded: OnceLock::new(),
+            }))
         } else {
             Self::Invalid
         }
     }
 
-    fn blob(&mut self) -> Option<fontique::Blob<u8>> {
-        if let Self::Raw(bytes) = self {
-            *self = match crate::decode_font(bytes) {
-                Some(font) => Self::Decoded(fontique::Blob::new(Arc::new(font))),
-                None => Self::Invalid,
-            };
-        }
+    pub(crate) fn blob(&self) -> Option<fontique::Blob<u8>> {
         match self {
-            Self::Decoded(blob) => Some(blob.clone()),
-            _ => None,
+            Self::Font(font) => font
+                .decoded
+                .get_or_init(|| {
+                    crate::decode_font(&font.bytes).map(|font| fontique::Blob::new(Arc::new(font)))
+                })
+                .clone(),
+            Self::Invalid => None,
         }
     }
+
+    /// Whether the bytes may still turn out to be a font.
+    fn usable(&self) -> bool {
+        match self {
+            Self::Font(font) => font.decoded.get().is_none_or(Option::is_some),
+            Self::Invalid => false,
+        }
+    }
+
+    fn decoded_id(&self) -> Option<u64> {
+        match self {
+            Self::Font(font) => font.decoded.get()?.as_ref().map(fontique::Blob::id),
+            Self::Invalid => None,
+        }
+    }
+}
+
+/// Fetches each face's sources up to the first one that looks like a font.
+/// Bytes already fetched or decoded for a URL carry over.
+pub(crate) fn fetch(
+    resources: Resources<'_>,
+    faces: &[WebFont],
+    previous: &HashMap<Url, Fetched>,
+) -> HashMap<Url, Fetched> {
+    let mut fetched = HashMap::new();
+    for face in faces {
+        for source in &face.sources {
+            let FaceSource::Url(url) = source else {
+                continue;
+            };
+            if let Some(entry) = fetched.get(url) {
+                if Fetched::usable(entry) {
+                    break;
+                }
+                continue;
+            }
+            let entry = match previous.get(url) {
+                Some(entry) => entry.clone(),
+                None => match resources.get(url) {
+                    Some(resource) => Fetched::new(&resource.bytes),
+                    None => continue,
+                },
+            };
+            let usable = entry.usable();
+            fetched.insert(url.clone(), entry);
+            if usable {
+                break;
+            }
+        }
+    }
+    fetched
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -227,12 +288,10 @@ enum Load {
     Failed,
 }
 
-/// Load state for the faces in `Fonts::faces`, in the same order.
+/// Load state for the rule faces of a `FaceSet`, in the same order.
 #[derive(Default)]
 pub(crate) struct WebFaces {
     loads: Vec<Load>,
-    coverage: Vec<Coverage>,
-    fetched: HashMap<Url, Fetched>,
     installed: HashMap<String, Option<fontique::Blob<u8>>>,
     /// Fonts with restricted cmaps, by source font and coverage. Reusing
     /// them across rule set changes keeps font instances, and the glyphs
@@ -241,77 +300,33 @@ pub(crate) struct WebFaces {
 }
 
 impl WebFaces {
-    /// Fetches each face's sources up to the first one that looks like a
-    /// font. Bytes already fetched or decoded for a URL carry over.
-    pub(crate) fn sync(
-        &mut self,
-        resources: Resources<'_>,
-        faces: &[WebFont],
-        coverage: Vec<Coverage>,
-    ) {
-        let mut previous = std::mem::take(&mut self.fetched);
-        for face in faces {
-            for source in &face.sources {
-                let FaceSource::Url(url) = source else {
-                    continue;
-                };
-                if let Some(fetched) = self.fetched.get(url) {
-                    if !matches!(fetched, Fetched::Invalid) {
-                        break;
-                    }
-                    continue;
-                }
-                let fetched = match previous.remove(url) {
-                    Some(fetched) => fetched,
-                    None => match resources.get(url) {
-                        Some(resource) => Fetched::new(&resource.bytes),
-                        None => continue,
-                    },
-                };
-                let usable = !matches!(fetched, Fetched::Invalid);
-                self.fetched.insert(url.clone(), fetched);
-                if usable {
-                    break;
-                }
-            }
-        }
-        self.loads = vec![Load::Unloaded; faces.len()];
-        self.coverage = coverage;
-        let sources: std::collections::HashSet<u64> = self
+    /// Starts over for a new rule set, keeping the restricted fonts whose
+    /// sources it still uses.
+    pub(crate) fn sync(&mut self, set: &FaceSet) {
+        self.loads = vec![Load::Unloaded; set.rules.len()];
+        let sources: std::collections::HashSet<u64> = set
             .fetched
             .values()
-            .filter_map(|fetched| match fetched {
-                Fetched::Decoded(blob) => Some(blob.id()),
-                _ => None,
-            })
+            .filter_map(Fetched::decoded_id)
             .chain(self.installed.values().flatten().map(fontique::Blob::id))
             .collect();
         self.restricted
             .retain(|(source, _), _| sources.contains(source));
     }
 
-    /// The characters the face renders.
-    pub(crate) fn coverage(&self, index: usize) -> &[RangeInclusive<u32>] {
-        &self.coverage[index]
-    }
-
     /// Registers the face from its first source that decodes, once.
-    pub(crate) fn load(
-        &mut self,
-        index: usize,
-        faces: &[WebFont],
-        context: &mut FontContext,
-    ) -> bool {
+    pub(crate) fn load(&mut self, index: usize, set: &FaceSet, context: &mut FontContext) -> bool {
         match self.loads[index] {
             Load::Loaded => return true,
             Load::Failed => return false,
             Load::Unloaded => {}
         }
-        let face = &faces[index];
+        let face = &set.rules[index];
         let family = alias(index);
+        let coverage = &set.rule_coverage[index];
         let loaded = face.sources.iter().any(|source| {
             let blob = match source {
-                FaceSource::Url(url) => self.fetched.get_mut(url).and_then(Fetched::blob),
+                FaceSource::Url(url) => set.fetched.get(url).and_then(Fetched::blob),
                 FaceSource::Local(name) => self
                     .installed
                     .entry(name.to_lowercase())
@@ -319,7 +334,6 @@ impl WebFaces {
                     .clone(),
             };
             blob.is_some_and(|blob| {
-                let coverage = &self.coverage[index];
                 let blob = self
                     .restricted
                     .entry((blob.id(), coverage.clone()))
@@ -338,7 +352,7 @@ impl WebFaces {
 /// which holds for the names fonts give themselves. A font inside a
 /// collection file is skipped: its family alias would cover every font in
 /// the file.
-fn installed(context: &mut FontContext, name: &str) -> Option<fontique::Blob<u8>> {
+pub(crate) fn installed(context: &mut FontContext, name: &str) -> Option<fontique::Blob<u8>> {
     use skrifa::{MetadataProvider, raw::FileRef, string::StringId};
     let wanted = name.trim().to_lowercase();
     let compact = |name: &str| {

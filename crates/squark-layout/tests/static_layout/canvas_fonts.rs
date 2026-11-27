@@ -1126,3 +1126,47 @@ fn canvas_text_and_measure_text_start_unloaded_document_fonts() {
     assert_eq!(engine.take_font_load_starts(), [FaceId(2)]);
     assert!(engine.take_font_load_starts().is_empty());
 }
+
+#[test]
+fn resolves_font_relative_units_against_the_primary_web_font() {
+    let sans: &[u8] = include_bytes!(
+        "../../../../tests/reftests/cases/r1/_assets/fonts/LiberationSans-Regular.woff2"
+    );
+    let mut fixture = Fixture::new(
+        "@font-face { font-family: Sans; src: url(/sans.woff2) }
+         html { font: 16px Sans, serif } body { margin: 0; font-size: 13px }
+         div { height: 1px }
+         #ch { width: 34ch } #ex { width: 10ex } #cap { width: 10cap }
+         #ic { width: 10ic } #rch { width: 10rch }
+         #late { font-family: 'Late Face', Sans; width: 10ch }",
+    );
+    let ids = ["ch", "ex", "cap", "ic", "rch", "late"]
+        .map(|id| fixture.element(BODY, "div", &[("id", id)]));
+    let pack = fixture.pack_with_assets(&[("/sans.woff2", 5, sans)]);
+    let (send, _updates) = resource_channel();
+    let mut engine =
+        StaticDocument::from_pack(&pack, "https://example.test/".parse().unwrap(), send).unwrap();
+    engine.update_layout(&input()).unwrap();
+    let widths = |engine: &StaticDocument<'_>| {
+        ids.map(|id| super::find(engine.snapshot().0, id).border_box.size.width)
+    };
+    // Chromium 159 with Liberation Sans at 13px, the root at 16px. `ic`
+    // falls back to 1em without a 水 glyph.
+    let chromium = [245.8125, 68.671875, 89.4375, 130.0, 88.96875, 72.296875];
+    for (width, chromium) in widths(&engine).into_iter().zip(chromium) {
+        assert!((width - chromium).abs() < 0.02, "{width} vs {chromium}");
+    }
+    // A face that loads later becomes the primary font, and the styles
+    // that resolved against the fallback compute again.
+    define(
+        &mut engine,
+        1,
+        "Late Face",
+        json!({"source":{"bufferId":1}}),
+        Some(WOFF2),
+    );
+    await_font(&mut engine, 1);
+    engine.update_layout(&input()).unwrap();
+    let late = widths(&engine)[5];
+    assert!((late - 78.0).abs() < 0.02, "{late}");
+}

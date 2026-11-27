@@ -80,7 +80,12 @@ pub struct Cascade<'a> {
     device_changed: bool,
     preferences: media::Preferences,
     preferences_changed: bool,
+    font_metrics: Option<MetricsProvider>,
 }
+
+/// The provider Stylo asks for the metrics of the primary font, which
+/// font-relative units (`ex`, `ch`, `cap`, `ic`) resolve against.
+pub type MetricsProvider = std::sync::Arc<dyn FontMetricsProvider + Send>;
 
 impl std::fmt::Debug for Cascade<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -144,7 +149,7 @@ impl<'a> Cascade<'a> {
 
         let mut media = media;
         media.quirks_mode = quirks;
-        let mut stylist = Stylist::new(device(media.clone()), quirks);
+        let mut stylist = Stylist::new(device(media.clone(), None), quirks);
         let ua = Source {
             css: include_str!("ua.css").into(),
             media: String::new(),
@@ -173,6 +178,7 @@ impl<'a> Cascade<'a> {
                 device_changed: false,
                 preferences: Default::default(),
                 preferences_changed: false,
+                font_metrics: None,
             },
         ))
     }
@@ -218,6 +224,30 @@ impl<'a> Cascade<'a> {
 
     pub fn sample_animations(&mut self, document: &mut Document) {
         document.restyle(&mut self.stylist, &self.document_url.clone().into());
+    }
+
+    /// Resolves font-relative units against `provider` from the next
+    /// update on. Without one they use the CSS fallbacks, such as 0.5em
+    /// for `ch` and `ex`.
+    pub fn set_font_metrics(&mut self, document: &Document, provider: MetricsProvider) {
+        self.font_metrics = Some(provider);
+        let guard = document.style_lock().read();
+        let guards = StylesheetGuards {
+            author: &guard,
+            ua_or_user: &guard,
+        };
+        let affected = self.stylist.set_device(
+            device(self.media.clone(), self.font_metrics.clone()),
+            &guards,
+        );
+        self.stylist.force_stylesheet_origins_dirty(affected);
+        self.device_changed = true;
+    }
+
+    /// The primary fonts behind font-relative units changed, as when a web
+    /// font loads: the next update computes every style again.
+    pub fn invalidate_font_metrics(&mut self) {
+        self.device_changed = true;
     }
 
     pub fn set_preferences(&mut self, state: &MediaState) -> bool {
@@ -266,7 +296,9 @@ impl<'a> Cascade<'a> {
             author: &guard,
             ua_or_user: &guard,
         };
-        let affected = self.stylist.set_device(device(media.clone()), &guards);
+        let affected = self
+            .stylist
+            .set_device(device(media.clone(), self.font_metrics.clone()), &guards);
         self.stylist.force_stylesheet_origins_dirty(affected);
         self.media = media;
         self.device_changed = true;
@@ -840,13 +872,37 @@ pub fn screen(width: f32, height: f32, scale: f32) -> MediaData {
     }
 }
 
-fn device(media: MediaData) -> Device {
+fn device(media: MediaData, font_metrics: Option<MetricsProvider>) -> Device {
+    let provider: Box<dyn FontMetricsProvider> = match font_metrics {
+        Some(provider) => Box::new(SharedFontMetrics(provider)),
+        None => Box::new(DefaultFontMetrics),
+    };
     Device::new(
         ComputedValues::initial_values_with_font_override(Font::initial_values()),
-        Box::new(DefaultFontMetrics),
+        provider,
         "Submit".into(),
         media,
     )
+}
+
+/// Each device the cascade creates asks the same provider.
+#[derive(Debug)]
+struct SharedFontMetrics(MetricsProvider);
+
+impl FontMetricsProvider for SharedFontMetrics {
+    fn query_font_metrics(
+        &self,
+        vertical: bool,
+        font: &Font,
+        base_size: CSSPixelLength,
+        flags: QueryFontMetricsFlags,
+    ) -> FontMetrics {
+        self.0.query_font_metrics(vertical, font, base_size, flags)
+    }
+
+    fn base_size_for_generic(&self, family: GenericFontFamily) -> Length {
+        self.0.base_size_for_generic(family)
+    }
 }
 
 #[derive(Debug)]
