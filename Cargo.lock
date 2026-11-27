@@ -4017,6 +4017,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "squark-tauri"
+version = "0.1.0"
+dependencies = [
+ "http",
+ "serde",
+ "serde_json",
+ "squark-native",
+ "squark-tauri-macros",
+ "squark-types",
+ "tokio",
+]
+
+[[package]]
+name = "squark-tauri-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "squark-text"
 version = "0.1.0"
 dependencies = [

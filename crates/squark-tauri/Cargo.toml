@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: MIT
+[package]
+name = "squark-tauri"
+description = "Optional Tauri 2 compatibility for Strange Quark native modules: Tauri's backend API over squark-native"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+http = "1"
+serde = "1"
+squark-native = { version = "=0.1.0", path = "../squark-native" }
+squark-tauri-macros = { version = "=0.1.0", path = "../squark-tauri-macros" }
+tokio = { version = "1", features = ["rt"] }
+
+[dev-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+squark-types.workspace = true
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+
+[lints]
+workspace = true
