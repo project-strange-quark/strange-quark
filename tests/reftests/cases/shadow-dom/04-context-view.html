@@ -1,0 +1,67 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>A context menu built like Monaco's context view inside a shadow root</title>
+  <style>
+    html, body { margin: 0; background: #1e1e1e; }
+    .editor { position: relative; margin: 20px; width: 340px; height: 240px; background: #252526; overflow: hidden; }
+    .line { height: 18px; margin: 4px 12px; background: #3c3c3c; }
+    .action-item { background: #ff0000; }
+  </style>
+</head>
+<body>
+  <div class="editor">
+    <div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div>
+    <div class="context-view-container"></div>
+  </div>
+  <script>
+    // Monaco 0.56's ContextView with useShadowDOM: a host element, an open
+    // shadow root with its stylesheet, the fixed view, and a default slot.
+    const container = document.querySelector(".context-view-container");
+    const shadowRootHostElement = document.createElement("div");
+    shadowRootHostElement.className = "shadow-root-host";
+    container.appendChild(shadowRootHostElement);
+    const shadowRoot = shadowRootHostElement.attachShadow({ mode: "open" });
+    const style = document.createElement("style");
+    style.textContent = `
+      :host { all: initial; }
+      .context-view { position: fixed; z-index: 2575; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); }
+      .monaco-menu { padding: 4px 0; background: #303031; border: 1px solid #454545; border-radius: 5px; }
+      .action-item { display: flex; height: 22px; margin: 0 4px; border-radius: 3px; align-items: center; }
+      .action-item.focused { background: #04395e; outline: 1px solid #007fd4; outline-offset: -1px; }
+      .action-label { width: 90px; height: 6px; margin-left: 20px; background: #cccccc; }
+      .keybinding { width: 30px; height: 6px; margin-left: auto; margin-right: 10px; background: #8b8b8b; }
+      .separator { height: 1px; margin: 5px 10px; background: #454545; }`;
+    shadowRoot.appendChild(style);
+    const view = document.createElement("div");
+    view.className = "context-view";
+    shadowRoot.appendChild(view);
+    shadowRoot.appendChild(document.createElement("slot"));
+
+    const menu = view.appendChild(document.createElement("div"));
+    menu.className = "monaco-menu";
+    for (const [label, separator] of [["Go to Definition"], ["Peek"], ["Change All Occurrences", true], ["Cut"], ["Copy"]]) {
+      if (separator) menu.appendChild(document.createElement("div")).className = "separator";
+      const item = menu.appendChild(document.createElement("div"));
+      item.className = "action-item";
+      item.setAttribute("aria-label", label);
+      item.appendChild(document.createElement("span")).className = "action-label";
+      item.appendChild(document.createElement("span")).className = "keybinding";
+    }
+    view.style.left = "120px";
+    view.style.top = "60px";
+    view.style.width = "200px";
+    // Hovering an item focuses it; the document sees the host as the target.
+    menu.addEventListener("mouseover", event => {
+      for (const item of menu.querySelectorAll(".action-item")) item.classList.toggle("focused", item === event.target.closest(".action-item"));
+    });
+    const second = menu.querySelectorAll(".action-item")[1];
+    second.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, composed: true }));
+    document.addEventListener("mouseover", event => { if (event.target !== shadowRootHostElement) document.body.style.background = "red"; });
+    second.firstChild.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, composed: true }));
+  </script>
+</body>
+</html>

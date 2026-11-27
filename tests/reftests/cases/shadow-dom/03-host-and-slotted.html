@@ -1,0 +1,34 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>:host, :host() and ::slotted(), with slotted nodes inheriting from their slot</title>
+  <style>
+    html, body { margin: 0; background: #ffffff; }
+    x-badge { margin: 12px; color: #dc2626; }
+    x-badge.loud { background: #fef3c7; }
+    .item { height: 20px; border-left: 20px solid currentColor; }
+  </style>
+</head>
+<body>
+  <x-badge><div class="item"></div><div class="item special"></div></x-badge>
+  <x-badge class="loud"><div class="item"></div></x-badge>
+  <script>
+    for (const host of document.querySelectorAll("x-badge")) {
+      const root = host.attachShadow({ mode: "open" });
+      const style = root.appendChild(document.createElement("style"));
+      style.textContent = `
+        :host { display: block; width: 240px; padding: 6px; border: 3px solid #1e293b; }
+        :host(.loud) { width: 320px; border-color: #b45309; }
+        .well { color: #2563eb; background: #e0e7ff; padding: 4px; }
+        ::slotted(.item) { margin: 4px 0; background: #bfdbfe; }
+        ::slotted(.special) { width: 100px; }`;
+      const well = root.appendChild(document.createElement("div"));
+      well.className = "well";
+      well.appendChild(document.createElement("slot"));
+    }
+  </script>
+</body>
+</html>
