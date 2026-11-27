@@ -953,6 +953,7 @@ mod tests {
             crate::services::ClipboardMode::Memory(crate::services::MemoryClipboard::default()),
             crate::services::FileDialogMode::Queued(crate::services::FileDialogQueue::default()),
             crate::services::FullscreenMode::Recorded(Default::default()),
+                    crate::native::RecordedWindow::default().sink(),
         )
         .unwrap();
         let mut runner = crate::document::runner(
@@ -962,6 +963,7 @@ mod tests {
                 resources,
                 host_requests: host_service.sender(),
                 canvas: None,
+                native: None,
             },
             first,
             false,

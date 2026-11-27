@@ -9,13 +9,16 @@ mod fullscreen;
 mod headless;
 mod ime;
 mod input;
+mod native;
 mod pipeline;
+mod runtime;
 mod services;
 mod timeline;
 mod wheel;
 mod window;
 
 pub use headless::run_headless_control;
+pub use runtime::runtime_main;
 pub use window::{WindowRequest, run_window};
 
 use std::{
@@ -40,6 +43,26 @@ use squark_types::{
 
 pub type Png = Vec<u8>;
 
+static EXIT_CODE: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
+
+/// The exit code a page or module asked for with `exit(code)`.
+pub fn requested_exit_code() -> i32 {
+    EXIT_CODE.load(std::sync::atomic::Ordering::Acquire)
+}
+
+pub(crate) fn request_exit_code(code: i32) {
+    EXIT_CODE.store(code, std::sync::atomic::Ordering::Release);
+}
+
+/// Start this executable again with the same arguments; the caller exits.
+pub(crate) fn relaunch() -> std::io::Result<()> {
+    let exe = std::env::current_exe()?;
+    std::process::Command::new(exe)
+        .args(std::env::args_os().skip(1))
+        .spawn()
+        .map(drop)
+}
+
 /// Initialize the runtime's process-relative monotonic clock at entry.
 pub fn process_start() -> Instant {
     static START: OnceLock<Instant> = OnceLock::new();
@@ -55,6 +78,9 @@ pub struct ScreenshotRequest {
     pub height: u32,
     pub dpr: f64,
     pub gpu_adapter: GpuAdapter,
+    /// An app runtime's native modules. Headless test-control runs start
+    /// them; a single-frame screenshot does not.
+    pub native: Option<Arc<dyn squark_types::native::NativeDispatcher>>,
 }
 
 /// Run the packed document's initial frame without a window system.
@@ -81,6 +107,7 @@ pub fn render_headless(request: ScreenshotRequest) -> Result<Png, HostError> {
                     ClipboardMode::Memory(MemoryClipboard::default()),
                     FileDialogMode::Queued(FileDialogQueue::default()),
                     services::FullscreenMode::Recorded(Default::default()),
+                    crate::native::RecordedWindow::default().sink(),
                 )?;
                 let result = (|| {
                     let mut runner = document::runner(
@@ -90,6 +117,7 @@ pub fn render_headless(request: ScreenshotRequest) -> Result<Png, HostError> {
                             resources: document.resources,
                             host_requests: host_service.sender(),
                             canvas: document.canvas,
+                            native: None,
                         },
                         InitialViewport {
                             tick,

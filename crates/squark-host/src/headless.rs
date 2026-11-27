@@ -15,6 +15,7 @@ use squark_js::{DocumentShutdown, document::DocumentTask};
 use squark_types::render::{FrameId, Viewport};
 
 use crate::{
+    native::{NativeRuntime, RecordedWindow},
     HostError, ScreenshotRequest,
     canvas::ReadCanvas,
     clock::{DEFAULT_REFRESH, FrameClock, FrameWake},
@@ -58,6 +59,8 @@ pub fn run_headless_control(request: ScreenshotRequest, socket: &Path) -> Result
     let service_file_dialogs = file_dialogs.clone();
     let fullscreen = RecordedFullscreen::default();
     let service_fullscreen = fullscreen.clone();
+    let recorded_window = RecordedWindow::default();
+    let native = request.native.clone();
     let signal = submit.clone();
     let (wake, demand) = FrameWake::pair(move || {
         let _ = signal.send(Event::Demand);
@@ -81,6 +84,8 @@ pub fn run_headless_control(request: ScreenshotRequest, socket: &Path) -> Result
                         clipboard: ClipboardMode::Memory(service_clipboard),
                         file_dialogs: FileDialogMode::Queued(service_file_dialogs),
                         fullscreen: FullscreenMode::Recorded(service_fullscreen),
+                        window: recorded_window.sink(),
+                        native: native.map(|dispatcher| NativeRuntime { dispatcher }),
                     },
                     crate::document::DocumentControl {
                         frame_demand: demand,

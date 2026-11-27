@@ -21,7 +21,7 @@ use squark_js::document::DocumentTask;
 use squark_types::host::{ClipboardItem, FileHandle, HostError, HostRequest, HostValue};
 use url::Url;
 
-use crate::failure;
+use crate::{failure, native::WindowSink};
 
 pub(crate) struct HostService {
     requests: Option<mpsc::Sender<HostRequest>>,
@@ -34,6 +34,7 @@ impl HostService {
         clipboard: ClipboardMode,
         file_dialogs: FileDialogMode,
         fullscreen: FullscreenMode,
+        window: WindowSink,
     ) -> Result<Self, HostError> {
         let (sender, receiver) = mpsc::channel();
         let worker = thread::Builder::new()
@@ -45,6 +46,7 @@ impl HostService {
                     clipboard.backend(),
                     file_dialogs.backend(),
                     fullscreen,
+                    window,
                 )
             })
             .map_err(|error| failure("ThreadError", error))?;
@@ -150,7 +152,7 @@ impl FileDialogQueue {
         }
     }
 
-    fn pop(&self, kind: FileDialogKind) -> Option<PathBuf> {
+    pub(crate) fn pop(&self, kind: FileDialogKind) -> Option<PathBuf> {
         let mut paths = self.0.lock().unwrap();
         match kind {
             FileDialogKind::Open => paths.open.pop_front(),
@@ -470,9 +472,19 @@ fn serve(
     mut clipboard: Box<dyn ClipboardBackend>,
     mut file_dialogs: Box<dyn FileDialogBackend>,
     fullscreen: FullscreenMode,
+    window: WindowSink,
 ) {
     while let Ok(request) = requests.recv() {
         let (request, result) = match (request, &fullscreen) {
+            (HostRequest::Window { id, op }, _) => {
+                // The event loop applies it; the page does not wait for the
+                // window system.
+                if window(op) {
+                    (id, Ok(HostValue::Done))
+                } else {
+                    (id, Err(failure("WindowError", "the window has closed")))
+                }
+            }
             (HostRequest::Fullscreen { id, enter }, FullscreenMode::Window(forward)) => {
                 // The winit window lives on the event-loop thread, which replies.
                 if forward(id, enter) {
@@ -517,17 +529,19 @@ fn handle(
             mime,
             bytes,
         } => (id, file_dialogs.save(&suggested_name, &mime, &bytes)),
-        HostRequest::Fullscreen { id, .. } => (
+        HostRequest::Fullscreen { id, .. } | HostRequest::Window { id, .. } => (
             id,
-            Err(failure(
-                "WindowError",
-                "fullscreen is handled by the window",
-            )),
+            Err(failure("WindowError", "window requests are handled by the window")),
         ),
     }
 }
 
 fn open_external(url: &str) -> Result<HostValue, HostError> {
+    open_external_url(url).map(|()| HostValue::Done)
+}
+
+/// Opens an http, https or mailto URL with the system's handler.
+pub(crate) fn open_external_url(url: &str) -> Result<(), HostError> {
     let url = parse_external_url(url)?;
     let command = external_open_command(std::env::var_os("SQUARK_OPEN_EXTERNAL_COMMAND"));
     let child = Command::new(command)
@@ -540,7 +554,7 @@ fn open_external(url: &str) -> Result<HostValue, HostError> {
             )
         })?;
     reap(child);
-    Ok(HostValue::Done)
+    Ok(())
 }
 
 fn external_open_command(override_command: Option<OsString>) -> OsString {

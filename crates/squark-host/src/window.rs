@@ -16,6 +16,7 @@ use squark_gpu::{StaticWindowRenderer, WindowSurface};
 use squark_js::{DocumentShutdown, document::DocumentTask};
 use squark_paint::HitSnapshot;
 use squark_types::{
+    native::{CloseRequest, NativeDispatcher, WindowOp},
     Size,
     host::{HostValue, Input, InputTask},
     render::{FrameId, FrameTick, Viewport},
@@ -29,6 +30,7 @@ use winit::{
 };
 
 use crate::{
+    native::{NativeRuntime, WindowSink},
     GpuAdapter, HostError,
     canvas::PendingCanvasRequests,
     clock::{DEFAULT_REFRESH, FrameClock, FrameWake, TickChannel},
@@ -58,6 +60,8 @@ pub struct WindowRequest {
     pub gpu_adapter: GpuAdapter,
     pub exit_after_first_frame: bool,
     pub test_control: Option<PathBuf>,
+    /// An app runtime's native modules.
+    pub native: Option<Arc<dyn NativeDispatcher>>,
 }
 
 pub fn run_window(request: WindowRequest) -> Result<(), HostError> {
@@ -70,7 +74,13 @@ pub fn run_window(request: WindowRequest) -> Result<(), HostError> {
         .build()
         .map_err(|error| failure("WindowError", error))?;
     drop(setup_start);
+    let native = request
+        .native
+        .clone()
+        .map(|dispatcher| NativeRuntime { dispatcher });
     let mut app = App {
+        native,
+        zoom: 1.0,
         proxy: events.create_proxy(),
         clipboard: MemoryClipboard::default(),
         file_dialogs: FileDialogQueue::default(),
@@ -162,6 +172,7 @@ enum Event {
     Presented,
     ImeArea(Option<CursorArea>),
     Fullscreen { id: u32, enter: bool },
+    Window(WindowOp),
     Control(Call),
     Failed(HostError),
 }
@@ -226,6 +237,9 @@ impl ViewportState {
 }
 
 struct App {
+    native: Option<NativeRuntime>,
+    /// Page zoom, applied on top of the window's scale factor.
+    zoom: f64,
     proxy: EventLoopProxy<Event>,
     request: WindowRequest,
     pack: Arc<Pack>,
@@ -268,6 +282,7 @@ impl App {
             window.clone(),
             Arc::clone(&self.pack),
             &self.request,
+            self.native.clone(),
             &self.proxy,
             ControlStores {
                 clipboard: self.clipboard.clone(),
@@ -282,7 +297,7 @@ impl App {
     }
 
     fn resize(&mut self, size: PhysicalSize<u32>, scale: f64) {
-        if let Some(command) = self.viewport.update(size, scale) {
+        if let Some(command) = self.viewport.update(size, scale * self.zoom) {
             self.send(command);
         }
         let fullscreen = self
@@ -314,6 +329,36 @@ impl App {
                 request: id,
                 result,
             });
+        }
+    }
+
+    /// A page or module window operation, on the event-loop thread.
+    fn window_op(&mut self, events: &ActiveEventLoop, op: WindowOp) {
+        match op {
+            WindowOp::SetTitle(title) => {
+                if let Some(window) = &self.window {
+                    window.set_title(&title);
+                }
+            }
+            WindowOp::SetZoom(zoom) => {
+                // Browsers clamp zoom to 25%..500%.
+                self.zoom = zoom.clamp(0.25, 5.0);
+                if let Some(window) = self.window.clone() {
+                    self.resize(window.inner_size(), window.scale_factor());
+                }
+            }
+            WindowOp::Close => events.exit(),
+            WindowOp::Exit(code) => {
+                crate::request_exit_code(code);
+                events.exit();
+            }
+            WindowOp::Relaunch => {
+                if let Err(error) = crate::relaunch() {
+                    eprintln!("squark-runtime: could not relaunch: {error}");
+                    return;
+                }
+                events.exit();
+            }
         }
     }
 
@@ -568,7 +613,15 @@ impl ApplicationHandler<Event> for App {
         }
         let window = self.window.as_ref().unwrap();
         match event {
-            WindowEvent::CloseRequested => events.exit(),
+            WindowEvent::CloseRequested => {
+                let prevent = self
+                    .native
+                    .as_ref()
+                    .is_some_and(|native| native.dispatcher.close_requested() == CloseRequest::Prevent);
+                if !prevent {
+                    events.exit();
+                }
+            }
             WindowEvent::Resized(size) => self.resize(size, window.scale_factor()),
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.resize(window.inner_size(), scale_factor)
@@ -629,6 +682,7 @@ impl ApplicationHandler<Event> for App {
             Event::Presented => self.refresh_cursor(),
             Event::ImeArea(area) => self.ime_area(area),
             Event::Fullscreen { id, enter } => self.set_fullscreen(id, enter),
+            Event::Window(op) => self.window_op(events, op),
             Event::Control(call) => self.control(events, call),
             Event::RequestRedraw(_) => {}
             Event::Failed(error) => {
@@ -735,6 +789,7 @@ impl Threads {
         window: Arc<Window>,
         pack: Arc<Pack>,
         request: &WindowRequest,
+        native: Option<NativeRuntime>,
         proxy: &EventLoopProxy<Event>,
         stores: ControlStores,
         system: WindowSystem,
@@ -790,6 +845,9 @@ impl Threads {
                 proxy.send_event(Event::Fullscreen { id, enter }).is_ok()
             }))
         };
+        let window_proxy = proxy.clone();
+        let window_sink: WindowSink =
+            Arc::new(move |op| window_proxy.send_event(Event::Window(op)).is_ok());
         let replies = commands.clone();
         let wake_tasks = tasks.clone();
         let document_shutdown = shutdown.clone();
@@ -803,6 +861,8 @@ impl Threads {
                     clipboard,
                     file_dialogs,
                     fullscreen,
+                    window: window_sink,
+                    native,
                 },
                 DocumentControl {
                     frame_demand: demand,
@@ -1384,6 +1444,7 @@ mod tests {
             gpu_adapter: GpuAdapter::Auto,
             exit_after_first_frame: false,
             test_control: None,
+            native: None,
         };
         let legacy = WindowSettings::load(None, &request).unwrap();
         assert_eq!(legacy.title, "squark-runtime");

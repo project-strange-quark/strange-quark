@@ -24,7 +24,11 @@ use squark_types::{
 use url::Url;
 use winit::window::Theme;
 
-use crate::services::{ClipboardMode, FileDialogMode, FullscreenMode, HostService};
+use crate::{
+    native::{ModuleDialogs, NativeRuntime, WindowSink},
+    services::{ClipboardMode, FileDialogMode, FullscreenMode, HostService},
+};
+use squark_types::native::NativeDispatcher;
 use crate::{HostError, canvas::PendingCanvasRequests, failure, pipeline::DocumentPipeline};
 
 include!(concat!(env!("OUT_DIR"), "/squark-dom.rs"));
@@ -100,6 +104,7 @@ pub(crate) struct DocumentChannels {
     pub(crate) resources: ResourceSender,
     pub(crate) host_requests: mpsc::Sender<HostRequest>,
     pub(crate) canvas: Option<crate::canvas::Backend>,
+    pub(crate) native: Option<Arc<dyn NativeDispatcher>>,
 }
 
 pub(crate) struct DocumentControl {
@@ -112,6 +117,10 @@ pub(crate) struct HostRuntime {
     pub(crate) clipboard: ClipboardMode,
     pub(crate) file_dialogs: FileDialogMode,
     pub(crate) fullscreen: FullscreenMode,
+    /// Applies page and module window operations.
+    pub(crate) window: WindowSink,
+    /// The app runtime's native modules, if it has any.
+    pub(crate) native: Option<NativeRuntime>,
 }
 
 pub(crate) fn desktop_media(theme: Option<Theme>) -> MediaState {
@@ -208,6 +217,7 @@ pub(crate) fn runner(
         resources,
         host_requests,
         canvas,
+        native,
     } = channels;
     let InitialViewport {
         tick: initial_tick,
@@ -249,6 +259,11 @@ pub(crate) fn runner(
     } else {
         sources
     };
+    let sources = if let Some(native) = native {
+        sources.with_native(native)
+    } else {
+        sources
+    };
     DocumentRunner::new_with_media(
         DocumentOptions {
             url: url.into(),
@@ -287,11 +302,21 @@ pub(crate) fn run_packed(
         return Ok(());
     };
     let startup = squark_gpu::StartupSpan::new("document-bootstrap-and-first-commit");
+    if let Some(native) = &runtime.native {
+        let dialogs = match &runtime.file_dialogs {
+            FileDialogMode::Queued(queue) => ModuleDialogs::Queued(queue.clone()),
+            FileDialogMode::System => ModuleDialogs::System,
+        };
+        let manifest = manifest(&pack).ok().flatten();
+        native.start(runtime.window.clone(), dialogs, manifest.as_ref());
+    }
+    let dispatcher = runtime.native.as_ref().map(|native| Arc::clone(&native.dispatcher));
     let host_service = match HostService::start(
         wake_tasks.clone(),
         runtime.clipboard,
         runtime.file_dialogs,
         runtime.fullscreen,
+        runtime.window,
     ) {
         Ok(service) => service,
         Err(error) => {
@@ -307,6 +332,7 @@ pub(crate) fn run_packed(
             resources: pipeline.resources,
             host_requests: host_service.sender(),
             canvas: pipeline.canvas,
+            native: dispatcher,
         },
         initial,
         runtime.test_control,
@@ -421,6 +447,7 @@ mod tests {
             ClipboardMode::Memory(crate::services::MemoryClipboard::default()),
             FileDialogMode::Queued(crate::services::FileDialogQueue::default()),
             FullscreenMode::Recorded(Default::default()),
+                    crate::native::RecordedWindow::default().sink(),
         )
         .unwrap();
         let mut runner = runner(
@@ -430,6 +457,7 @@ mod tests {
                 resources,
                 host_requests: host_service.sender(),
                 canvas: None,
+                native: None,
             },
             first,
             false,

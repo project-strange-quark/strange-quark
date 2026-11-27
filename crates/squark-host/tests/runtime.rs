@@ -19,6 +19,7 @@ fn request() -> ScreenshotRequest {
         height: 30,
         dpr: 1.5,
         gpu_adapter: GpuAdapter::Auto,
+        native: None,
     }
 }
 
