@@ -7,9 +7,9 @@ import { AtomKind, ElementState, FocusFlags, Journal, NO_STRING, NodeType, Opcod
 import type { JournalAtom } from "./journal.js";
 import {
   aliasEventTarget, CompositionEvent, createLegacyEvent, CustomEvent, defaultPassive, dispatchTrustedEvent, DOMException,
-  ErrorEvent, Event, eventActivation, EventTarget, eventParent, FocusEvent, InputEvent, installWindowEventTarget,
-  KeyboardEvent, listenerFlagsChanged, MouseEvent, observeListenerFlags, PointerEvent, ProgressEvent, SubmitEvent, UIEvent, WheelEvent,
-  Window,
+  ErrorEvent, Event, eventActivation, EventTarget, eventParent, FocusEvent, InputEvent, installShadowTrees, installWindowEventTarget,
+  KeyboardEvent, listenerFlagsChanged, MouseEvent, observeListenerFlags, PointerEvent, ProgressEvent, retarget, SubmitEvent, UIEvent,
+  WheelEvent, Window,
 } from "./events.js";
 import { dataset, DOMTokenList, HTMLCollection, NodeList } from "./collections.js";
 import { reflectedEvent } from "./handlers.js";
@@ -19,7 +19,7 @@ import type { DOMFile } from "./file-list.js";
 import { AbortController, AbortSignal } from "./abort.js";
 import { computedStyle, CSSStyleDeclaration } from "./style.js";
 import { NodeFilter, NodeIterator, nodeIterator, nodeIteratorsBeforeRemove, TreeWalker, treeWalker } from "./tree-walker.js";
-import { MutationObserver, MutationRecord, observeDetachedSubtree, queueMutation } from "./mutation.js";
+import { MutationObserver, MutationRecord, observeDetachedSubtree, queueMutation, signalSlotChange } from "./mutation.js";
 import {
   AbstractRange, createRange, installRangeGeometry, NodeRange, Range, rangesAfterInsert, rangesBeforeRemove, rangesMergeText,
   rangesReplaceData, rangesSplitText, StaticRange,
@@ -33,8 +33,10 @@ import {
 import type { CustomElementDefinition } from "./custom-elements.js";
 
 import {
-  createSheet, CSSRule, CSSRuleList, CSSStyleSheet, detachSheet, styleSheetList, StyleSheetList,
+  createSheet, CSSRule, CSSRuleList, CSSStyleSheet, detachSheet, installConstructedSheets, isConstructed, styleSheetList,
+  StyleSheetList,
 } from "./stylesheet.js";
+import type { Constructed } from "./stylesheet.js";
 
 const HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -67,6 +69,14 @@ type NodeState = {
   templateContent?: true;
   tracked?: TrackedNode;
   attributes?: Map<string, Attribute>;
+  /** A shadow root's host. */
+  host?: Element;
+  /** The shadow root an element hosts. */
+  shadow?: ShadowRoot;
+  /** The slot a slottable is assigned to. */
+  assignedSlot?: HTMLSlotElement | null;
+  /** The slot whose assign() lists this slottable. */
+  manualSlot?: HTMLSlotElement | null;
 };
 const nodes = new WeakMap<Node, NodeState>();
 const noChildren: readonly Node[] = [];
@@ -264,9 +274,9 @@ export class Node extends EventTarget {
     return this instanceof Document || this instanceof Element && this.ownerDocument.body === this;
   }
 
-  override [eventParent](event: Event): EventTarget | null {
+  override [eventParent](event: Event, _origin: EventTarget): EventTarget | null {
     if (this instanceof Document) return event.type === "load" ? null : this.defaultView;
-    return this.parentNode;
+    return nodeState(this).assignedSlot ?? this.parentNode;
   }
 
   get nodeType(): number { return nodeState(this).type; }
@@ -293,7 +303,7 @@ export class Node extends EventTarget {
   get lastChild(): Node | null { return childrenOf(this).at(-1) ?? null; }
   get nextSibling(): Node | null { return sibling(this, 1); }
   get previousSibling(): Node | null { return sibling(this, -1); }
-  get isConnected(): boolean { return this.getRootNode() instanceof Document; }
+  get isConnected(): boolean { return shadowIncludingRoot(this) instanceof Document; }
 
   get childNodes(): NodeList<Node> {
     let list = nodeLists.get(this);
@@ -306,10 +316,8 @@ export class Node extends EventTarget {
 
   hasChildNodes(): boolean { return this.firstChild !== null; }
 
-  getRootNode(_options?: { composed?: boolean }): Node {
-    let root: Node = this;
-    while (root.parentNode !== null) root = root.parentNode;
-    return root;
+  getRootNode(options?: { composed?: boolean } | null): Node {
+    return options?.composed ? shadowIncludingRoot(this) : rootOf(this);
   }
 
   contains(other: Node | null): boolean {
@@ -422,6 +430,7 @@ export class Node extends EventTarget {
   }
 
   cloneNode(deep = false): Node {
+    if (this instanceof ShadowRoot) fail("NotSupportedError", "A shadow root cannot be cloned");
     if (this instanceof Attr) return cloneNodeInto(this, this.ownerDocument, false);
     return cloneNodeInto(this, ownerOf(this), Boolean(deep), !inTemplateContents(this));
   }
@@ -464,6 +473,71 @@ export function* descendants(parent: Node): IterableIterator<Node> {
     const children = childrenOf(node);
     for (let index = children.length - 1; index >= 0; index--) pending.push(children[index]);
   }
+}
+
+/** Shadow-including descendants in shadow-including tree order: a host's shadow root and its tree come before its children. */
+export function* shadowIncludingDescendants(parent: Node): IterableIterator<Node> {
+  const pending: Node[] = [];
+  const push = (node: Node) => {
+    const children = childrenOf(node);
+    for (let index = children.length - 1; index >= 0; index--) pending.push(children[index]);
+    const shadow = nodeState(node).shadow;
+    if (shadow !== undefined) pending.push(shadow);
+  };
+  push(parent);
+  while (pending.length !== 0) {
+    const node = pending.pop()!;
+    yield node;
+    push(node);
+  }
+}
+
+export function rootOf(node: Node): Node {
+  let root = node;
+  for (let parent = nodeState(root).parent; parent !== null; parent = nodeState(root).parent) root = parent;
+  return root;
+}
+
+/** The host of a shadow root, or null for any other node. */
+export function shadowHostOf(node: Node): Element | null {
+  return nodeState(node).host ?? null;
+}
+
+/** The shadow root an element hosts, whatever its mode. */
+export function shadowRootOf(element: Node): ShadowRoot | null {
+  return nodeState(element).shadow ?? null;
+}
+
+export function shadowIncludingRoot(node: Node): Node {
+  let root = rootOf(node);
+  for (let host = nodeState(root).host; host !== undefined; host = nodeState(root).host) root = rootOf(host);
+  return root;
+}
+
+/** The parent, or the host of a shadow root. */
+function composedParent(node: Node): Node | null {
+  return nodeState(node).parent ?? nodeState(node).host ?? null;
+}
+
+export function shadowIncludingContains(ancestor: Node, node: Node): boolean {
+  for (let current: Node | null = node; current !== null; current = composedParent(current)) {
+    if (current === ancestor) return true;
+  }
+  return false;
+}
+
+/** The parent in the flat tree: a slotted node's slot, a shadow root's host, or the parent. */
+export function flatTreeParent(node: Node): Node | null {
+  const state = nodeState(node);
+  return state.assignedSlot ?? state.parent ?? state.host ?? null;
+}
+
+/** Whether `ancestor` is a flat tree inclusive ancestor of `node`. */
+export function flatTreeContains(ancestor: Node, node: Node): boolean {
+  for (let current: Node | null = node; current !== null; current = flatTreeParent(current)) {
+    if (current === ancestor) return true;
+  }
+  return false;
 }
 
 abstract class ParentNode extends Node {
@@ -623,6 +697,8 @@ export class Text extends CharacterData {
     return split;
   }
 
+  get assignedSlot(): HTMLSlotElement | null { return findSlot(this, true); }
+
   get wholeText(): string {
     let first: Text = this;
     while (first.previousSibling instanceof Text) first = first.previousSibling;
@@ -671,6 +747,153 @@ export class DocumentFragment extends ParentNode {
   }
 
   getElementById(id: string): Element | null { return byId(this, String(id)); }
+}
+
+type ShadowRootMode = "open" | "closed";
+type SlotAssignmentMode = "named" | "manual";
+type ShadowRootInit = {
+  mode: ShadowRootMode; delegatesFocus: boolean; slotAssignment: SlotAssignmentMode; clonable: boolean; serializable: boolean;
+};
+type ShadowRootState = ShadowRootInit & {
+  host: Element;
+  declarative: boolean;
+  /** The shadow tree's slots in tree order, until a slot is inserted or removed. */
+  slots?: HTMLSlotElement[];
+  adopted: AdoptedSheets;
+  styleSheets?: StyleSheetList;
+};
+const shadowStates = new WeakMap<ShadowRoot, ShadowRootState>();
+const shadowToken = Symbol("ShadowRoot constructor");
+
+function shadowState(root: ShadowRoot): ShadowRootState { return shadowStates.get(root)!; }
+
+/** A shadow tree's root: a document fragment that its host renders. */
+export class ShadowRoot extends DocumentFragment {
+  constructor(token: symbol, host: Element, init: ShadowRootInit) {
+    if (token !== shadowToken) throw new TypeError("Illegal constructor");
+    const owner = host.ownerDocument;
+    const id = allocate(owner);
+    super(owner, id);
+    const state = nodeState(this);
+    state.host = host;
+    nodeState(host).shadow = this;
+    // The engine creates the root and links it to its host in one record.
+    journalFor(this)?.record(Opcode.AttachShadow, id, nodeId(host), 0);
+    // A shadow root and its host are released together.
+    if (state.tracked !== undefined) state.tracked.parent = nodeState(host).id;
+    shadowStates.set(this, { ...init, host, declarative: false, adopted: adoptedSheets(this) });
+  }
+
+  get host(): Element { return shadowState(this).host; }
+  get mode(): ShadowRootMode { return shadowState(this).mode; }
+  get delegatesFocus(): boolean { return shadowState(this).delegatesFocus; }
+  get slotAssignment(): SlotAssignmentMode { return shadowState(this).slotAssignment; }
+  get clonable(): boolean { return shadowState(this).clonable; }
+  get serializable(): boolean { return shadowState(this).serializable; }
+
+  override [eventParent](event: Event, origin: EventTarget): EventTarget | null {
+    // A non-composed event stops at the root of the tree it started in.
+    if (!event.composed && origin instanceof Node && rootOf(origin) === this) return null;
+    return shadowState(this).host;
+  }
+
+  get innerHTML(): string {
+    const html = documents.get(ownerOf(this))!.html;
+    return [...this.childNodes].map(html ? serializeHTML : serializeXML).join("");
+  }
+  set innerHTML(value: string) {
+    const html = value == null ? "" : String(value);
+    if (html === "") this.replaceChildren();
+    else replaceParsedChildren(this, parseMarkup(this.host, html));
+  }
+
+  getHTML(options?: GetHTMLOptions | null): string { return htmlWithShadowRoots(this, options); }
+
+  get activeElement(): Element | null {
+    const active = documents.get(ownerOf(this))!.active;
+    if (active === null) return null;
+    const candidate = retarget(active, this) as Element;
+    return rootOf(candidate) === this ? candidate : null;
+  }
+
+  get styleSheets(): StyleSheetList {
+    const state = shadowState(this);
+    return state.styleSheets ??= styleSheetList(() => {
+      const list: CSSStyleSheet[] = [];
+      for (const node of descendants(this)) if (isSheetOwner(node) && node.sheet !== null) list.push(node.sheet);
+      return list;
+    });
+  }
+
+  get adoptedStyleSheets(): CSSStyleSheet[] { return shadowState(this).adopted.array; }
+  set adoptedStyleSheets(value: Iterable<CSSStyleSheet>) { shadowState(this).adopted.replace(value); }
+
+  getSelection(): Selection | null {
+    const document = ownerOf(this);
+    return documents.get(document)!.view === null ? null : documentSelection(document);
+  }
+}
+Object.defineProperty(ShadowRoot.prototype, Symbol.toStringTag, { value: "ShadowRoot", configurable: true });
+
+const validShadowHosts = new Set("article aside blockquote body div footer h1 h2 h3 h4 h5 h6 header main nav p section span".split(" "));
+
+function enumValue<T extends string>(value: unknown, allowed: readonly T[], name: string): T {
+  const text = String(value);
+  if (!(allowed as readonly string[]).includes(text)) {
+    throw new TypeError(`The provided value '${text}' is not a valid enum value of type ${name}.`);
+  }
+  return text as T;
+}
+
+/** DOM's "attach a shadow root". */
+function attachShadowRoot(element: Element, init: ShadowRootInit): ShadowRoot {
+  if (element.namespaceURI !== HTML_NAMESPACE) fail("NotSupportedError", "This element does not support attachShadow");
+  const name = element.localName;
+  const custom = isValidCustomElementName(name);
+  if (!custom && !validShadowHosts.has(name)) fail("NotSupportedError", "This element does not support attachShadow");
+  if (custom && lookupDefinition(element.ownerDocument, HTML_NAMESPACE, name)?.disableShadow) {
+    fail("NotSupportedError", "This custom element disables shadow roots");
+  }
+  const existing = nodeState(element).shadow;
+  if (existing !== undefined) {
+    const state = shadowState(existing);
+    if (!state.declarative || state.mode !== init.mode) fail("NotSupportedError", "This element already hosts a shadow root");
+    existing.replaceChildren();
+    state.declarative = false;
+    return existing;
+  }
+  return new ShadowRoot(shadowToken, element, init);
+}
+
+type GetHTMLOptions = { serializableShadowRoots?: boolean; shadowRoots?: readonly ShadowRoot[] };
+
+/** HTML's fragment serialization with shadow roots, as getHTML() gives it. */
+function htmlWithShadowRoots(node: Element | ShadowRoot, options?: GetHTMLOptions | null): string {
+  const serializable = Boolean(options?.serializableShadowRoots);
+  const roots = options?.shadowRoots === undefined ? [] : [...options.shadowRoots];
+  const include = (root: ShadowRoot) => serializable && root.serializable || roots.includes(root);
+  const children = (parent: Node): string => {
+    let html = "";
+    const shadow = nodeState(parent).shadow;
+    if (shadow !== undefined && include(shadow)) {
+      html += `<template shadowrootmode="${shadow.mode}"` + (shadow.delegatesFocus ? ` shadowrootdelegatesfocus=""` : "") +
+        (shadow.serializable ? ` shadowrootserializable=""` : "") + (shadow.clonable ? ` shadowrootclonable=""` : "") +
+        ">" + children(shadow) + "</template>";
+    }
+    const content = parent instanceof TemplateElement ? parent.content ?? parent : parent;
+    for (const child of childrenOf(content)) {
+      if (!(child instanceof Element)) {
+        html += serializeHTML(child);
+        continue;
+      }
+      const name = child.prefix === null ? child.localName : child.prefix + ":" + child.localName;
+      html += htmlStartTag(child);
+      if (child.namespaceURI === HTML_NAMESPACE && voidElements.has(child.localName)) continue;
+      html += children(child) + "</" + name + ">";
+    }
+    return html;
+  };
+  return children(node);
 }
 
 function validateLocalName(name: string, element: boolean): string {
@@ -933,7 +1156,38 @@ export class Element extends ParentNode {
     }
     return enabled;
   }
+
+  attachShadow(init: { mode?: unknown; delegatesFocus?: unknown; slotAssignment?: unknown; clonable?: unknown;
+    serializable?: unknown }): ShadowRoot {
+    if (arguments.length === 0) throw new TypeError("attachShadow requires a ShadowRootInit");
+    if (init === null || typeof init !== "object" && typeof init !== "function") {
+      throw new TypeError("The provided value is not of type 'ShadowRootInit'.");
+    }
+    // WebIDL reads dictionary members once, in lexicographic order.
+    const clonable = Boolean(init.clonable);
+    const delegatesFocus = Boolean(init.delegatesFocus);
+    const modeValue = init.mode;
+    if (modeValue === undefined) {
+      throw new TypeError("Failed to read the 'mode' property from 'ShadowRootInit': Required member is undefined.");
+    }
+    const mode = enumValue(modeValue, ["open", "closed"] as const, "ShadowRootMode");
+    const serializable = Boolean(init.serializable);
+    const slotValue = init.slotAssignment;
+    const slotAssignment = slotValue === undefined ? "named" :
+      enumValue(slotValue, ["named", "manual"] as const, "SlotAssignmentMode");
+    return attachShadowRoot(this, { mode, delegatesFocus, slotAssignment, clonable, serializable });
+  }
+
+  get shadowRoot(): ShadowRoot | null {
+    const shadow = nodeState(this).shadow;
+    return shadow !== undefined && shadowState(shadow).mode === "open" ? shadow : null;
+  }
+
+  get assignedSlot(): HTMLSlotElement | null { return findSlot(this, true); }
+
+  getHTML(options?: GetHTMLOptions | null): string { return htmlWithShadowRoots(this, options); }
 }
+reflect(Element.prototype, { slot: "slot" });
 
 // Attr nodes are created on demand and stay the same object while their
 // attribute is on the element. A removed attribute's node keeps its last value.
@@ -1166,12 +1420,23 @@ function renderedStyle(element: Element, property: "display" | "visibility"): st
   return "visible";
 }
 
+/** The nearest element among the flat tree ancestors. */
+function flatParentElement(node: Node): Element | null {
+  for (let parent = flatTreeParent(node); parent !== null; parent = flatTreeParent(parent)) {
+    if (parent instanceof Element) return parent;
+  }
+  return null;
+}
+
 function displayed(element: Element, known: Map<Element, boolean>): boolean {
   const cached = known.get(element);
   if (cached !== undefined) return cached;
-  const visible = !element.hasAttribute("hidden") && !element.hasAttribute("inert") &&
-    renderedStyle(element, "display") !== "none" &&
-    (element.parentElement === null || displayed(element.parentElement, known));
+  const parent = flatParentElement(element);
+  // A host renders its shadow tree, and only its assigned children.
+  const unslotted = element.parentNode !== null && nodeState(element.parentNode).shadow !== undefined &&
+    !nodeState(element).assignedSlot;
+  const visible = !unslotted && !element.hasAttribute("hidden") && !element.hasAttribute("inert") &&
+    renderedStyle(element, "display") !== "none" && (parent === null || displayed(parent, known));
   known.set(element, visible);
   return visible;
 }
@@ -1182,12 +1447,47 @@ function focusable(element: HTMLElement, known = new Map<Element, boolean>()): b
   return displayed(element, known) && !["hidden", "collapse"].includes(renderedStyle(element, "visibility"));
 }
 
+/** The element and its flat tree ancestors, which hover, active and focus-within state follow. */
 export function elementChain(target: Node | null): Element[] {
   const chain: Element[] = [];
-  for (let node = target; node !== null; node = node.parentNode) {
+  for (let node = target; node !== null; node = flatTreeParent(node)) {
     if (node instanceof Element) chain.push(node);
   }
   return chain;
+}
+
+/** The shadow hosts whose shadow trees contain the element: they match :focus with it. */
+function focusHosts(element: Element): Element[] {
+  const hosts: Element[] = [];
+  for (let host = nodeState(rootOf(element)).host; host !== undefined; host = nodeState(rootOf(host)).host) hosts.push(host);
+  return hosts;
+}
+
+function delegatesFocus(element: Element): boolean {
+  const shadow = nodeState(element).shadow;
+  return shadow !== undefined && shadowState(shadow).delegatesFocus;
+}
+
+/** HTML's focus delegate of a shadow host that delegates focus. */
+function focusDelegate(host: Element, known = new Map<Element, boolean>()): HTMLElement | null {
+  const shadow = nodeState(host).shadow;
+  if (shadow === undefined || !shadowState(shadow).delegatesFocus) return null;
+  for (const node of descendants(shadow)) {
+    if (node instanceof HTMLElement && node.hasAttribute("autofocus") && focusable(node, known)) return node;
+  }
+  for (const node of descendants(shadow)) {
+    if (node instanceof HTMLElement && focusable(node, known) && !delegatesFocus(node)) return node;
+    if (node instanceof Element && delegatesFocus(node)) {
+      const inner = focusDelegate(node, known);
+      if (inner !== null) return inner;
+    }
+  }
+  return null;
+}
+
+/** The focused element, without retargeting: document.activeElement shows its host instead. */
+export function focusedElement(document: Document): Element | null {
+  return documents.get(document)!.active ?? document.body ?? document.documentElement;
 }
 
 export function changeStateChain(previous: readonly Element[], next: readonly Element[], mask: number): void {
@@ -1207,6 +1507,7 @@ function focus(document: Document, next: HTMLElement | null, preventScroll: bool
     if (revision !== state.focusRevision) return;
     state.active = null;
     stateOn(previous, ElementState.Focus | ElementState.FocusVisible, false);
+    for (const host of focusHosts(previous)) stateOn(host, ElementState.Focus, false);
     journalFor(previous)?.record(Opcode.Focus, nodeId(previous), FocusFlags.Blur, 0);
     dispatchTrustedEvent(previous, new FocusEvent("blur", { relatedTarget: next, composed: true }), time);
     const relatedTarget = revision === state.focusRevision ? next : null;
@@ -1217,6 +1518,7 @@ function focus(document: Document, next: HTMLElement | null, preventScroll: bool
     state.active = next;
     state.focusVisible = state.keyboardModality || textControl(next) || editableHost(next);
     stateOn(next, ElementState.Focus | (state.focusVisible ? ElementState.FocusVisible : 0), true);
+    for (const host of focusHosts(next)) stateOn(host, ElementState.Focus, true);
     if (textControl(next)) textControlFocused(next, selectionFor(next));
     journalFor(next)?.record(Opcode.Focus, nodeId(next), preventScroll ? FocusFlags.PreventScroll : 0, 0);
   }
@@ -1272,15 +1574,29 @@ export function notePointerModality(document: Document): void {
 export function focusFromPointer(document: Document, target: Element | null, time: number): void {
   const path = elementChain(target);
   if (path.some(disabledControl)) return;
-  const next = path.find((node): node is HTMLElement => node instanceof HTMLElement && focusable(node));
-  if (next !== undefined && textControl(next) && !selections.has(next)) moveCaret(next, next.value);
-  focus(document, next ?? null, false, time);
+  let next: HTMLElement | null = null;
+  for (const node of path) {
+    if (!(node instanceof HTMLElement)) continue;
+    if (delegatesFocus(node)) {
+      // A click in a host that delegates focus keeps focus inside it, or
+      // moves focus to its focus delegate.
+      const active = documents.get(document)!.active;
+      if (active !== null && shadowIncludingContains(node, active)) return;
+      next = focusDelegate(node);
+      if (next !== null) break;
+    } else if (focusable(node)) {
+      next = node;
+      break;
+    }
+  }
+  if (next !== null && textControl(next) && !selections.has(next)) moveCaret(next, next.value);
+  focus(document, next, false, time);
 }
 
 export type PointerSelection = { control: TextControl; anchor: number };
 
 function pointerTextOffset(control: TextControl, x: number, y: number): number | null {
-  if (!control.isConnected || control.ownerDocument.activeElement !== control || disabledControl(control)) return null;
+  if (!control.isConnected || focusedElement(control.ownerDocument) !== control || disabledControl(control)) return null;
   try {
     const offset = nativeRead(control, 12, { x, y });
     return typeof offset === "number" ? offset : null;
@@ -1291,7 +1607,7 @@ function pointerTextOffset(control: TextControl, x: number, y: number): number |
 }
 
 export function beginPointerSelection(document: Document, target: Element, x: number, y: number, extend: boolean): PointerSelection | null {
-  const control = document.activeElement;
+  const control = focusedElement(document);
   if (!textControl(control) || !control.contains(target) || isComposing(document)) return null;
   const offset = pointerTextOffset(control, x, y);
   if (offset === null) return null;
@@ -1315,12 +1631,75 @@ export function noteKeyboardModality(document: Document): void {
   }
 }
 
+/** A focus navigation scope owner: a shadow host, or a slot in a shadow tree. */
+function scopeOwner(element: Element): boolean {
+  return nodeState(element).shadow !== undefined ||
+    element instanceof HTMLSlotElement && nodeState(rootOf(element)).host !== undefined;
+}
+
+/** Children in the flat tree, which is also how focus navigation scopes nest. */
+function flatChildren(node: Node): readonly Node[] {
+  const shadow = nodeState(node).shadow;
+  if (shadow !== undefined) return childrenOf(shadow);
+  if (node instanceof HTMLSlotElement && nodeState(rootOf(node)).host !== undefined) {
+    const assigned = slotState(node).assigned;
+    if (assigned.length !== 0) return assigned;
+  }
+  return childrenOf(node);
+}
+
+function flatTreeOrder(root: Node): Node[] {
+  const order: Node[] = [];
+  const pending = [...flatChildren(root)].reverse();
+  while (pending.length !== 0) {
+    const node = pending.pop()!;
+    order.push(node);
+    const children = flatChildren(node);
+    for (let index = children.length - 1; index >= 0; index--) pending.push(children[index]);
+  }
+  return order;
+}
+
+function tabindexAttribute(element: Element): number | null {
+  const attribute = element.getAttribute("tabindex")?.trim();
+  return attribute && /^[+-]?\d/.test(attribute) ? Number.parseInt(attribute, 10) | 0 : null;
+}
+
+/**
+ * HTML's flattened tabindex-ordered focus navigation scope: each scope is
+ * ordered by tabindex on its own, and a scope owner's scope follows it.
+ */
+function navigationOrder(owner: Node, known: Map<Element, boolean>): HTMLElement[] {
+  const candidates: { element: HTMLElement; index: number; stop: boolean; owns: boolean }[] = [];
+  const pending = [...flatChildren(owner)].reverse();
+  while (pending.length !== 0) {
+    const node = pending.pop()!;
+    if (!(node instanceof Element)) continue;
+    const owns = scopeOwner(node);
+    if (node instanceof HTMLElement) {
+      const attribute = tabindexAttribute(node);
+      const stop = node.tabIndex >= 0 && !delegatesFocus(node) && focusable(node, known);
+      if ((stop || owns) && (attribute === null || attribute >= 0)) {
+        candidates.push({ element: node, index: attribute ?? 0, stop, owns });
+      }
+    }
+    if (owns) continue;
+    const children = childrenOf(node);
+    for (let index = children.length - 1; index >= 0; index--) pending.push(children[index]);
+  }
+  candidates.sort((a, b) => (a.index || Infinity) - (b.index || Infinity));
+  const order: HTMLElement[] = [];
+  for (const { element, stop, owns } of candidates) {
+    if (stop) order.push(element);
+    if (owns) order.push(...navigationOrder(element, known));
+  }
+  return order;
+}
+
 export function moveTabFocus(document: Document, backwards: boolean, time: number): void {
   const known = new Map<Element, boolean>();
-  const traversal = [...descendants(document)];
-  const order = traversal.filter((node): node is HTMLElement =>
-    node instanceof HTMLElement && node.tabIndex >= 0 && focusable(node, known))
-    .sort((a, b) => (a.tabIndex || Infinity) - (b.tabIndex || Infinity));
+  const traversal = flatTreeOrder(document);
+  const order = navigationOrder(document, known);
   const previous = documents.get(document)!.active;
   const radioGroups = new Map<string, Map<HTMLFormElement | null, HTMLInputElement>>();
   for (const node of order) {
@@ -1434,11 +1813,19 @@ export class HTMLElement extends Element {
   set tabIndex(value: number) { this.setAttribute("tabindex", String(value | 0)); }
 
   focus(options?: { preventScroll?: boolean }): void {
-    focus(this.ownerDocument, this, Boolean(options?.preventScroll));
+    let target: HTMLElement | null = this;
+    if (delegatesFocus(this)) {
+      const active = documents.get(this.ownerDocument)!.active;
+      if (active !== null && shadowIncludingContains(this, active)) return;
+      target = focusDelegate(this);
+      if (target === null) return;
+    }
+    focus(this.ownerDocument, target, Boolean(options?.preventScroll));
   }
 
   blur(): void {
-    if (documents.get(this.ownerDocument)!.active === this) focus(this.ownerDocument, null, false);
+    const active = documents.get(this.ownerDocument)!.active;
+    if (active !== null && retarget(active, this) === this) focus(this.ownerDocument, null, false);
   }
 
   click(): void {
@@ -1466,7 +1853,7 @@ export class HTMLElement extends Element {
     }
   }
 }
-reflect(HTMLElement.prototype, { title: "title", lang: "lang", dir: "dir", accessKey: "accesskey", slot: "slot" });
+reflect(HTMLElement.prototype, { title: "title", lang: "lang", dir: "dir", accessKey: "accesskey" });
 reflect(HTMLElement.prototype, { hidden: "hidden", draggable: "draggable" }, true);
 for (const name of ["click", "dblclick", "input", "change", "focus", "blur", "error", "load", "reset", "submit", "beforeinput",
   "focusin", "focusout", "select", "selectionchange", "search", "cancel", "copy", "cut", "paste", "compositionstart", "compositionupdate", "compositionend", "keydown", "keyup", "keypress", "wheel", "touchmove", "mousedown", "mouseup", "mousemove",
@@ -1474,7 +1861,7 @@ for (const name of ["click", "dblclick", "input", "change", "focus", "blur", "er
   "pointerover", "pointerout", "pointerenter", "pointerleave", "gotpointercapture", "lostpointercapture",
   "dragstart", "drag", "dragenter", "dragleave", "dragover", "drop", "dragend",
   "transitionrun", "transitionstart", "transitionend", "transitioncancel",
-  "animationstart", "animationiteration", "animationend", "animationcancel"]) {
+  "animationstart", "animationiteration", "animationend", "animationcancel", "slotchange"]) {
   reflectedEvent(HTMLElement.prototype, name);
 }
 
@@ -2191,7 +2578,7 @@ export function isComposing(document: Document): boolean {
 }
 
 function editable(control: TextControl): boolean {
-  return control.isConnected && control.ownerDocument.activeElement === control && !control.readOnly && !disabledControl(control);
+  return control.isConnected && focusedElement(control.ownerDocument) === control && !control.readOnly && !disabledControl(control);
 }
 
 function beginComposition(control: TextControl, time: number): Composition {
@@ -2258,7 +2645,7 @@ export type ImeKind = "start" | "update" | "commit" | "end";
 
 export function inputComposition(document: Document, target: number, kind: ImeKind,
   text: string, selection: readonly [number, number] | null, time: number): boolean {
-  const control = document.activeElement;
+  const control = focusedElement(document);
   if (target !== 0 && (control === null || nodeId(control) !== target)) return false;
   let session = compositions.get(document);
   if (session !== undefined && session.control !== control) return false;
@@ -2371,7 +2758,7 @@ function editText(control: TextControl, range: { start: number; end: number }, d
 }
 
 export function clipboardSelection(document: Document, target: Element): string {
-  if (target !== document.activeElement || !textControl(target) ||
+  if (target !== focusedElement(document) || !textControl(target) ||
       target instanceof HTMLInputElement && target.type === "password") return "";
   const { start, end } = selectionFor(target);
   return target.value.slice(start, end);
@@ -2379,7 +2766,7 @@ export function clipboardSelection(document: Document, target: Element): string 
 
 export function editClipboardSelection(document: Document, target: Element, type: "deleteByCut" | "insertFromPaste",
                                        text: string | null, time: number): void {
-  if (target !== document.activeElement || !target.isConnected || !textControl(target) || !editable(target)) return;
+  if (target !== focusedElement(document) || !target.isConnected || !textControl(target) || !editable(target)) return;
   const range = selectionFor(target);
   if (type === "deleteByCut" && range.start === range.end) return;
   editText(target, range, text, type, time);
@@ -2490,11 +2877,11 @@ export function keyboardDefault(document: Document, target: Element, key: Keyboa
   }
   if (!key.isComposing && key.type === "keydown" && key.key.toLowerCase() === "a" &&
       (key.ctrlKey || key.metaKey) && !key.altKey && !key.shiftKey &&
-      target === document.activeElement && target.isConnected && !disabledControl(target) && textControl(target)) {
+      target === focusedElement(document) && target.isConnected && !disabledControl(target) && textControl(target)) {
     setTextSelection(target, 0, target.value.length);
     return false;
   }
-  if (!key.isComposing && key.type === "keydown" && !key.altKey && target === document.activeElement &&
+  if (!key.isComposing && key.type === "keydown" && !key.altKey && target === focusedElement(document) &&
       target.isConnected && !disabledControl(target) && textControl(target)) {
     const letter = key.key.toLowerCase();
     if ((key.ctrlKey || key.metaKey) && (letter === "z" || letter === "y" && !key.shiftKey)) {
@@ -2510,7 +2897,7 @@ export function keyboardDefault(document: Document, target: Element, key: Keyboa
     moveTabFocus(document, key.shiftKey, time);
     return false;
   }
-  if (target !== document.activeElement || !target.isConnected || disabledControl(target)) return false;
+  if (target !== focusedElement(document) || !target.isConnected || disabledControl(target)) return false;
   if (key.type === "keydown" && key.key === "Enter" && target instanceof HTMLInputElement &&
       editableInputTypes.has(target.type)) {
     implicitSubmit(target, time);
@@ -2919,6 +3306,7 @@ function treeChanged(parent: Node, child: Node, inserted: boolean): void {
     }
   }
   if (inserted) {
+    insertedIntoSlots(parent, child);
     const connected = customElementsActive && child.isConnected;
     if (child instanceof HTMLInputElement) child.syncRadioGroup();
     if (child instanceof HTMLStyleElement) syncStyleText(child);
@@ -2927,7 +3315,7 @@ function treeChanged(parent: Node, child: Node, inserted: boolean): void {
       documents.get(child.ownerDocument)?.loadScript?.(child);
     }
     customElementInserted(child, connected);
-    for (const node of descendants(child)) {
+    for (const node of shadowIncludingDescendants(child)) {
       if (node instanceof HTMLInputElement && node.type === "radio") node.syncRadioGroup();
       if (node instanceof HTMLStyleElement) syncStyleText(node);
       if (node instanceof HTMLLinkElement) syncLinkSheet(node);
@@ -2937,10 +3325,11 @@ function treeChanged(parent: Node, child: Node, inserted: boolean): void {
       customElementInserted(node, connected);
     }
   } else {
+    removedFromSlots(parent, child);
     const parentConnected = customElementsActive && parent.isConnected;
     if (isSheetOwner(child)) removeSheet(child);
     customElementRemoved(child, parentConnected);
-    for (const node of descendants(child)) {
+    for (const node of shadowIncludingDescendants(child)) {
       if (isSheetOwner(node)) removeSheet(node);
       customElementRemoved(node, parentConnected);
     }
@@ -2948,16 +3337,201 @@ function treeChanged(parent: Node, child: Node, inserted: boolean): void {
     const state = documents.get(document)!;
     state.inputDetached?.(child);
     const active = state.active;
-    if (active !== null && child.contains(active)) {
+    if (active !== null && shadowIncludingContains(child, active)) {
       finishComposition(document);
       state.focusRevision++;
       state.active = null;
       stateOn(active, ElementState.Focus | ElementState.FocusVisible, false);
+      for (const host of focusHosts(active)) stateOn(host, ElementState.Focus, false);
       changeStateChain(state.focusChain, [], ElementState.FocusWithin);
       state.focusChain = [];
     }
   }
 }
+
+// DOM's slot assignment. squark-dom computes it and sends each slot's
+// assigned nodes to the engine whenever they change.
+
+type SlotState = { assigned: Node[]; manual: Node[] };
+const slotStates = new WeakMap<Element, SlotState>();
+const noSlotState: SlotState = { assigned: [], manual: [] };
+
+function slotState(slot: HTMLSlotElement): SlotState {
+  let state = slotStates.get(slot);
+  if (state === undefined) slotStates.set(slot, state = { assigned: [], manual: [] });
+  return state;
+}
+
+function isSlottable(node: Node): node is Element | Text {
+  return node instanceof Element || node instanceof Text;
+}
+
+/** The slots of a tree in tree order. A shadow root keeps them until a slot moves. */
+function slotsIn(root: Node): HTMLSlotElement[] {
+  const collect = () => [root, ...descendants(root)].filter((node): node is HTMLSlotElement => node instanceof HTMLSlotElement);
+  return root instanceof ShadowRoot ? shadowState(root).slots ??= collect() : collect();
+}
+
+function slotName(slot: Element): string { return slot.getAttributeNS(null, "name") ?? ""; }
+
+/** DOM's "find a slot". */
+function findSlot(slottable: Node, open = false): HTMLSlotElement | null {
+  const parent = nodeState(slottable).parent;
+  const shadow = parent === null ? undefined : nodeState(parent).shadow;
+  if (shadow === undefined) return null;
+  const state = shadowState(shadow);
+  if (open && state.mode !== "open") return null;
+  if (state.slotAssignment === "manual") {
+    return slotsIn(shadow).find(slot => (slotStates.get(slot) ?? noSlotState).manual.includes(slottable)) ?? null;
+  }
+  const name = slottable instanceof Element ? slottable.getAttributeNS(null, "slot") ?? "" : "";
+  return slotsIn(shadow).find(slot => slotName(slot) === name) ?? null;
+}
+
+/** DOM's "find slottables". */
+function findSlottables(slot: HTMLSlotElement): Node[] {
+  const root = rootOf(slot);
+  const host = nodeState(root).host;
+  if (host === undefined) return [];
+  if (shadowState(root as ShadowRoot).slotAssignment === "manual") {
+    return slotState(slot).manual.filter(node => nodeState(node).parent === host);
+  }
+  return childrenOf(host).filter(child => isSlottable(child) && findSlot(child) === slot);
+}
+
+/** DOM's "find flattened slottables". */
+function findFlattenedSlottables(slot: HTMLSlotElement): Node[] {
+  if (nodeState(rootOf(slot)).host === undefined) return [];
+  const slottables = findSlottables(slot);
+  const nodes = slottables.length !== 0 ? slottables : childrenOf(slot).filter(isSlottable);
+  return nodes.flatMap(node => node instanceof HTMLSlotElement && nodeState(rootOf(node)).host !== undefined ?
+    findFlattenedSlottables(node) : [node]);
+}
+
+/** DOM's "assign slottables". */
+function assignSlottables(slot: HTMLSlotElement): void {
+  const slottables = findSlottables(slot);
+  const state = slotState(slot);
+  const previous = state.assigned;
+  if (slottables.length === previous.length && slottables.every((node, index) => node === previous[index])) return;
+  signalSlotChange(slot);
+  state.assigned = slottables;
+  for (const node of previous) {
+    if (nodeState(node).assignedSlot === slot && !slottables.includes(node)) nodeState(node).assignedSlot = null;
+  }
+  for (const node of slottables) nodeState(node).assignedSlot = slot;
+  const journal = journalFor(slot);
+  if (journal !== null) {
+    const id = nodeId(slot);
+    journal.record(Opcode.AssignSlot, id, 0, 0);
+    for (const node of slottables) journal.record(Opcode.AssignSlot, id, nodeId(node), 0);
+  }
+}
+
+function assignSlottablesForTree(root: Node): void {
+  for (const slot of slotsIn(root)) assignSlottables(slot);
+}
+
+function assignASlot(slottable: Node): void {
+  const slot = findSlot(slottable);
+  if (slot !== null) assignSlottables(slot);
+}
+
+function hasSlot(node: Node): boolean {
+  return node instanceof HTMLSlotElement || [...descendants(node)].some(child => child instanceof HTMLSlotElement);
+}
+
+/** DOM's insertion steps for slots: the node's own slot, an emptied slot's fallback, and moved slots. */
+function insertedIntoSlots(parent: Node, child: Node): void {
+  const shadow = nodeState(parent).shadow;
+  if (shadow !== undefined && shadowState(shadow).slotAssignment === "named" && isSlottable(child)) assignASlot(child);
+  const root = rootOf(parent);
+  if (!(root instanceof ShadowRoot)) return;
+  if (parent instanceof HTMLSlotElement && slotState(parent).assigned.length === 0) signalSlotChange(parent);
+  if (hasSlot(child)) {
+    shadowState(root).slots = undefined;
+    assignSlottablesForTree(root);
+  }
+}
+
+function removedFromSlots(parent: Node, child: Node): void {
+  const assigned = nodeState(child).assignedSlot;
+  if (assigned) assignSlottables(assigned);
+  const root = rootOf(parent);
+  if (!(root instanceof ShadowRoot)) return;
+  if (parent instanceof HTMLSlotElement && slotState(parent).assigned.length === 0) signalSlotChange(parent);
+  if (hasSlot(child)) {
+    shadowState(root).slots = undefined;
+    assignSlottablesForTree(root);
+    assignSlottablesForTree(child);
+  }
+}
+
+/** The attribute change steps of slottables' `slot` and of slots' `name`. */
+function slotAttributeChanged(element: Element, name: string, oldValue: string | null, value: string | null): void {
+  if ((oldValue ?? "") === (value ?? "")) return;
+  if (name === "slot") {
+    const assigned = nodeState(element).assignedSlot;
+    if (assigned) assignSlottables(assigned);
+    assignASlot(element);
+  } else if (name === "name" && element instanceof HTMLSlotElement) {
+    const root = rootOf(element);
+    if (root instanceof ShadowRoot) assignSlottablesForTree(root);
+  }
+}
+
+type AssignedNodesOptions = { flatten?: boolean } | null;
+
+export class HTMLSlotElement extends HTMLElement {
+  declare name: string;
+
+  assignedNodes(options?: AssignedNodesOptions): Node[] {
+    return options?.flatten ? findFlattenedSlottables(this) : [...(slotStates.get(this) ?? noSlotState).assigned];
+  }
+
+  assignedElements(options?: AssignedNodesOptions): Element[] {
+    return this.assignedNodes(options).filter((node): node is Element => node instanceof Element);
+  }
+
+  /** Manual slot assignment: the slot's assigned nodes are these, while they are its host's children. */
+  assign(...nodes: (Element | Text)[]): void {
+    for (const node of nodes) {
+      if (!(node instanceof Element) && !(node instanceof Text)) {
+        throw new TypeError("Failed to execute 'assign' on 'HTMLSlotElement': The provided value is not of type '(Element or Text)'.");
+      }
+    }
+    const state = slotState(this);
+    for (const node of state.manual) nodeState(node).manualSlot = null;
+    const assigned = new Set<Node>();
+    const losing = new Set<HTMLSlotElement>();
+    for (const node of nodes) {
+      const previous = nodeState(node).manualSlot;
+      if (previous && previous !== this) {
+        const list = slotState(previous).manual;
+        list.splice(list.indexOf(node), 1);
+        losing.add(previous);
+      }
+      nodeState(node).manualSlot = this;
+      assigned.add(node);
+    }
+    const manual = [...assigned];
+    // Like Chromium, a changed manual assignment signals the slot, and a slot
+    // that loses nodes to it signals and reassigns its own tree too.
+    if (manual.length !== state.manual.length || manual.some((node, index) => node !== state.manual[index])) {
+      signalSlotChange(this);
+    }
+    state.manual = manual;
+    const root = rootOf(this);
+    assignSlottablesForTree(root);
+    for (const slot of losing) {
+      signalSlotChange(slot);
+      if (rootOf(slot) !== root) assignSlottablesForTree(rootOf(slot));
+    }
+  }
+}
+reflect(HTMLSlotElement.prototype, { name: "name" });
+Object.defineProperty(HTMLSlotElement.prototype, Symbol.toStringTag, { value: "HTMLSlotElement", configurable: true });
+htmlElementTypes.set("slot", HTMLSlotElement);
 
 const templateContents = new WeakMap<TemplateElement, DocumentFragment>();
 
@@ -3088,7 +3662,16 @@ export class Document extends ParentNode {
     return documents.get(this)!.quirks === 2 ? this.body : this.documentElement;
   }
 
-  get activeElement(): Element | null { return documents.get(this)!.active ?? this.body ?? this.documentElement; }
+  get activeElement(): Element | null {
+    const active = documents.get(this)!.active;
+    if (active === null) return this.body ?? this.documentElement;
+    // Focus inside a shadow tree shows as its host.
+    const candidate = retarget(active, this) as Element;
+    return rootOf(candidate) === this ? candidate : null;
+  }
+
+  get adoptedStyleSheets(): CSSStyleSheet[] { return documentAdopted(this).array; }
+  set adoptedStyleSheets(value: Iterable<CSSStyleSheet>) { documentAdopted(this).replace(value); }
   get defaultView(): EventTarget | null { return documents.get(this)!.view; }
   get styleSheets(): StyleSheetList {
     const state = documents.get(this)!;
@@ -3211,12 +3794,14 @@ export class Document extends ParentNode {
   importNode<T extends Node>(node: T, deep = false): T {
     expectNode(node);
     if (node instanceof Document) fail("NotSupportedError", "Cannot import a Document");
+    if (node instanceof ShadowRoot) fail("NotSupportedError", "Cannot import a shadow root");
     return cloneNodeInto(node, this, Boolean(deep)) as T;
   }
 
   adoptNode<T extends Node>(node: T): T {
     expectNode(node);
     if (node instanceof Document) fail("NotSupportedError", "Cannot adopt a Document");
+    if (node instanceof ShadowRoot) fail("HierarchyRequestError", "Cannot adopt a shadow root");
     if (node instanceof Attr) {
       node.ownerElement?.removeAttributeNode(node);
       nodeState(node).owner = this;
@@ -3360,6 +3945,15 @@ function htmlChildren(node: Element): string {
   return [...parent.childNodes].map(serializeHTML).join("");
 }
 
+function htmlStartTag(node: Element): string {
+  const name = node.prefix === null ? node.localName : node.prefix + ":" + node.localName;
+  let html = "<" + name;
+  for (const attribute of nodeState(node).attributes?.values() ?? []) {
+    html += " " + attribute.name + '="' + htmlEscape(attribute.value, true) + '"';
+  }
+  return html + ">";
+}
+
 function serializeHTML(node: Node): string {
   if (node instanceof Text) {
     const parent = node.parentElement;
@@ -3369,11 +3963,7 @@ function serializeHTML(node: Node): string {
   if (node instanceof DocumentType) return "<!DOCTYPE " + node.name + ">";
   if (!(node instanceof Element)) return "";
   const name = node.prefix === null ? node.localName : node.prefix + ":" + node.localName;
-  let html = "<" + name;
-  for (const attribute of nodeState(node).attributes?.values() ?? []) {
-    html += " " + attribute.name + '="' + htmlEscape(attribute.value, true) + '"';
-  }
-  html += ">";
+  const html = htmlStartTag(node);
   return node.namespaceURI === HTML_NAMESPACE && voidElements.has(node.localName) ?
     html : html + htmlChildren(node) + "</" + name + ">";
 }
@@ -3402,9 +3992,195 @@ function serializeXML(node: Node): string {
   return children === "" ? xml + "/>" : xml + ">" + children + "</" + name + ">";
 }
 
-for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", "paste", "selectionchange", "visibilitychange"]) {
+for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", "paste", "selectionchange", "visibilitychange",
+  "slotchange"]) {
   reflectedEvent(Document.prototype, name);
 }
+reflectedEvent(ShadowRoot.prototype, "slotchange");
+
+// Constructed stylesheets and the adoptedStyleSheets of documents and shadow roots.
+
+type ConstructedState = {
+  id: number;
+  document: Document;
+  count: number;
+  raw: boolean;
+  rules?: readonly string[];
+  adopters: Set<Document | ShadowRoot>;
+};
+const constructedStates = new WeakMap<CSSStyleSheet, ConstructedState>();
+const releasedSheets = new FinalizationRegistry<{ journal: Journal; id: number }>(({ journal, id }) => journal.release(id));
+
+installConstructedSheets((sheet, media) => {
+  const document = realmDocument ?? defaultDocument();
+  const journal = journalFor(document);
+  const id = allocate(document);
+  if (journal !== null && id !== 0) {
+    journal.record(Opcode.CreateSheet, id, media === "" ? NO_STRING : media, 0);
+    releasedSheets.register(sheet, { journal, id });
+  }
+  const state: ConstructedState = { id, document, count: 0, raw: false, adopters: new Set() };
+  constructedStates.set(sheet, state);
+  const insert = (index: number, rule: string) => {
+    if (id !== 0) journal?.record(Opcode.SheetInsert, id, index, rule);
+    state.count++;
+  };
+  const remove = (index: number) => {
+    if (id !== 0) journal?.record(Opcode.SheetDelete, id, index, 0);
+    state.count--;
+  };
+  const engine = () => {
+    const host = documents.get(document)!.cssom;
+    if (host === undefined) fail("NotSupportedError", "Stylesheet rules require the document engine");
+    return host;
+  };
+  const constructed: Constructed = {
+    replacing: false,
+    replace(text) {
+      while (state.count !== 0) remove(state.count - 1);
+      state.raw = text !== "";
+      state.rules = state.raw ? undefined : [];
+      if (state.raw) insert(0, text);
+    },
+    disabledChanged() {
+      for (const scope of state.adopters) adoptedOf(scope).sync();
+    },
+    queue: task => queueDocumentTask(document, task),
+  };
+  return {
+    constructed,
+    source: {
+      read() {
+        if (!state.raw) return state.rules ?? [];
+        const host = engine();
+        flushDocument(document);
+        const serialized = host.query(10, id) as string[];
+        while (state.count !== 0) remove(state.count - 1);
+        for (const [index, rule] of serialized.entries()) insert(index, rule);
+        state.raw = false;
+        return state.rules = serialized;
+      },
+      parse: rule => engine().cssParseRule(rule),
+      insert,
+      remove,
+    },
+  };
+});
+
+type AdoptedSheets = {
+  /** The ObservableArray that adoptedStyleSheets returns. */
+  readonly array: CSSStyleSheet[];
+  replace(value: Iterable<CSSStyleSheet>): void;
+  /** Sends the enabled sheets to the engine. */
+  sync(): void;
+};
+const adoptedLists = new WeakMap<Document | ShadowRoot, AdoptedSheets>();
+
+function adoptedOf(scope: Document | ShadowRoot): AdoptedSheets {
+  return scope instanceof ShadowRoot ? shadowState(scope).adopted : documentAdopted(scope);
+}
+
+function documentAdopted(document: Document): AdoptedSheets {
+  let adopted = adoptedLists.get(document);
+  if (adopted === undefined) adoptedLists.set(document, adopted = adoptedSheets(document));
+  return adopted;
+}
+
+function arrayIndex(key: PropertyKey): number | null {
+  if (typeof key !== "string") return null;
+  const index = Number(key);
+  return Number.isInteger(index) && index >= 0 && index < 0xffff_ffff && String(index) === key ? index : null;
+}
+
+function adoptedSheets(scope: Document | ShadowRoot): AdoptedSheets {
+  const backing: CSSStyleSheet[] = [];
+  let adopters = new Set<CSSStyleSheet>();
+  const check = (value: unknown): CSSStyleSheet => {
+    if (!(value instanceof CSSStyleSheet)) {
+      throw new TypeError("Failed to convert value to 'CSSStyleSheet'.");
+    }
+    const state = constructedStates.get(value);
+    if (state === undefined || !isConstructed(value)) {
+      throw new DOMException("Can't adopt non-constructed stylesheets.", "NotAllowedError");
+    }
+    if (state.document !== ownerOf(scope)) {
+      throw new DOMException("Sharing constructed stylesheets in multiple documents is not allowed", "NotAllowedError");
+    }
+    return value;
+  };
+  const adopted: AdoptedSheets = {
+    array: new Proxy(backing, {
+      set(target, key, value, receiver) {
+        const index = arrayIndex(key);
+        if (index !== null) {
+          if (index > target.length) return false;
+          target[index] = check(value);
+          adopted.sync();
+          return true;
+        }
+        if (key === "length") {
+          const length = Number(value);
+          if (!Number.isInteger(length) || length < 0 || length > target.length) {
+            if (length === target.length) return true;
+            throw new RangeError("adoptedStyleSheets can only be shortened by setting length");
+          }
+          target.length = length;
+          adopted.sync();
+          return true;
+        }
+        return Reflect.set(target, key, value, receiver);
+      },
+      defineProperty(target, key, descriptor) {
+        const index = arrayIndex(key);
+        if (index === null) return Reflect.defineProperty(target, key, descriptor);
+        if (index > target.length || !("value" in descriptor)) return false;
+        target[index] = check(descriptor.value);
+        adopted.sync();
+        return true;
+      },
+      deleteProperty(target, key) {
+        const index = arrayIndex(key);
+        if (index === null) return Reflect.deleteProperty(target, key);
+        if (index !== target.length - 1) return false;
+        target.length = index;
+        adopted.sync();
+        return true;
+      },
+    }),
+    replace(value) {
+      if (value === null || typeof value !== "object" || typeof (value as Iterable<unknown>)[Symbol.iterator] !== "function") {
+        throw new TypeError("The provided value cannot be converted to a sequence.");
+      }
+      const sheets = Array.from(value as Iterable<unknown>, check);
+      backing.length = 0;
+      backing.push(...sheets);
+      adopted.sync();
+    },
+    sync() {
+      const current = new Set(backing);
+      for (const sheet of adopters) if (!current.has(sheet)) constructedStates.get(sheet)?.adopters.delete(scope);
+      for (const sheet of current) constructedStates.get(sheet)?.adopters.add(scope);
+      adopters = current;
+      const journal = journalFor(scope);
+      if (journal === null) return;
+      const id = nodeId(scope);
+      journal.record(Opcode.AdoptSheet, id, 0, 0);
+      for (const sheet of backing) {
+        const state = constructedStates.get(sheet)!;
+        if (!sheet.disabled && state.id !== 0) journal.record(Opcode.AdoptSheet, id, state.id, 0);
+      }
+    },
+  };
+  return adopted;
+}
+
+installShadowTrees({
+  root: target => nodes.has(target as Node) ? rootOf(target as Node) : null,
+  host: node => nodes.has(node as Node) ? nodeState(node as Node).host ?? null : null,
+  closed: root => root instanceof ShadowRoot && shadowState(root).mode === "closed",
+  includes: (ancestor, node) => nodes.has(node as Node) && shadowIncludingContains(ancestor as Node, node as Node),
+  assigned: node => nodes.has(node as Node) && Boolean(nodeState(node as Node).assignedSlot),
+});
 
 ceReactions(Node.prototype, ["nodeValue", "textContent", "appendChild", "insertBefore", "removeChild", "replaceChild", "normalize", "cloneNode"]);
 ceReactions(ParentNode.prototype, ["append", "prepend", "replaceChildren"]);
@@ -3441,6 +4217,7 @@ function writeAttribute(element: Element, attribute: Attribute, initial = false)
   if (!initial) {
     queueMutation(element, { type: "attributes", name: attribute.localName, namespace: attribute.namespaceURI, oldValue });
     customElementAttributeChanged(element, attribute.localName, oldValue, attribute.value, attribute.namespaceURI);
+    if (attribute.namespaceURI === null) slotAttributeChanged(element, attribute.localName, oldValue, attribute.value);
   }
   if (attribute.namespaceURI === null && element instanceof HTMLElement) element[attributeChanged](attribute.name, oldValue);
 }
@@ -3455,6 +4232,7 @@ function eraseAttribute(element: Element, attribute: Attribute): void {
   }
   queueMutation(element, { type: "attributes", name: attribute.localName, namespace: attribute.namespaceURI, oldValue: attribute.value });
   customElementAttributeChanged(element, attribute.localName, attribute.value, null, attribute.namespaceURI);
+  if (attribute.namespaceURI === null) slotAttributeChanged(element, attribute.localName, attribute.value, null);
   if (attribute.namespaceURI === null && element instanceof HTMLElement) element[attributeChanged](attribute.name, attribute.value);
 }
 
@@ -3483,6 +4261,13 @@ function cloneNodeInto(source: Node, targetDoc: Document, deep: boolean, upgrade
     if (definition !== null) enqueueUpgrade(clone as Element, definition);
     for (const attribute of nodeState(source).attributes?.values() ?? []) writeAttribute(clone as Element, { ...attribute }, true);
     if (source instanceof HTMLInputElement && clone instanceof HTMLInputElement) source[cloneInput](clone);
+    const shadow = nodeState(source).shadow;
+    if (shadow !== undefined && shadowState(shadow).clonable) {
+      const { mode, delegatesFocus, slotAssignment, serializable, declarative } = shadowState(shadow);
+      const root = attachShadowRoot(clone as Element, { mode, delegatesFocus, slotAssignment, clonable: true, serializable });
+      shadowState(root).declarative = declarative;
+      for (const child of childrenOf(shadow)) root.appendChild(cloneNodeInto(child, targetDoc, true, upgrade));
+    }
   } else if (source instanceof Text) clone = targetDoc.createTextNode(source.data);
   else if (source instanceof Comment) clone = targetDoc.createComment(source.data);
   else if (source instanceof DocumentType) {
@@ -3546,6 +4331,15 @@ function recordSubtree(journal: Journal, allocateId: () => number, node: Node,
         journal.record(Opcode.Insert, contentId, childId, 0);
       }
     }
+    if (state.shadow !== undefined) {
+      const rootId = allocateId();
+      onNode?.(state.shadow, rootId, id);
+      journal.record(Opcode.AttachShadow, rootId, id, 0);
+      for (const child of childrenOf(state.shadow)) {
+        const childId = recordSubtree(journal, allocateId, child, onNode, rootId);
+        journal.record(Opcode.Insert, rootId, childId, 0);
+      }
+    }
   } else if (node instanceof Text) {
     journal.record(Opcode.CreateText, id, node.data, 0);
   } else if (node instanceof Comment) {
@@ -3570,6 +4364,7 @@ function setOwnerSubtree(targetDoc: Document, root: Node): void {
     state.owner = targetDoc;
     for (const child of state.children ?? noChildren) pending.push(child);
     if (current instanceof TemplateElement && current.content !== undefined) pending.push(current.content);
+    if (state.shadow !== undefined) pending.push(state.shadow);
   }
 }
 
@@ -3586,6 +4381,7 @@ function demoteSubtree(sourceJournal: Journal, targetDoc: Document, root: Node):
     if (node instanceof TemplateElement && node.content !== undefined) {
       detachAndRelease(node.content);
     }
+    if (state.shadow !== undefined) detachAndRelease(state.shadow);
     if (id !== 0 && !(node instanceof Document)) {
       if (state.tracked !== undefined) {
         cleanupNodes.unregister(node);
@@ -3613,6 +4409,14 @@ function adoptSubtree(targetDoc: Document, root: Node): void {
       rememberNode(targetJournal, state, node, true);
       if (state.tracked !== undefined) state.tracked.parent = parentId;
     });
+    // Slots list their assigned nodes once every node has an id.
+    for (const node of shadowIncludingDescendants(root)) {
+      if (!(node instanceof HTMLSlotElement)) continue;
+      const assigned = slotStates.get(node)?.assigned ?? [];
+      if (assigned.length === 0) continue;
+      targetJournal.record(Opcode.AssignSlot, nodeId(node), 0, 0);
+      for (const slotted of assigned) targetJournal.record(Opcode.AssignSlot, nodeId(node), nodeId(slotted), 0);
+    }
   } else if (sourceJournal !== null && targetJournal === null) {
     demoteSubtree(sourceJournal, targetDoc, root);
   } else if (sourceJournal === targetJournal) {
@@ -3620,9 +4424,10 @@ function adoptSubtree(targetDoc: Document, root: Node): void {
   } else {
     fail("WrongDocumentError", "Nodes use different journal sessions");
   }
-  if (customElementsActive) {
-    customElementAdopted(root, oldDocument, targetDoc);
-    for (const node of descendants(root)) customElementAdopted(node, oldDocument, targetDoc);
+  for (const node of [root, ...shadowIncludingDescendants(root)]) {
+    // Adopted stylesheets belong to their document, so a moved shadow root drops them.
+    if (node instanceof ShadowRoot) shadowState(node).adopted.replace([]);
+    if (customElementsActive) customElementAdopted(node, oldDocument, targetDoc);
   }
 }
 
@@ -3637,7 +4442,7 @@ function mutate(parent: Node, incoming: readonly Node[], before: Node | null, re
   const children = new Set<Node>();
   for (const child of incoming) {
     expectNode(child);
-    if (child.contains(parent) || child instanceof Document ||
+    if (shadowIncludingContains(child, parent) || child instanceof Document ||
         child instanceof DocumentType && !(parent instanceof Document) || child instanceof Attr) {
       fail("HierarchyRequestError", "Cannot insert an ancestor or this node kind into its descendant");
     }
@@ -3774,6 +4579,7 @@ function insert(parent: Node, child: Node, before: Node | null): void {
       for (const descendant of state.children ?? noChildren) {
         pending.push(descendant);
       }
+      if (state.shadow !== undefined) pending.push(state.shadow);
     }
   }
 }
@@ -3948,7 +4754,7 @@ export function installDOM(global: Record<PropertyKey, unknown>, supplied?: Docu
     AbortController, AbortSignal, DOMException, NodeList, HTMLCollection, DOMTokenList, MutationObserver, MutationRecord, CSSStyleDeclaration,
     HTMLElement, HTMLInputElement, HTMLTextAreaElement, HTMLSelectElement, HTMLOptionElement, HTMLBRElement,
     HTMLButtonElement, HTMLFormElement, HTMLFormControlsCollection, RadioNodeList, HTMLLabelElement, HTMLIFrameElement, HTMLAnchorElement, HTMLCanvasElement, HTMLImageElement, HTMLUnknownElement, HTMLScriptElement,
-    HTMLTemplateElement,
+    HTMLTemplateElement, ShadowRoot, HTMLSlotElement,
   });
   for (const type of elementInterfaces) global[type.name] = type;
   function Image(width?: number, height?: number): HTMLImageElement {
@@ -4307,11 +5113,16 @@ export function installDocumentBindings(global: Record<PropertyKey, unknown>, do
     const rects = (nativeRead(this, 2) as Rect[]).map(wrapRect);
     return Object.assign(rects, { item: (index: number) => rects[index] ?? null });
   });
-  method(Document.prototype, "elementFromPoint", function elementFromPoint(this: Document, x: number, y: number) {
+  // A hit inside a shadow tree shows as the host to a tree that cannot see into it.
+  const elementFromPoint = function elementFromPoint(this: Document | ShadowRoot, x: number, y: number) {
     x = Number(x);
     y = Number(y);
-    return Number.isFinite(x) && Number.isFinite(y) ? lookupElement(this, nativeRead(this, 6, { x, y }) as number | null) : null;
-  });
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    const hit = lookupElement(this, nativeRead(ownerOf(this), 6, { x, y }) as number | null);
+    return hit === null ? null : retarget(hit, this) as Element;
+  };
+  method(Document.prototype, "elementFromPoint", elementFromPoint);
+  method(ShadowRoot.prototype, "elementFromPoint", elementFromPoint);
   for (const [index, name] of [
     "offsetTop", "offsetLeft", "offsetWidth", "offsetHeight", "clientTop", "clientLeft",
     "clientWidth", "clientHeight", "scrollWidth", "scrollHeight",
@@ -4324,7 +5135,8 @@ export function installDocumentBindings(global: Record<PropertyKey, unknown>, do
   Object.defineProperty(HTMLElement.prototype, "offsetParent", {
     get(this: HTMLElement) {
       const { offsetParent } = nativeRead(this, 3) as { offsetParent: number | null };
-      return lookupElement(this, offsetParent);
+      const parent = lookupElement(this, offsetParent);
+      return parent === null ? null : retarget(parent, this);
     },
     configurable: true, enumerable: true,
   });

@@ -5,7 +5,8 @@ use std::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 use markup5ever::{LocalName, Namespace, ns};
 use squark_journal::{BatchDecoder, DecodedBatch, JournalError};
 use squark_types::journal::{
-    FOCUS_BLUR, FOCUS_PREVENT_SCROLL, Opcode, Record, SELECTION_BACKWARD, STYLE_IMPORTANT,
+    FOCUS_BLUR, FOCUS_PREVENT_SCROLL, NO_STRING, Opcode, Record, SELECTION_BACKWARD,
+    STYLE_IMPORTANT,
 };
 use squark_types::{NodeId, Point};
 
@@ -512,6 +513,77 @@ impl Changes<'_> {
                 Ok(())
             }
             Opcode::FontFace if a != 0 => Ok(()),
+            Opcode::AttachShadow if c == 0 => {
+                let host = NodeId::from_raw(b);
+                let node = self.node(host)?;
+                if node.element().is_none() || node.shadow_root.is_some() {
+                    return Err(invalid);
+                }
+                self.create(id, NodeKind::ShadowRoot { host })?;
+                self.node_mut(host)?.shadow_root = Some(id);
+                // The host now renders its shadow tree in place of its children.
+                self.relocated.insert(host);
+                self.mark_dirty(host)
+            }
+            Opcode::AssignSlot if c == 0 => {
+                if self.node(id)?.element().is_none() {
+                    return Err(invalid);
+                }
+                if b == 0 {
+                    for slotted in std::mem::take(&mut self.node_mut(id)?.list) {
+                        let node = self.node_mut(slotted)?;
+                        if node.assigned_slot == Some(id) {
+                            node.assigned_slot = None;
+                        }
+                    }
+                } else {
+                    let slotted = NodeId::from_raw(b);
+                    let node = self.node(slotted)?;
+                    if !matches!(node.kind, NodeKind::Element(_) | NodeKind::Text(_)) {
+                        return Err(invalid);
+                    }
+                    if let Some(previous) = node.assigned_slot.filter(|&slot| slot != id)
+                        && let Ok(previous) = self.node_mut(previous)
+                    {
+                        previous.list.retain(|&node| node != slotted);
+                    }
+                    self.node_mut(slotted)?.assigned_slot = Some(id);
+                    let list = &mut self.node_mut(id)?.list;
+                    if !list.contains(&slotted) {
+                        list.push(slotted);
+                    }
+                    self.mark_dirty(slotted)?;
+                }
+                // Assigned nodes inherit from the slot, so restyle what it renders.
+                self.relocated.insert(id);
+                self.mark_dirty(id)
+            }
+            Opcode::CreateSheet if c == 0 => {
+                let media = if b == NO_STRING {
+                    None
+                } else {
+                    Some(string(b)?)
+                };
+                self.create(id, NodeKind::Sheet { media })
+            }
+            Opcode::AdoptSheet if c == 0 => {
+                if !matches!(
+                    self.node(id)?.kind,
+                    NodeKind::Document | NodeKind::ShadowRoot { .. }
+                ) {
+                    return Err(invalid);
+                }
+                if b == 0 {
+                    self.node_mut(id)?.list.clear();
+                } else {
+                    let sheet = NodeId::from_raw(b);
+                    if !matches!(self.node(sheet)?.kind, NodeKind::Sheet { .. }) {
+                        return Err(invalid);
+                    }
+                    self.node_mut(id)?.list.push(sheet);
+                }
+                Ok(())
+            }
             _ => Err(invalid),
         }
     }
@@ -641,10 +713,12 @@ impl Changes<'_> {
     }
 
     fn sheet_owner(&self, id: NodeId) -> Result<(), ReplayError> {
-        let valid = self.node(id)?.element().is_some_and(|element| {
-            (element.namespace == ns!(html) && matches!(&*element.name, "style" | "link"))
-                || (element.namespace == ns!(svg) && &*element.name == "style")
-        });
+        let node = self.node(id)?;
+        let valid = matches!(node.kind, NodeKind::Sheet { .. })
+            || node.element().is_some_and(|element| {
+                (element.namespace == ns!(html) && matches!(&*element.name, "style" | "link"))
+                    || (element.namespace == ns!(svg) && &*element.name == "style")
+            });
         if valid {
             Ok(())
         } else {
@@ -683,10 +757,16 @@ impl Changes<'_> {
         let child_node = self.node(child)?;
         if !matches!(
             parent_node.kind,
-            NodeKind::Document | NodeKind::Element(_) | NodeKind::Fragment { .. }
+            NodeKind::Document
+                | NodeKind::Element(_)
+                | NodeKind::Fragment { .. }
+                | NodeKind::ShadowRoot { .. }
         ) || matches!(
             child_node.kind,
-            NodeKind::Document | NodeKind::Fragment { .. }
+            NodeKind::Document
+                | NodeKind::Fragment { .. }
+                | NodeKind::ShadowRoot { .. }
+                | NodeKind::Sheet { .. }
         ) || (matches!(child_node.kind, NodeKind::Doctype(_))
             && !matches!(parent_node.kind, NodeKind::Document))
             || child_node.parent.is_some()
@@ -798,11 +878,36 @@ impl Changes<'_> {
             NodeKind::Fragment { template } => template,
             _ => None,
         };
+        let host = match node.kind {
+            NodeKind::ShadowRoot { host } => Some(host),
+            _ => None,
+        };
+        let (slot, list) = (node.assigned_slot, node.list.clone());
         if let Some(content) = template_content {
             self.node_mut(content)?.kind = NodeKind::Fragment { template: None };
         }
         if let Some(template) = template {
             self.node_mut(template)?.template_content = None;
+        }
+        // A host and its shadow root are released in either order. The links
+        // that remain refer to the released id, which no lookup matches.
+        if let Some(host) = host
+            && let Ok(host) = self.node_mut(host)
+            && host.shadow_root == Some(id)
+        {
+            host.shadow_root = None;
+        }
+        if let Some(slot) = slot
+            && let Ok(slot) = self.node_mut(slot)
+        {
+            slot.list.retain(|&node| node != id);
+        }
+        for slotted in list {
+            if let Ok(node) = self.node_mut(slotted)
+                && node.assigned_slot == Some(id)
+            {
+                node.assigned_slot = None;
+            }
         }
         for child in children {
             let node = self.node_mut(child)?;
@@ -823,13 +928,23 @@ impl Changes<'_> {
     fn mark_dirty(&mut self, id: NodeId) -> Result<(), ReplayError> {
         let node = self.node_mut(id)?;
         node.dirty |= ALL_DIRTY;
-        let mut ancestor = node.parent;
+        let mut ancestor = node.parent.or_else(|| shadow_host(node));
         while let Some(id) = ancestor {
-            let node = self.node_mut(id)?;
+            let Ok(node) = self.node_mut(id) else {
+                // The host of a shadow root can be released first.
+                break;
+            };
             node.descendants |= ALL_DIRTY;
-            ancestor = node.parent;
+            ancestor = node.parent.or_else(|| shadow_host(node));
         }
         Ok(())
+    }
+}
+
+fn shadow_host(node: &DomNode) -> Option<NodeId> {
+    match node.kind {
+        NodeKind::ShadowRoot { host } => Some(host),
+        _ => None,
     }
 }
 
@@ -1089,5 +1204,152 @@ mod tests {
         assert_eq!(doc.template_content(template), Some(content));
         assert_eq!(doc.children(content), Some([text].as_slice()));
         assert_eq!(doc.node(content).unwrap().parent, None);
+    }
+
+    /// A host with a shadow root holding a slot, and two light children.
+    fn shadow_fixture() -> (Document, BatchDecoder, [NodeId; 6]) {
+        let (mut doc, mut decoder) = setup();
+        let [host, root, slot, light, text, fallback] = [2, 3, 4, 5, 6, 7];
+        let mut writer = BatchWriter::new();
+        writer.record(Opcode::DefineAtom, 0, 1, "div", 1).unwrap();
+        writer.record(Opcode::DefineAtom, 0, 2, "slot", 1).unwrap();
+        writer
+            .record(Opcode::DefineAtom, 0, 3, "http://www.w3.org/1999/xhtml", 4)
+            .unwrap();
+        writer.record(Opcode::CreateElement, 0, host, 1, 3).unwrap();
+        writer.record(Opcode::Insert, 0, ROOT, host, 0).unwrap();
+        writer
+            .record(Opcode::CreateElement, 0, light, 1, 3)
+            .unwrap();
+        writer.record(Opcode::CreateText, 0, text, "x", 0).unwrap();
+        writer.record(Opcode::Insert, 0, host, light, 0).unwrap();
+        writer.record(Opcode::Insert, 0, host, text, 0).unwrap();
+        writer
+            .record(Opcode::AttachShadow, 0, root, host, 0)
+            .unwrap();
+        writer.record(Opcode::CreateElement, 0, slot, 2, 3).unwrap();
+        writer
+            .record(Opcode::CreateElement, 0, fallback, 1, 3)
+            .unwrap();
+        writer.record(Opcode::Insert, 0, root, slot, 0).unwrap();
+        writer.record(Opcode::Insert, 0, slot, fallback, 0).unwrap();
+        writer.record(Opcode::AssignSlot, 0, slot, 0, 0).unwrap();
+        writer
+            .record(Opcode::AssignSlot, 0, slot, light, 0)
+            .unwrap();
+        writer.record(Opcode::AssignSlot, 0, slot, text, 0).unwrap();
+        doc.apply_journal(&mut decoder, &writer.finish()[0])
+            .unwrap();
+        let ids = [host, root, slot, light, text, fallback].map(NodeId::from_raw);
+        (doc, decoder, ids)
+    }
+
+    #[test]
+    fn shadow_roots_and_slots_form_the_flat_tree() {
+        use squark_types::fragment::MirrorRead;
+        let (mut doc, mut decoder, [host, root, slot, light, text, fallback]) = shadow_fixture();
+        assert_eq!(doc.shadow_root(host), Some(root));
+        assert_eq!(doc.shadow_host(root), Some(host));
+        assert_eq!(doc.parent(root), None);
+        assert_eq!(doc.containing_shadow_root(fallback), Some(root));
+        assert!(doc.is_connected(fallback));
+        assert_eq!(&*doc.flat_children(host), [slot]);
+        assert_eq!(&*doc.flat_children(slot), [light, text]);
+        assert_eq!(doc.flat_parent(light), Some(slot));
+        assert_eq!(doc.flat_parent(slot), Some(host));
+        assert_eq!(doc.assigned_slot(text), Some(slot));
+        let mirror: &dyn MirrorRead = &doc;
+        assert_eq!(mirror.node(root).unwrap().links.parent, Some(host));
+        assert_eq!(mirror.node(light).unwrap().links.parent, Some(slot));
+
+        // A node that leaves its host is no longer slotted, even before the
+        // slot's list is resent.
+        flush(
+            &mut doc,
+            &mut decoder,
+            &[(Opcode::Remove, host.raw(), light.raw().into(), 0)],
+        )
+        .unwrap();
+        assert_eq!(doc.assigned_slot(light), None);
+        assert_eq!(&*doc.flat_children(slot), [text]);
+        flush(
+            &mut doc,
+            &mut decoder,
+            &[(Opcode::AssignSlot, slot.raw(), 0.into(), 0)],
+        )
+        .unwrap();
+        assert_eq!(
+            &*doc.flat_children(slot),
+            [fallback],
+            "an empty slot renders its fallback"
+        );
+        assert_eq!(doc.assigned_slot(text), None);
+    }
+
+    #[test]
+    fn shadow_records_reject_invalid_targets() {
+        let (mut doc, mut decoder, [host, root, slot, light, text, _]) = shadow_fixture();
+        let sheet = 9;
+        flush(
+            &mut doc,
+            &mut decoder,
+            &[(Opcode::CreateSheet, sheet, u32::MAX.into(), 0)],
+        )
+        .unwrap();
+        for record in [
+            (Opcode::AttachShadow, 8, host.raw().into(), 0),
+            (Opcode::AttachShadow, 8, text.raw().into(), 0),
+            (Opcode::AssignSlot, text.raw(), light.raw().into(), 0),
+            (Opcode::AssignSlot, slot.raw(), root.raw().into(), 0),
+            (Opcode::AdoptSheet, light.raw(), sheet.into(), 0),
+            (Opcode::AdoptSheet, root.raw(), light.raw().into(), 0),
+            (Opcode::Insert, light.raw(), root.raw().into(), 0),
+            (Opcode::Insert, light.raw(), sheet.into(), 0),
+        ] {
+            assert!(
+                flush(&mut doc, &mut decoder, &[record]).is_err(),
+                "{record:?}"
+            );
+        }
+        let mut writer = BatchWriter::new();
+        writer
+            .record(Opcode::SheetInsert, 0, sheet, 0, "p { color: red }")
+            .unwrap();
+        writer
+            .record(Opcode::AdoptSheet, 0, root.raw(), sheet, 0)
+            .unwrap();
+        doc.apply_journal(&mut decoder, &writer.finish()[0])
+            .unwrap();
+        assert_eq!(doc.adopted_sheets(root), [NodeId::from_raw(sheet)]);
+        assert_eq!(doc.sheet_media(NodeId::from_raw(sheet)), Some(&[][..]));
+        assert_eq!(doc.sheet_rules(sheet).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn hosts_and_shadow_roots_release_in_either_order() {
+        for root_first in [false, true] {
+            let (mut doc, mut decoder, [host, root, slot, light, text, fallback]) =
+                shadow_fixture();
+            flush(
+                &mut doc,
+                &mut decoder,
+                &[(Opcode::Remove, ROOT, host.raw().into(), 0)],
+            )
+            .unwrap();
+            let order = if root_first {
+                [root, host]
+            } else {
+                [host, root]
+            };
+            for id in order.into_iter().chain([slot, light, text, fallback]) {
+                flush(
+                    &mut doc,
+                    &mut decoder,
+                    &[(Opcode::Release, id.raw(), 0.into(), 0)],
+                )
+                .unwrap();
+            }
+            assert!(!doc.contains(host) && !doc.contains(root));
+        }
     }
 }

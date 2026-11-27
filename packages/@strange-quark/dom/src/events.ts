@@ -27,15 +27,26 @@ export const defaultPassive = Symbol("default passive listener");
 const dispatch = Symbol("dispatch event");
 
 type EventInit = { bubbles?: boolean; cancelable?: boolean; composed?: boolean };
+/** One entry of an event's path, as DOM's dispatch algorithm builds it. */
+type PathStruct = {
+  item: EventTarget;
+  inShadowTree: boolean;
+  shadowAdjustedTarget: EventTarget | null;
+  relatedTarget: EventTarget | null;
+  rootOfClosedTree: boolean;
+  slotInClosedTree: boolean;
+};
 type EventState = {
   type: string;
   bubbles: boolean;
   cancelable: boolean;
   composed: boolean;
   target: EventTarget | null;
+  /** The relatedTarget of a FocusEvent or MouseEvent, retargeted during dispatch. */
+  relatedTarget: EventTarget | null;
   currentTarget: EventTarget | null;
   phase: number;
-  path: EventTarget[];
+  path: PathStruct[];
   dispatching: boolean;
   initialized: boolean;
   trusted: boolean;
@@ -60,7 +71,7 @@ export class Event {
     const clock = globalThis as { performance?: { now(): number } };
     events.set(this, {
       type: String(type), bubbles: Boolean(init?.bubbles), cancelable: Boolean(init?.cancelable),
-      composed: Boolean(init?.composed), target: null, currentTarget: null, phase: Event.NONE,
+      composed: Boolean(init?.composed), target: null, relatedTarget: null, currentTarget: null, phase: Event.NONE,
       path: [], dispatching: false, initialized: true, trusted: false, stopped: false, immediate: false, canceled: false, passive: false, time: clock.performance?.now() ?? 0,
     });
   }
@@ -86,7 +97,41 @@ export class Event {
   set returnValue(value: boolean) { if (!value) this.preventDefault(); }
 
   composedPath(): EventTarget[] {
-    return events.get(this)!.path.slice();
+    const { path, currentTarget } = events.get(this)!;
+    if (path.length === 0 || currentTarget === null) return [];
+    // DOM's composedPath(): leave out the targets in closed shadow trees
+    // that the current target cannot see.
+    const composed: EventTarget[] = [currentTarget];
+    let currentIndex = 0;
+    let targetLevel = 0;
+    for (let index = path.length - 1; index >= 0; index--) {
+      if (path[index].rootOfClosedTree) targetLevel++;
+      if (path[index].item === currentTarget) {
+        currentIndex = index;
+        break;
+      }
+      if (path[index].slotInClosedTree) targetLevel--;
+    }
+    let level = targetLevel;
+    let maxLevel = targetLevel;
+    for (let index = currentIndex - 1; index >= 0; index--) {
+      if (path[index].rootOfClosedTree) level++;
+      if (level <= maxLevel) composed.unshift(path[index].item);
+      if (path[index].slotInClosedTree) {
+        level--;
+        if (level < maxLevel) maxLevel = level;
+      }
+    }
+    level = maxLevel = targetLevel;
+    for (let index = currentIndex + 1; index < path.length; index++) {
+      if (path[index].slotInClosedTree) level++;
+      if (level <= maxLevel) composed.push(path[index].item);
+      if (path[index].rootOfClosedTree) {
+        level--;
+        if (level < maxLevel) maxLevel = level;
+      }
+    }
+    return composed;
   }
 
   preventDefault(): void {
@@ -190,8 +235,17 @@ function report(error: unknown): void {
   else host.console?.error(error);
 }
 
-function invoke(target: EventTarget, event: Event, state: EventState, capture: boolean): void {
+function invoke(path: readonly PathStruct[], index: number, event: Event, state: EventState, capture: boolean): void {
+  const struct = path[index];
+  for (let preceding = index; preceding >= 0; preceding--) {
+    if (path[preceding].shadowAdjustedTarget !== null) {
+      state.target = path[preceding].shadowAdjustedTarget;
+      break;
+    }
+  }
+  state.relatedTarget = struct.relatedTarget;
   if (state.stopped) return;
+  const target = struct.item;
   state.currentTarget = target;
   const list = listeners.get(target)!.get(state.type);
   for (const listener of list?.slice() ?? []) {
@@ -200,7 +254,8 @@ function invoke(target: EventTarget, event: Event, state: EventState, capture: b
     state.passive = listener.passive;
     const view = (globalThis as { window?: { event?: Event } }).window;
     const previous = view?.event;
-    if (view !== undefined) view.event = event;
+    // window.event stays out of shadow trees.
+    if (view !== undefined && !struct.inShadowTree) view.event = event;
     try {
       const callback = listener.callback;
       if (typeof callback === "function") callback.call(target, event);
@@ -215,6 +270,53 @@ function invoke(target: EventTarget, event: Event, state: EventState, capture: b
   }
 }
 
+/**
+ * What dispatch needs to know about shadow trees. squark-dom's document
+ * module installs it; without it every target is in one light tree.
+ */
+export type ShadowTrees = {
+  /** The root of a node's tree, or null for a target that is not a node. */
+  root(target: EventTarget): EventTarget | null;
+  /** The host of a shadow root, or null for any other node. */
+  host(root: EventTarget): EventTarget | null;
+  closed(root: EventTarget): boolean;
+  /** Whether `ancestor` is a shadow-including inclusive ancestor of `node`. */
+  includes(ancestor: EventTarget, node: EventTarget): boolean;
+  /** Whether a slottable is assigned to a slot. */
+  assigned(node: EventTarget): boolean;
+};
+let shadowTrees: ShadowTrees | undefined;
+
+export function installShadowTrees(trees: ShadowTrees): void {
+  shadowTrees = trees;
+}
+
+/** DOM's retargeting: the first of `target` and its hosts that `against` can see. */
+export function retarget(target: EventTarget | null, against: EventTarget): EventTarget | null {
+  const trees = shadowTrees;
+  while (target !== null && trees !== undefined) {
+    const root = trees.root(target);
+    const host = root === null ? null : trees.host(root);
+    if (host === null || trees.includes(root!, against)) return target;
+    target = host;
+  }
+  return target;
+}
+
+function inShadowTree(target: EventTarget | null): boolean {
+  const root = target === null ? null : shadowTrees?.root(target) ?? null;
+  return root !== null && shadowTrees!.host(root) !== null;
+}
+
+function appendToPath(path: PathStruct[], item: EventTarget, shadowAdjustedTarget: EventTarget | null,
+                      relatedTarget: EventTarget | null, slotInClosedTree: boolean, light: boolean): void {
+  const trees = shadowTrees;
+  path.push({
+    item, shadowAdjustedTarget, relatedTarget, slotInClosedTree, inShadowTree: !light && inShadowTree(item),
+    rootOfClosedTree: !light && trees !== undefined && trees.host(item) !== null && trees.closed(item),
+  });
+}
+
 /** Share the listener storage with a Node's named-property wrapper. */
 export function aliasEventTarget(target: EventTarget, wrapper: EventTarget): void {
   listeners.set(wrapper, listeners.get(target)!);
@@ -227,7 +329,8 @@ export class EventTarget {
 
   [listenerFlagsChanged](flags: number): void { listenerReports.get(this)?.(flags); }
 
-  [eventParent](_event: Event): EventTarget | null {
+  /** DOM's "get the parent", given the first invocation target of the event's path. */
+  [eventParent](_event: Event, _origin: EventTarget): EventTarget | null {
     return null;
   }
 
@@ -292,29 +395,68 @@ export class EventTarget {
     if (state === undefined) throw new TypeError("Expected an Event");
     if (state.dispatching || !state.initialized) throw new DOMException("The event cannot be dispatched", "InvalidStateError");
 
-    const path = [this as EventTarget];
-    for (let parent = this[eventParent](event); parent !== null; parent = parent[eventParent](event)) {
-      path.push(parent);
-    }
+    // DOM's dispatch algorithm, with shadow-boundary retargeting.
     state.dispatching = true;
     state.trusted = trusted;
     state.target = this;
-    state.path = path;
+    const trees = shadowTrees;
+    const originalRelated = state.relatedTarget;
+    let relatedTarget = retarget(originalRelated, this);
+    let clearTargets = false;
     let activate: ((canceled: boolean) => void) | undefined;
     try {
+      if (this === relatedTarget && this !== originalRelated) return !state.canceled;
+      const path: PathStruct[] = [];
+      // Until the path reaches a slot, a target outside shadow trees has only
+      // ancestors in its own tree, which needs no retargeting.
+      let light = !inShadowTree(this);
+      appendToPath(path, this, this, relatedTarget, false, light);
+      let target: EventTarget = this;
+      let slottable: EventTarget | null = trees?.assigned(this) ? this : null;
+      let slotInClosedTree = false;
+      let parent = this[eventParent](event, this);
+      while (parent !== null) {
+        if (slottable !== null) {
+          light = false;
+          slottable = null;
+          const root = trees!.root(parent);
+          if (root !== null && trees!.host(root) !== null && trees!.closed(root)) slotInClosedTree = true;
+        }
+        if (trees?.assigned(parent)) slottable = parent;
+        relatedTarget = retarget(originalRelated, parent);
+        const targetRoot = light ? null : trees?.root(target) ?? null;
+        if (targetRoot === null || trees!.root(parent) === null || trees!.includes(targetRoot, parent)) {
+          appendToPath(path, parent, null, relatedTarget, slotInClosedTree, light);
+        } else if (parent === relatedTarget) {
+          parent = null;
+        } else {
+          target = parent;
+          appendToPath(path, parent, target, relatedTarget, slotInClosedTree, light);
+        }
+        if (parent !== null) parent = parent[eventParent](event, this);
+        slotInClosedTree = false;
+      }
+      state.path = path;
+      const last = path.findLast(struct => struct.shadowAdjustedTarget !== null)!;
+      clearTargets = inShadowTree(last.shadowAdjustedTarget) || inShadowTree(last.relatedTarget);
       if (state.type === "click" && event instanceof MouseEvent) {
-        for (let index = 0; index < (state.bubbles ? path.length : 1); index++) {
-          activate = path[index][eventActivation](event);
+        // The target, then retargeted targets, then (for bubbling clicks)
+        // every ancestor, as the activation target search runs.
+        for (const [index, struct] of path.entries()) {
+          if (index !== 0 && struct.shadowAdjustedTarget === null && !state.bubbles) continue;
+          activate = struct.item[eventActivation](event);
           if (activate !== undefined) break;
         }
       }
       for (let index = path.length - 1; index >= 0; index--) {
-        state.phase = index === 0 ? Event.AT_TARGET : Event.CAPTURING_PHASE;
-        invoke(path[index], event, state, true);
+        state.phase = path[index].shadowAdjustedTarget !== null ? Event.AT_TARGET : Event.CAPTURING_PHASE;
+        invoke(path, index, event, state, true);
       }
-      for (let index = 0; index < (state.bubbles ? path.length : 1); index++) {
-        state.phase = index === 0 ? Event.AT_TARGET : Event.BUBBLING_PHASE;
-        invoke(path[index], event, state, false);
+      for (let index = 0; index < path.length; index++) {
+        if (path[index].shadowAdjustedTarget !== null) state.phase = Event.AT_TARGET;
+        else if (!state.bubbles) continue;
+        else state.phase = Event.BUBBLING_PHASE;
+        invoke(path, index, event, state, false);
       }
     } finally {
       state.phase = Event.NONE;
@@ -323,6 +465,10 @@ export class EventTarget {
       state.dispatching = false;
       state.stopped = false;
       state.immediate = false;
+      if (clearTargets) {
+        state.target = null;
+        state.relatedTarget = null;
+      }
     }
     activate?.(state.canceled);
     return !state.canceled;
@@ -426,18 +572,18 @@ export class UIEvent extends Event {
 }
 
 export class FocusEvent extends UIEvent {
-  readonly relatedTarget: EventTarget | null;
   constructor(type: string, init?: FocusInit) {
     if (arguments.length === 0) throw new TypeError("FocusEvent requires a type");
     super(type, init);
-    this.relatedTarget = init?.relatedTarget ?? null;
+    events.get(this)!.relatedTarget = init?.relatedTarget ?? null;
   }
+
+  get relatedTarget(): EventTarget | null { return events.get(this)!.relatedTarget; }
 }
 
 type MouseState = {
   button: number; buttons: number; clientX: number; clientY: number; screenX: number; screenY: number;
   movementX: number; movementY: number; ctrlKey: boolean; altKey: boolean; shiftKey: boolean; metaKey: boolean;
-  relatedTarget: EventTarget | null;
 };
 type RelativePosition = { target: EventTarget | null; offsetX: number; offsetY: number; layerX: number; layerY: number };
 type Box = { left: number; top: number };
@@ -483,8 +629,8 @@ export class MouseEvent extends UIEvent {
       screenX: Number(init.screenX) || 0, screenY: Number(init.screenY) || 0,
       movementX: Number(init.movementX) || 0, movementY: Number(init.movementY) || 0,
       ctrlKey: Boolean(init.ctrlKey), altKey: Boolean(init.altKey), shiftKey: Boolean(init.shiftKey), metaKey: Boolean(init.metaKey),
-      relatedTarget: init.relatedTarget ?? null,
     };
+    events.get(this)!.relatedTarget = init.relatedTarget ?? null;
     noteModifiers(this, init);
   }
 
@@ -500,7 +646,7 @@ export class MouseEvent extends UIEvent {
   get altKey(): boolean { return this.#state.altKey; }
   get shiftKey(): boolean { return this.#state.shiftKey; }
   get metaKey(): boolean { return this.#state.metaKey; }
-  get relatedTarget(): EventTarget | null { return this.#state.relatedTarget; }
+  get relatedTarget(): EventTarget | null { return events.get(this)!.relatedTarget; }
   get x(): number { return this.clientX; }
   get y(): number { return this.clientY; }
   override get which(): number { return this.button + 1; }
@@ -558,8 +704,9 @@ export class MouseEvent extends UIEvent {
     Object.assign(this.#state, {
       screenX: Number(screenX) || 0, screenY: Number(screenY) || 0, clientX: Number(clientX) || 0, clientY: Number(clientY) || 0,
       ctrlKey: Boolean(ctrlKey), altKey: Boolean(altKey), shiftKey: Boolean(shiftKey), metaKey: Boolean(metaKey),
-      button: Number(button) | 0, relatedTarget,
+      button: Number(button) | 0,
     });
+    events.get(this)!.relatedTarget = relatedTarget;
     this.#page = undefined;
     this.#relative = undefined;
   }

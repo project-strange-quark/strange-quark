@@ -1,0 +1,62 @@
+{
+  "suite": "shadow-dom",
+  "mode": "compare",
+  "gpuAdapter": "software",
+  "total": 4,
+  "passed": 4,
+  "failed": 0,
+  "renderErrors": 0,
+  "passRate": 1,
+  "cases": [
+    {
+      "id": "01-slotted-content",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "02-scoped-styles",
+      "pass": true,
+      "diffRatio": 0.00125,
+      "maxDelta": 28,
+      "diffPixels": 150,
+      "meanChannelError": 0.006870833333333333,
+      "diffBounds": {
+        "x": 108,
+        "y": 16,
+        "width": 120,
+        "height": 84
+      },
+      "reason": null
+    },
+    {
+      "id": "03-host-and-slotted",
+      "pass": true,
+      "diffRatio": 0,
+      "maxDelta": 0,
+      "diffPixels": 0,
+      "meanChannelError": 0,
+      "diffBounds": null,
+      "reason": null
+    },
+    {
+      "id": "04-context-view",
+      "pass": true,
+      "diffRatio": 0.000475,
+      "maxDelta": 21,
+      "diffPixels": 57,
+      "meanChannelError": 0.045039583333333334,
+      "diffBounds": {
+        "x": 120,
+        "y": 61,
+        "width": 200,
+        "height": 130
+      },
+      "reason": null
+    }
+  ]
+}

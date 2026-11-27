@@ -739,7 +739,7 @@ impl<'a, 'b> Emitter<'a, 'b> {
                                 item.width,
                                 item.height,
                             );
-                            if let Some(ancestor) = self.document.parent(data.owner) {
+                            if let Some(ancestor) = self.document.flat_parent(data.owner) {
                                 slices.text(self.document, ancestor, owner, child_rect);
                             }
                             children.push(self.emit_box(
@@ -854,7 +854,7 @@ impl<'a, 'b> Emitter<'a, 'b> {
                                 match parent_kind {
                                     FragmentKind::Before | FragmentKind::After => Some(style_owner),
                                     FragmentKind::Marker => None,
-                                    _ => self.document.parent(style_owner),
+                                    _ => self.document.flat_parent(style_owner),
                                 },
                                 css,
                                 &item,

@@ -277,7 +277,7 @@ impl FontLoads {
             if css.as_ref().is_some_and(|css| css.get_display().is_none()) {
                 continue;
             }
-            for &child in document.children(owner).unwrap_or_default() {
+            for &child in document.flat_children(owner).iter() {
                 let Some(text) = document.text(child) else {
                     pending.push(child);
                     continue;

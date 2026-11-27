@@ -2,7 +2,7 @@
 // The Selection API: one selection per document, holding a live Range, and
 // the selectionchange events for the document and for text controls.
 
-import { childrenOf, DocumentType, expectNode, HTMLInputElement, queueDocumentTask, Text } from "./document.js";
+import { childrenOf, DocumentType, expectNode, focusedElement, HTMLInputElement, queueDocumentTask, Text } from "./document.js";
 import type { Document, Element, HTMLTextAreaElement, Node } from "./document.js";
 import { dispatchTrustedEvent, DOMException, Event } from "./events.js";
 import { comparePoints, newRange, nodeIndex, nodeLength, nodeRoot, Range, StaticRange, watchRange } from "./range.js";
@@ -141,7 +141,7 @@ export function textControlFocused(control: TextControl, selection: ControlSelec
 export function textControlSelectionChanged(control: TextControl, selection: ControlSelection): void {
   scheduleControl(control);
   const document = control.ownerDocument;
-  if (document.defaultView === null || document.activeElement !== control) return;
+  if (document.defaultView === null || focusedElement(document) !== control) return;
   enterControl(stateOf(document), control, selection);
 }
 
@@ -336,7 +336,8 @@ export class Selection {
     const state = this.#state;
     const range = current(state);
     if (range === null) return [];
-    // There are no shadow trees, so a text control's selection is rescoped to the control itself.
+    // The selection stays in the document tree, so no shadow root rescopes it. A text
+    // control's selection is rescoped to the control itself, as its own shadow tree.
     if (state.control !== null) {
       const index = range.startOffset;
       return [new StaticRange({ startContainer: range.startContainer, startOffset: index, endContainer: range.startContainer, endOffset: index + 1 })];

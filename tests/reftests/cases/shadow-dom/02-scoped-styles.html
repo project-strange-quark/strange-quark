@@ -1,0 +1,44 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shadow tree styles stay inside it, and document styles stay outside</title>
+  <style>
+    html, body { margin: 0; background: #ffffff; }
+    .row { display: flex; gap: 12px; padding: 16px; }
+    .box { width: 80px; height: 80px; background: #dc2626; border-radius: 0; }
+    div > .box { outline: 6px solid #7c3aed; outline-offset: -6px; }
+    #host { display: block; }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <div class="box"></div>
+    <div id="host"></div>
+    <div class="box"></div>
+  </div>
+  <div class="row" id="adopted"></div>
+  <script>
+    const root = document.getElementById("host").attachShadow({ mode: "closed" });
+    const style = root.appendChild(document.createElement("style"));
+    style.textContent = ".box { width: 120px; height: 40px; background: #0891b2; border-radius: 12px }" +
+      " :host > .box { margin-bottom: 4px }";
+    root.appendChild(document.createElement("div")).className = "box";
+    root.appendChild(document.createElement("div")).className = "box";
+
+    // Constructed stylesheets adopted by a shadow root and by the document.
+    const shadowSheet = new CSSStyleSheet();
+    shadowSheet.replaceSync(".tile { width: 60px; height: 60px; background: #16a34a }");
+    const documentSheet = new CSSStyleSheet();
+    documentSheet.replaceSync(".tile { width: 30px; height: 30px; background: #f59e0b }");
+    document.adoptedStyleSheets = [documentSheet];
+    const adoptedHost = document.getElementById("adopted");
+    adoptedHost.appendChild(document.createElement("div")).className = "tile";
+    const inner = adoptedHost.appendChild(document.createElement("div")).attachShadow({ mode: "open" });
+    inner.adoptedStyleSheets = [shadowSheet];
+    inner.appendChild(document.createElement("div")).className = "tile";
+  </script>
+</body>
+</html>

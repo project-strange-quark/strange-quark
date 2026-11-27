@@ -143,6 +143,10 @@ impl BatchDecoder {
                 | Focus
                 | Release
                 | Listeners
+                | AttachShadow
+                | AssignSlot
+                | CreateSheet
+                | AdoptSheet
         ) && c != 0
         {
             return Err(Operand("unused c"));
@@ -314,9 +318,26 @@ impl BatchDecoder {
                 }
                 ListenerFlags::from_bits(b).ok_or(Operand("listener flags"))?;
             }
+            AttachShadow => {
+                node(b)?;
+            }
+            AssignSlot | AdoptSheet => {
+                node(a)?;
+                if b != 0 {
+                    node(b)?;
+                }
+            }
+            CreateSheet => {
+                if b != NO_STRING {
+                    string(b)?;
+                }
+            }
         }
 
-        if matches!(op, CreateElement | CreateText | CreateNode) {
+        if matches!(
+            op,
+            CreateElement | CreateText | CreateNode | AttachShadow | CreateSheet
+        ) {
             let id = NodeId::from_raw(a);
             // A release in this batch has not been acknowledged yet.
             if id.slot() == 0 || changes.slots.contains_key(&id.slot()) {

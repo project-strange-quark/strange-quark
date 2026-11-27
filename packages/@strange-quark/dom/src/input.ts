@@ -3,8 +3,9 @@
 import { DragController, dragSource } from "./drag.js";
 import type { DragHost } from "./drag.js";
 import {
-  beginPointerSelection, changeStateChain, connectedInputTarget, disabledControl, Document, Element, elementChain, focusFromPointer,
-  inputComposition, isComposing, keyboardDefault, noteKeyboardModality, notePointerModality, onInputDetach, spaceActivates, updatePointerSelection,
+  beginPointerSelection, changeStateChain, connectedInputTarget, disabledControl, Document, Element, elementChain, flatTreeContains,
+  focusedElement, focusFromPointer, inputComposition, isComposing, keyboardDefault, noteKeyboardModality, notePointerModality,
+  onInputDetach, shadowIncludingContains, spaceActivates, updatePointerSelection,
 } from "./document.js";
 import type { ImeKind, PointerSelection } from "./document.js";
 import {
@@ -67,18 +68,20 @@ class InputController {
     onInputDetach(document, child => {
       const hover = this.chain("hover");
       const active = this.chain("active");
-      if (this.#spaceChain[0] !== undefined && child.contains(this.#spaceChain[0])) this.#spaceChain = [];
-      if (this.#lastClick !== null && child.contains(this.#lastClick.target)) this.#lastClick = null;
+      // A detached subtree takes its shadow trees with it.
+      const contains = (node: Element) => shadowIncludingContains(child, node);
+      if (this.#spaceChain[0] !== undefined && contains(this.#spaceChain[0])) this.#spaceChain = [];
+      if (this.#lastClick !== null && contains(this.#lastClick.target)) this.#lastClick = null;
       for (const pointer of this.pointers.values()) {
-        if (pointer.hover[0] !== undefined && child.contains(pointer.hover[0])) pointer.hover = [];
-        if (pointer.down !== null && child.contains(pointer.down)) {
+        if (pointer.hover[0] !== undefined && contains(pointer.hover[0])) pointer.hover = [];
+        if (pointer.down !== null && contains(pointer.down)) {
           pointer.down = null;
           pointer.clickPress = null;
           pointer.active = [];
         }
-        if (pointer.auxPress !== null && child.contains(pointer.auxPress.target)) pointer.auxPress = null;
-        if (pointer.pendingCapture !== null && child.contains(pointer.pendingCapture)) pointer.pendingCapture = null;
-        if (pointer.selection !== null && child.contains(pointer.selection.control)) pointer.selection = null;
+        if (pointer.auxPress !== null && contains(pointer.auxPress.target)) pointer.auxPress = null;
+        if (pointer.pendingCapture !== null && contains(pointer.pendingCapture)) pointer.pendingCapture = null;
+        if (pointer.selection !== null && contains(pointer.selection.control)) pointer.selection = null;
       }
       changeStateChain(hover, this.chain("hover"), ElementState.Hover);
       changeStateChain(active, this.chain("active"), ElementState.Active);
@@ -310,7 +313,7 @@ class InputController {
       pointer.pendingCapture = null;
       this.capture(pointer, fields, time);
       if (type === "pointerup" && fields.button === 0 && fields.isPrimary && target?.isConnected && pointer.down?.isConnected && !disabled) {
-        const clickTarget = captured === target ? target : elementChain(target).find(node => node.contains(pointer.down!));
+        const clickTarget = captured === target ? target : elementChain(target).find(node => flatTreeContains(node, pointer.down!));
         if (clickTarget !== undefined && !elementChain(clickTarget).some(disabledControl)) {
           const press = pointer.clickPress;
           const count = fields.clickCount ?? (press?.target === clickTarget ? detail : 1);
@@ -325,7 +328,7 @@ class InputController {
       const aux = pointer.auxPress;
       if (type === "pointerup" && fields.button !== 0 && fields.isPrimary && aux?.button === fields.button &&
           target?.isConnected && aux.target.isConnected && !disabled) {
-        const auxTarget = captured === target ? target : elementChain(target).find(node => node.contains(aux.target));
+        const auxTarget = captured === target ? target : elementChain(target).find(node => flatTreeContains(node, aux.target));
         if (auxTarget !== undefined && !elementChain(auxTarget).some(disabledControl)) {
           const count = fields.clickCount ?? aux.detail;
           this.#lastClick = { ...aux, target: auxTarget, detail: count };
@@ -383,7 +386,7 @@ class InputController {
   keyboard(type: "keydown" | "keyup", fields: KeyFields, time: number): boolean {
     // Escape ends a drag before anything else sees the key, as in Chromium.
     if (type === "keydown" && fields.key === "Escape" && this.drag.cancel()) return true;
-    const target = this.document.activeElement;
+    const target = focusedElement(this.document);
     const previousSpaceTarget = this.#spaceChain[0];
     if (type === "keyup" && fields.key === " ") this.setSpaceTarget(null);
     if (type === "keydown" && !fields.altKey && !fields.ctrlKey && !fields.metaKey &&
@@ -398,7 +401,7 @@ class InputController {
         !dispatchTrustedEvent(target ?? this.document, new KeyboardEvent("keypress", { ...init, keyCode: charCode, charCode }), time)) return true;
     if (fields.key === " " && spaceActivates(target)) {
       if (type === "keydown" && !composing && !fields.altKey && !fields.ctrlKey && !fields.metaKey &&
-          target === this.document.activeElement && target.isConnected && !disabledControl(target)) {
+          target === focusedElement(this.document) && target.isConnected && !disabledControl(target)) {
         this.setSpaceTarget(target);
       }
       if (type === "keyup" && target !== previousSpaceTarget) return false;

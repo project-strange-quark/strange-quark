@@ -17,6 +17,7 @@ test("createElement returns the HTML interface for each tag and leaves unimpleme
     template: "HTMLTemplateElement", html: "HTMLHtmlElement", head: "HTMLHeadElement", body: "HTMLBodyElement",
     title: "HTMLTitleElement", meta: "HTMLMetaElement", base: "HTMLBaseElement", hr: "HTMLHRElement", time: "HTMLTimeElement",
     data: "HTMLDataElement", optgroup: "HTMLOptGroupElement", legend: "HTMLLegendElement", menu: "HTMLMenuElement",
+    slot: "HTMLSlotElement",
   };
   for (const [tag, name] of Object.entries(interfaces)) {
     const element = document.createElement(tag);
@@ -25,11 +26,11 @@ test("createElement returns the HTML interface for each tag and leaves unimpleme
     assert.equal(Object.prototype.toString.call(element), `[object ${name}]`, tag);
     assert.throws(() => new global[name](), { name: "TypeError", message: "Illegal constructor" }, name);
   }
-  for (const tag of ["dialog", "details", "picture", "slot", "fieldset", "audio", "video", "section", "x-y"]) {
+  for (const tag of ["dialog", "details", "picture", "fieldset", "audio", "video", "section", "x-y"]) {
     assert.equal(document.createElement(tag).constructor, global.HTMLElement, tag);
   }
   assert.equal(document.createElement("blink").constructor, global.HTMLUnknownElement);
-  for (const name of ["HTMLDialogElement", "HTMLDetailsElement", "HTMLPictureElement", "HTMLSlotElement", "HTMLMediaElement"]) {
+  for (const name of ["HTMLDialogElement", "HTMLDetailsElement", "HTMLPictureElement", "HTMLMediaElement"]) {
     assert.equal(name in global, false, name);
   }
   assert.equal(document.createElementNS("urn:other", "div").constructor, global.Element);

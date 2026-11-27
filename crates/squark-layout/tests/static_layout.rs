@@ -27,6 +27,8 @@ mod control_tests;
 mod image_tests;
 #[path = "static_layout/queries.rs"]
 mod query_tests;
+#[path = "static_layout/shadow.rs"]
+mod shadow_tests;
 #[path = "static_layout/tables.rs"]
 mod table_tests;
 

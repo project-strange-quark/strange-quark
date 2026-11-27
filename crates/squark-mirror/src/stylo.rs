@@ -95,11 +95,71 @@ impl<'a> NodeRef<'a> {
 }
 
 impl NodeRef<'_> {
+    /// The style traversal walks the flat tree, so its ancestors are the
+    /// flat tree's.
     fn mark_ancestors_dirty(self) {
-        for parent in std::iter::successors(TNode::parent_element(&self), TNode::parent_element) {
+        for parent in
+            std::iter::successors(TNode::traversal_parent(&self), TElement::traversal_parent)
+        {
             parent.0.dirty_descendants.set(true);
         }
     }
+
+    fn is_shadow_root(self) -> bool {
+        matches!(self.0.kind, NodeKind::ShadowRoot { .. })
+    }
+
+    fn has_attr(self, name: &str) -> bool {
+        self.element()
+            .attr(&ns!(), &LocalName::from(name))
+            .is_some()
+    }
+
+    /// The `exportparts` mappings, inner part name to outer part name.
+    fn exported_parts(self) -> Vec<(style::Atom, style::Atom)> {
+        let Some(attr) = self.element().attr(&ns!(), &LocalName::from("exportparts")) else {
+            return Vec::new();
+        };
+        attr.scalar
+            .split(',')
+            .filter_map(|mapping| {
+                let mut names = mapping.split(':').map(str::trim);
+                let inner = names.next().filter(|name| !name.is_empty())?;
+                let outer = names.next().unwrap_or(inner);
+                (names.next().is_none()
+                    && !outer.is_empty()
+                    && !outer.contains(char::is_whitespace))
+                .then(|| (style::Atom::from(inner), style::Atom::from(outer)))
+            })
+            .collect()
+    }
+}
+
+/// Element children in the flat tree: a host's shadow tree and a slot's
+/// assigned nodes, or else the DOM children.
+enum FlatChildren<'a> {
+    Dom(style::dom::DomChildren<NodeRef<'a>>),
+    Listed(std::vec::IntoIter<NodeRef<'a>>),
+}
+
+impl<'a> Iterator for FlatChildren<'a> {
+    type Item = NodeRef<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Dom(children) => children.next(),
+            Self::Listed(children) => children.next(),
+        }
+    }
+}
+
+fn part_names(element: &Element) -> impl Iterator<Item = style::Atom> {
+    element
+        .attr(&ns!(), &LocalName::from("part"))
+        .into_iter()
+        .flat_map(|attr| attr.scalar.split([' ', '\t', '\n', '\r', '\x0c']))
+        .filter(|part| !part.is_empty())
+        .map(style::Atom::from)
 }
 
 fn classes(element: &Element) -> impl Iterator<Item = style::Atom> {
@@ -424,13 +484,17 @@ impl<'a> TShadowRoot for NodeRef<'a> {
         *self
     }
     fn host(&self) -> Self {
-        unreachable!("squark-mirror documents have no shadow roots")
+        let host = self
+            .doc()
+            .shadow_host(self.0.id)
+            .expect("a live shadow host");
+        self.with(host)
     }
     fn style_data<'b>(&self) -> Option<&'b CascadeData>
     where
         Self: 'b,
     {
-        None
+        self.doc().shadow_styles(self.0.id).map(|data| &**data)
     }
 }
 
@@ -459,12 +523,11 @@ impl<'a> TNode for NodeRef<'a> {
     }
 
     fn is_in_document(&self) -> bool {
-        std::iter::successors(Some(*self), TNode::parent_node)
-            .any(|node| node.0.id == self.doc().root)
+        self.doc().is_connected(self.0.id)
     }
 
     fn traversal_parent(&self) -> Option<Self> {
-        self.parent_node()?.as_element()
+        self.with(self.doc().flat_parent(self.0.id)?).as_element()
     }
     fn opaque(&self) -> OpaqueNode {
         OpaqueNode(std::ptr::from_ref(self.0).addr())
@@ -479,7 +542,7 @@ impl<'a> TNode for NodeRef<'a> {
         matches!(self.0.kind, NodeKind::Document).then_some(*self)
     }
     fn as_shadow_root(&self) -> Option<Self> {
-        None
+        self.is_shadow_root().then_some(*self)
     }
 }
 
@@ -490,13 +553,16 @@ impl SelectorElement for NodeRef<'_> {
         OpaqueElement::from_ptr(NonNull::from(self.0).cast())
     }
     fn parent_element(&self) -> Option<Self> {
-        TNode::traversal_parent(self)
+        self.parent_node()?.as_element()
     }
     fn parent_node_is_shadow_root(&self) -> bool {
-        false
+        self.parent_node().is_some_and(NodeRef::is_shadow_root)
     }
     fn containing_shadow_host(&self) -> Option<Self> {
-        None
+        Some(TElement::containing_shadow(self)?.host())
+    }
+    fn assigned_slot(&self) -> Option<Self> {
+        Some(self.with(self.doc().assigned_slot(self.0.id)?))
     }
     fn is_pseudo_element(&self) -> bool {
         false
@@ -570,7 +636,7 @@ impl SelectorElement for NodeRef<'_> {
         element_state(self.element(), false).contains(ElementState::UNVISITED)
     }
     fn is_html_slot_element(&self) -> bool {
-        false
+        self.is_html_element() && self.local_name() == &markup5ever::local_name!("slot")
     }
 
     fn has_id(&self, id: &AtomIdent, case_sensitivity: CaseSensitivity) -> bool {
@@ -585,11 +651,14 @@ impl SelectorElement for NodeRef<'_> {
             .any(|own| case_sensitivity.eq_atom(own, class))
     }
 
-    fn imported_part(&self, _: &AtomIdent) -> Option<AtomIdent> {
-        None
+    fn imported_part(&self, name: &AtomIdent) -> Option<AtomIdent> {
+        self.exported_parts()
+            .into_iter()
+            .find(|(_, outer)| outer == &name.0)
+            .map(|(inner, _)| GenericAtomIdent(inner))
     }
-    fn is_part(&self, _: &AtomIdent) -> bool {
-        false
+    fn is_part(&self, name: &AtomIdent) -> bool {
+        part_names(self.element()).any(|part| part == name.0)
     }
     fn is_empty(&self) -> bool {
         self.dom_children().all(|child| match &child.0.kind {
@@ -615,13 +684,28 @@ impl SelectorElement for NodeRef<'_> {
 
 impl<'a> TElement for NodeRef<'a> {
     type ConcreteNode = Self;
-    type TraversalChildrenIterator = style::dom::DomChildren<Self>;
+    type TraversalChildrenIterator = FlatChildren<'a>;
 
     fn as_node(&self) -> Self {
         *self
     }
     fn traversal_children(&self) -> LayoutIterator<Self::TraversalChildrenIterator> {
-        LayoutIterator(self.dom_children())
+        let document = self.doc();
+        let id = self.0.id;
+        if document.shadow_root(id).is_none() && !document.is_slot(id) {
+            return LayoutIterator(FlatChildren::Dom(self.dom_children()));
+        }
+        let children = document.flat_children(id);
+        LayoutIterator(FlatChildren::Listed(
+            children
+                .iter()
+                .map(|&child| self.with(child))
+                .collect::<Vec<_>>()
+                .into_iter(),
+        ))
+    }
+    fn inheritance_parent(&self) -> Option<Self> {
+        TElement::traversal_parent(self)
     }
 
     fn is_html_element(&self) -> bool {
@@ -640,10 +724,10 @@ impl<'a> TElement for NodeRef<'a> {
         element_state(self.element(), self.doc().inherited_disabled(self.0.id))
     }
     fn has_part_attr(&self) -> bool {
-        false
+        self.has_attr("part")
     }
     fn exports_any_part(&self) -> bool {
-        false
+        self.has_attr("exportparts")
     }
     fn id(&self) -> Option<&style::Atom> {
         self.0.selector_id.as_ref()
@@ -662,6 +746,20 @@ impl<'a> TElement for NodeRef<'a> {
     }
 
     fn each_custom_state<F: FnMut(&AtomIdent)>(&self, _: F) {}
+
+    fn each_part<F: FnMut(&AtomIdent)>(&self, mut callback: F) {
+        for part in part_names(self.element()) {
+            callback(AtomIdent::cast(&part));
+        }
+    }
+
+    fn each_exported_part<F: FnMut(&AtomIdent)>(&self, name: &AtomIdent, mut callback: F) {
+        for (inner, outer) in self.exported_parts() {
+            if inner == name.0 {
+                callback(AtomIdent::cast(&outer));
+            }
+        }
+    }
     fn has_dirty_descendants(&self) -> bool {
         self.0.dirty_descendants.get()
     }
@@ -780,10 +878,10 @@ impl<'a> TElement for NodeRef<'a> {
         )
     }
     fn shadow_root(&self) -> Option<Self> {
-        None
+        Some(self.with(self.doc().shadow_root(self.0.id)?))
     }
     fn containing_shadow(&self) -> Option<Self> {
-        None
+        Some(self.with(self.doc().containing_shadow_root(self.0.id)?))
     }
 
     fn get_attr(&self, name: &style::LocalName, namespace: &style::Namespace) -> Option<String> {
@@ -812,7 +910,7 @@ impl<'a> TElement for NodeRef<'a> {
     fn is_html_document_body_element(&self) -> bool {
         self.is_html_element()
             && self.local_name() == &markup5ever::local_name!("body")
-            && TNode::traversal_parent(self).is_some_and(|parent| parent.is_root())
+            && SelectorElement::parent_element(self).is_some_and(|parent| parent.is_root())
     }
 
     fn synthesize_presentational_hints_for_legacy_attributes<'h, V>(
@@ -1014,6 +1112,22 @@ impl Document {
                         .insert(RestyleHint::RESTYLE_SELF);
                 }
                 element.mark_ancestors_dirty();
+                // Stylo finds the elements a changed slot's ::slotted() rules
+                // match through slotted_nodes(), which this mirror leaves
+                // empty, so restyle the slot's assigned elements directly.
+                if SelectorElement::is_html_slot_element(&element) {
+                    for &slotted in self.assigned_nodes(id).iter() {
+                        if let Some(slotted) = self.node(slotted).filter(|node| node.has_data.get())
+                        {
+                            slotted
+                                .style
+                                .borrow_mut()
+                                .hint
+                                .insert(RestyleHint::RESTYLE_SELF);
+                            NodeRef(slotted).mark_ancestors_dirty();
+                        }
+                    }
+                }
             }
             for (&id, old) in &self.snapshots {
                 if let Some(element) = self.node(id).map(NodeRef)

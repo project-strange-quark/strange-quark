@@ -33,6 +33,8 @@ mod navigation_tests;
 mod network_tests;
 #[path = "document/platform.rs"]
 mod platform_tests;
+#[path = "document/shadow_dom.rs"]
+mod shadow_dom_tests;
 #[path = "document/shutdown.rs"]
 mod shutdown_tests;
 #[path = "document/worker.rs"]

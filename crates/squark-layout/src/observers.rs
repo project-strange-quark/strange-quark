@@ -104,7 +104,7 @@ impl Observers {
             let mut last = Some(target);
             while let Some(node) = last {
                 depth += 1;
-                last = geometry.document.parent(node);
+                last = geometry.document.flat_parent(node);
             }
             let vertical = geometry
                 .document

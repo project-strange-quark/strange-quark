@@ -540,7 +540,7 @@ impl<'a> Finder<'a, '_> {
                     }
                 }
             } else {
-                pending.extend(document.children(node).unwrap_or_default().iter().rev());
+                pending.extend(document.flat_children(node).iter().rev());
             }
         }
         match nearest {

@@ -22,7 +22,31 @@ type SheetState = {
   rules?: CSSRule[];
   list?: CSSRuleList;
   disabled: boolean;
+  constructed?: Constructed;
 };
+
+/** A constructed stylesheet's document-side hooks. */
+export type Constructed = {
+  /** Set while replace() runs: the sheet then refuses edits. */
+  replacing: boolean;
+  /** Replaces every rule with the text, which the engine parses. */
+  replace(text: string): void;
+  disabledChanged(): void;
+  queue(task: () => void): void;
+};
+type SheetFactory = (sheet: CSSStyleSheet, media: string) => { source: SheetSource; constructed: Constructed };
+let constructSheet: SheetFactory | undefined;
+
+/** The document module creates constructed stylesheets in the realm's document. */
+export function installConstructedSheets(factory: SheetFactory): void {
+  constructSheet = factory;
+}
+
+export function isConstructed(sheet: CSSStyleSheet): boolean {
+  return sheets.get(sheet)?.constructed !== undefined;
+}
+
+type SheetInit = { baseURL?: unknown; media?: unknown; disabled?: unknown };
 
 export class CSSRule {
   static readonly STYLE_RULE = 1;
@@ -106,11 +130,24 @@ function ruleOrder(rule: CSSRule): number {
 }
 
 export class CSSStyleSheet {
-  constructor(token?: symbol, state?: SheetState) {
-    if (token !== internal || state === undefined) {
-      throw new TypeError("Constructed stylesheets are not supported");
+  constructor(options?: SheetInit | null, state?: SheetState) {
+    if (options === internal as unknown && state !== undefined) {
+      sheets.set(this, state);
+      return;
     }
-    sheets.set(this, state);
+    if (options !== undefined && options !== null && typeof options !== "object") {
+      throw new TypeError("CSSStyleSheetInit must be an object");
+    }
+    if (constructSheet === undefined) throw new TypeError("Illegal constructor");
+    const init = options ?? {};
+    const media = init.media === undefined ? "" : String(init.media);
+    if (init.baseURL !== undefined) {
+      const URL = (globalThis as { URL?: new (url: string) => unknown }).URL;
+      try { if (URL !== undefined) new URL(String(init.baseURL)); }
+      catch { throw new DOMException("The base URL is invalid", "NotAllowedError"); }
+    }
+    const { source, constructed } = constructSheet(this, media);
+    sheets.set(this, { owner: null, href: null, source, disabled: Boolean(init.disabled), constructed });
   }
 
   get type(): string { return "text/css"; }
@@ -122,8 +159,44 @@ export class CSSStyleSheet {
   get disabled(): boolean { return sheets.get(this)!.disabled; }
   set disabled(value: boolean) {
     const state = sheets.get(this)!;
-    state.disabled = Boolean(value);
+    const disabled = Boolean(value);
+    const changed = disabled !== state.disabled;
+    state.disabled = disabled;
     state.owner?.toggleAttribute("disabled", state.disabled);
+    if (changed) state.constructed?.disabledChanged();
+  }
+
+  replace(text: string): Promise<CSSStyleSheet> {
+    const constructed = sheets.get(this)!.constructed;
+    if (constructed === undefined) {
+      return Promise.reject(new DOMException("Only constructed stylesheets can be replaced", "NotAllowedError"));
+    }
+    if (constructed.replacing) {
+      return Promise.reject(new DOMException("The stylesheet is already being replaced", "NotAllowedError"));
+    }
+    const value = String(text);
+    constructed.replacing = true;
+    return new Promise(resolve => constructed.queue(() => {
+      this.#replace(value);
+      constructed.replacing = false;
+      resolve(this);
+    }));
+  }
+
+  replaceSync(text: string): void {
+    if (arguments.length === 0) throw new TypeError("replaceSync requires text");
+    const constructed = sheets.get(this)!.constructed;
+    if (constructed === undefined) throw new DOMException("Only constructed stylesheets can be replaced", "NotAllowedError");
+    if (constructed.replacing) throw new DOMException("The stylesheet is being replaced", "NotAllowedError");
+    this.#replace(String(text));
+  }
+
+  // The engine parses the text and drops @import rules, as constructed sheets do.
+  #replace(text: string): void {
+    const state = sheets.get(this)!;
+    for (const rule of state.rules ?? []) ruleOwners.set(rule, null);
+    state.rules = undefined;
+    state.constructed!.replace(text);
   }
 
   get cssRules(): CSSRuleList {
@@ -138,8 +211,9 @@ export class CSSStyleSheet {
     const offset = index >>> 0;
     const current = rules(this);
     if (offset > current.length) throw new DOMException("Rule index is out of bounds", "IndexSizeError");
-    const source = sheets.get(this)!.source;
+    const { source, constructed } = sheets.get(this)!;
     if (source === null) throw new DOMException("The stylesheet has been detached", "NotAllowedError");
+    if (constructed?.replacing) throw new DOMException("The stylesheet is being replaced", "NotAllowedError");
     const serialized = source.parse(text);
     if (serialized === null) throw new DOMException("Expected one CSS rule", "SyntaxError");
     const entry = new CSSRule(internal, this, serialized);
@@ -159,6 +233,7 @@ export class CSSStyleSheet {
     const current = rules(this);
     if (offset >= current.length) throw new DOMException("Rule index is out of bounds", "IndexSizeError");
     const state = sheets.get(this)!;
+    if (state.constructed?.replacing) throw new DOMException("The stylesheet is being replaced", "NotAllowedError");
     state.source?.remove(offset);
     ruleOwners.set(current[offset], null);
     current.splice(offset, 1);
@@ -166,7 +241,7 @@ export class CSSStyleSheet {
 }
 
 export function createSheet(owner: Element, href: string | null, source: SheetSource): CSSStyleSheet {
-  return new CSSStyleSheet(internal, { owner, href, source, disabled: owner.hasAttribute("disabled") });
+  return new CSSStyleSheet(internal as unknown as SheetInit, { owner, href, source, disabled: owner.hasAttribute("disabled") });
 }
 
 export function detachSheet(sheet: CSSStyleSheet): void {

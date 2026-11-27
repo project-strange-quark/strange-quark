@@ -40,6 +40,9 @@ pub struct AttrRef<'a> {
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Links {
+    /// The parent in an event path: a slotted node's assigned slot, a shadow
+    /// root's host, and otherwise the DOM parent. Hit targets and listener
+    /// flags follow it across shadow boundaries.
     pub parent: Option<NodeId>,
     pub first: Option<NodeId>,
     pub last: Option<NodeId>,

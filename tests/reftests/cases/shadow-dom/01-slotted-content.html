@@ -1,0 +1,42 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":2,"maxDiffRatio":0.005} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Named and default slots render assigned nodes, and empty slots their fallback</title>
+  <style>
+    html, body { margin: 0; background: #ffffff; }
+    .card { margin: 16px; width: 360px; }
+    .chip { display: inline-block; width: 60px; height: 24px; margin-right: 8px; background: #2563eb; }
+    .wide { display: block; width: 200px; height: 30px; background: #f59e0b; }
+    .unslotted { display: block; width: 300px; height: 40px; background: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <span class="chip" slot="actions"></span>
+    <div class="wide"></div>
+    <span class="chip" slot="actions"></span>
+    <div class="unslotted" slot="missing"></div>
+  </div>
+  <div class="card" id="empty"></div>
+  <script>
+    for (const host of [document.getElementById("card"), document.getElementById("empty")]) {
+      const root = host.attachShadow({ mode: "open" });
+      const style = root.appendChild(document.createElement("style"));
+      style.textContent = `
+        :host { display: block; border: 4px solid #0f172a; padding: 8px; }
+        header { height: 32px; background: #e2e8f0; }
+        footer { display: flex; gap: 4px; padding-top: 8px; }
+        .fallback { width: 120px; height: 20px; background: #16a34a; }`;
+      root.appendChild(document.createElement("header"));
+      const main = root.appendChild(document.createElement("main"));
+      const content = main.appendChild(document.createElement("slot"));
+      content.appendChild(document.createElement("div")).className = "fallback";
+      const footer = root.appendChild(document.createElement("footer"));
+      footer.appendChild(document.createElement("slot")).name = "actions";
+    }
+  </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 //! Journal-fed document arena. The document thread is its only writer.
 
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -11,6 +12,7 @@ use style::data::ElementDataWrapper;
 use style::properties::PropertyDeclarationBlock;
 use style::servo_arc::Arc;
 use style::shared_lock::{Locked, SharedRwLock};
+use style::stylist::CascadeData;
 
 mod forms;
 mod replay;
@@ -40,6 +42,9 @@ pub struct Document {
     selector_dirty: BTreeSet<NodeId>,
     restyled_elements: usize,
     motion: motion::Motion,
+    /// The cascade data of each shadow root's stylesheets, which squark-style
+    /// builds and Stylo reads for the elements of that shadow tree.
+    shadow_styles: BTreeMap<NodeId, Arc<CascadeData>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -106,6 +111,14 @@ struct DomNode {
     next: Option<NodeId>,
     children: Vec<NodeId>,
     template_content: Option<NodeId>,
+    /// The shadow root this element hosts.
+    shadow_root: Option<NodeId>,
+    /// The slot this slottable was last assigned to. Readers check it with
+    /// [`Document::assigned_slot`], since the slot's list is the source.
+    assigned_slot: Option<NodeId>,
+    /// A slot's assigned nodes, or a document's or shadow root's adopted
+    /// stylesheets, in order.
+    list: Vec<NodeId>,
     listeners: u8,
     dirty: u8,
     descendants: u8,
@@ -115,7 +128,16 @@ struct DomNode {
 enum NodeKind {
     Document,
     Doctype(Box<[u16]>),
-    Fragment { template: Option<NodeId> },
+    Fragment {
+        template: Option<NodeId>,
+    },
+    ShadowRoot {
+        host: NodeId,
+    },
+    /// A constructed stylesheet and its media list, if it has one.
+    Sheet {
+        media: Option<Box<[u16]>>,
+    },
     Comment(Box<[u16]>),
     Element(Box<Element>),
     Text(Box<[u16]>),
@@ -172,6 +194,9 @@ impl DomNode {
             next: None,
             children: Vec::new(),
             template_content: None,
+            shadow_root: None,
+            assigned_slot: None,
+            list: Vec::new(),
             listeners: 0,
             dirty: ALL_DIRTY,
             descendants: 0,
@@ -245,6 +270,7 @@ impl Document {
             selector_dirty: BTreeSet::new(),
             restyled_elements: 0,
             motion: Default::default(),
+            shadow_styles: BTreeMap::new(),
         })
     }
 
@@ -287,6 +313,135 @@ impl Document {
 
     pub fn template_content(&self, id: NodeId) -> Option<NodeId> {
         self.node(id)?.template_content
+    }
+
+    /// The shadow root an element hosts.
+    pub fn shadow_root(&self, id: NodeId) -> Option<NodeId> {
+        self.node(id)?
+            .shadow_root
+            .filter(|&root| self.contains(root))
+    }
+
+    /// The host of a shadow root.
+    pub fn shadow_host(&self, root: NodeId) -> Option<NodeId> {
+        match self.node(root)?.kind {
+            NodeKind::ShadowRoot { host } => Some(host).filter(|&host| self.contains(host)),
+            _ => None,
+        }
+    }
+
+    /// The shadow root at the root of the tree that contains this node.
+    pub fn containing_shadow_root(&self, id: NodeId) -> Option<NodeId> {
+        let root = std::iter::successors(Some(id), |&id| self.parent(id)).last()?;
+        matches!(self.node(root)?.kind, NodeKind::ShadowRoot { .. }).then_some(root)
+    }
+
+    /// The parent, or the host of a shadow root: the shadow-including parent.
+    pub fn composed_parent(&self, id: NodeId) -> Option<NodeId> {
+        self.parent(id).or_else(|| self.shadow_host(id))
+    }
+
+    /// Whether the node's shadow-including root is this document.
+    pub fn is_connected(&self, id: NodeId) -> bool {
+        std::iter::successors(Some(id), |&id| self.composed_parent(id)).any(|id| id == self.root)
+    }
+
+    /// Whether the node is an HTML `slot` element.
+    pub fn is_slot(&self, id: NodeId) -> bool {
+        self.html_element(id) == Some("slot")
+    }
+
+    /// The slot a slottable is assigned to: a slot in its parent's shadow
+    /// tree whose assigned nodes list it.
+    pub fn assigned_slot(&self, id: NodeId) -> Option<NodeId> {
+        let node = self.node(id)?;
+        let slot = node.assigned_slot?;
+        let host = self.shadow_host(self.containing_shadow_root(slot)?)?;
+        (node.parent == Some(host) && self.node(slot)?.list.contains(&id)).then_some(slot)
+    }
+
+    /// A slot's assigned nodes that are still its host's children.
+    pub fn assigned_nodes(&self, slot: NodeId) -> Cow<'_, [NodeId]> {
+        let Some(node) = self.node(slot).filter(|_| self.is_slot(slot)) else {
+            return Cow::Borrowed(&[]);
+        };
+        if node
+            .list
+            .iter()
+            .all(|&id| self.assigned_slot(id) == Some(slot))
+        {
+            Cow::Borrowed(&node.list)
+        } else {
+            Cow::Owned(
+                node.list
+                    .iter()
+                    .copied()
+                    .filter(|&id| self.assigned_slot(id) == Some(slot))
+                    .collect(),
+            )
+        }
+    }
+
+    /// Children in the flat tree: a host's shadow root's children, a slot's
+    /// assigned nodes or else its own children, and otherwise the children.
+    pub fn flat_children(&self, id: NodeId) -> Cow<'_, [NodeId]> {
+        if let Some(root) = self.shadow_root(id) {
+            return Cow::Borrowed(self.children(root).unwrap_or_default());
+        }
+        if self.is_slot(id) {
+            let assigned = self.assigned_nodes(id);
+            if !assigned.is_empty() {
+                return assigned;
+            }
+        }
+        Cow::Borrowed(self.children(id).unwrap_or_default())
+    }
+
+    /// The parent in the flat tree: a slotted node's slot, a shadow root
+    /// child's host, and otherwise the parent.
+    pub fn flat_parent(&self, id: NodeId) -> Option<NodeId> {
+        if let Some(slot) = self.assigned_slot(id) {
+            return Some(slot);
+        }
+        let parent = self.parent(id)?;
+        self.shadow_host(parent).or(Some(parent))
+    }
+
+    /// The parent in an event path: a slotted node's slot, a shadow root's
+    /// host, and otherwise the parent.
+    pub fn event_parent(&self, id: NodeId) -> Option<NodeId> {
+        self.assigned_slot(id)
+            .or_else(|| self.parent(id))
+            .or_else(|| self.shadow_host(id))
+    }
+
+    /// A document's or shadow root's adopted constructed stylesheets.
+    pub fn adopted_sheets(&self, scope: NodeId) -> &[NodeId] {
+        match self.node(scope) {
+            Some(node) if matches!(node.kind, NodeKind::Document | NodeKind::ShadowRoot { .. }) => {
+                &node.list
+            }
+            _ => &[],
+        }
+    }
+
+    /// A constructed stylesheet's media list, or `None` for another node.
+    pub fn sheet_media(&self, sheet: NodeId) -> Option<&[u16]> {
+        match &self.node(sheet)?.kind {
+            NodeKind::Sheet { media } => Some(media.as_deref().unwrap_or_default()),
+            _ => None,
+        }
+    }
+
+    /// The cascade data built from a shadow root's stylesheets.
+    pub fn shadow_styles(&self, root: NodeId) -> Option<&Arc<CascadeData>> {
+        self.shadow_styles.get(&root)
+    }
+
+    /// Replaces every shadow root's cascade data. squark-style restyles the
+    /// document afterwards.
+    pub fn set_shadow_styles(&mut self, styles: BTreeMap<NodeId, Arc<CascadeData>>) {
+        self.shadow_styles = styles;
     }
 
     pub fn is_text(&self, id: NodeId) -> bool {
@@ -417,13 +572,15 @@ impl squark_types::fragment::MirrorRead for Document {
         let kind = match node.kind {
             NodeKind::Document => ReadKind::Document,
             NodeKind::Doctype(_) => ReadKind::Doctype,
-            NodeKind::Fragment { .. } => ReadKind::Fragment,
+            NodeKind::Fragment { .. } | NodeKind::ShadowRoot { .. } | NodeKind::Sheet { .. } => {
+                ReadKind::Fragment
+            }
             NodeKind::Comment(_) => ReadKind::Comment,
             NodeKind::Element(_) => ReadKind::Element,
             NodeKind::Text(_) => ReadKind::Text,
         };
         let links = Links {
-            parent: node.parent,
+            parent: self.event_parent(id),
             first: node.children.first().copied(),
             last: node.children.last().copied(),
             prev: node.prev,
