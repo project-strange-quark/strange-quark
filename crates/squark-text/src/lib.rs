@@ -40,6 +40,17 @@ pub struct FontInstance {
     pub font: FontData,
     pub size: f32,
     pub coords: Vec<i16>,
+    pub synthesis: Synthesis,
+}
+
+/// The faux bold and italic a run's glyphs are drawn with when its font
+/// lacks the weight or style asked for.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct Synthesis {
+    /// Embolden the outlines, as Skia's fake bold does.
+    pub bold: bool,
+    /// Slant the outlines, as Skia's fake italic does.
+    pub italic: bool,
 }
 
 #[derive(Eq, Hash, PartialEq)]
@@ -48,6 +59,7 @@ struct InstanceKey {
     index: u32,
     size: u32,
     coords: Vec<i16>,
+    synthesis: Synthesis,
 }
 
 pub struct Fonts {
@@ -55,6 +67,8 @@ pub struct Fonts {
     pub layout: LayoutContext<TextBrush>,
     set: Arc<document_fonts::FaceSet>,
     web: web_fonts::WebFaces,
+    /// The ID of the font each document face registered, in `set` order.
+    document_blobs: Vec<u64>,
     metrics: Arc<FontMetricsSource>,
     keys: HashMap<InstanceKey, FontInstanceId>,
     instances: Vec<FontInstance>,
@@ -81,6 +95,7 @@ impl Default for Fonts {
             layout: LayoutContext::new(),
             set: Arc::default(),
             web: Default::default(),
+            document_blobs: Vec::new(),
             metrics: Arc::default(),
             keys: HashMap::new(),
             instances: Vec::new(),
@@ -118,9 +133,12 @@ impl Fonts {
         self.context.collection = FontContext::new().collection;
         let set = document_fonts::FaceSet::new(resources, faces, document_fonts, &self.set);
         self.web.sync(&set);
-        for (face, coverage) in set.documents.iter().zip(&set.document_coverage) {
-            face.register(&mut self.context, coverage);
-        }
+        self.document_blobs = set
+            .documents
+            .iter()
+            .zip(&set.document_coverage)
+            .map(|(face, coverage)| face.register(&mut self.context, coverage))
+            .collect();
         self.set = Arc::new(set);
         self.metrics.set_faces(self.set.clone());
         true
@@ -132,18 +150,26 @@ impl Fonts {
         self.metrics.clone()
     }
 
-    pub fn intern(&mut self, font: &FontData, size: f32, coords: &[i16]) -> FontInstanceId {
+    pub fn intern(
+        &mut self,
+        font: &FontData,
+        size: f32,
+        coords: &[i16],
+        synthesis: Synthesis,
+    ) -> FontInstanceId {
         let key = InstanceKey {
             blob: font.data.id(),
             index: font.index,
             size: size.to_bits(),
             coords: coords.to_vec(),
+            synthesis,
         };
         *self.keys.entry(key).or_insert_with(|| {
             self.instances.push(FontInstance {
                 font: font.clone(),
                 size,
                 coords: coords.to_vec(),
+                synthesis,
             });
             FontInstanceId(self.instances.len() as u64)
         })
@@ -356,7 +382,7 @@ fn shares_one_font_mapping_across_relayouts_and_contexts() {
     let mut fonts = Fonts::default();
     let blob = fonts.context.source_cache.get(&source).unwrap();
     let blob_id = blob.id();
-    fonts.intern(&FontData::new(blob, 0), 16.0, &[]);
+    fonts.intern(&FontData::new(blob, 0), 16.0, &[], Synthesis::default());
     assert_eq!(count(), 1);
     let mut other = Fonts::default();
     for _ in 0..3 {

@@ -486,7 +486,12 @@ impl Fonts {
                 .iter()
                 .map(|v| v.to_bits())
                 .collect();
-            let font = self.intern(run.font(), run.font_size(), &coords);
+            let font = self.intern(
+                run.font(),
+                run.font_size(),
+                &coords,
+                crate::Synthesis::default(),
+            );
             let glyphs = item
                 .positioned_glyphs()
                 .map(|glyph| (glyph.id, [x + f64::from(glyph.x), y + f64::from(glyph.y)]));
@@ -578,7 +583,12 @@ impl Fonts {
             let glyphs = font.glyph_metrics(size, coords);
             let instance = canvas.then(|| {
                 let bits: Vec<_> = coords.iter().map(|coord| coord.to_bits()).collect();
-                self.intern(run.font(), run.font_size(), &bits)
+                self.intern(
+                    run.font(),
+                    run.font_size(),
+                    &bits,
+                    crate::Synthesis::default(),
+                )
             });
             for glyph in item.positioned_glyphs() {
                 let id = GlyphId::new(glyph.id);

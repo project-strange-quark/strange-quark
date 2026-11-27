@@ -4,10 +4,10 @@ use squark_types::render::{Bitmap, BitmapFormat, GlyphKey, ResourceUpdate};
 use swash::{
     FontRef,
     scale::{Render, ScaleContext, Source, StrikeWith, image::Content},
-    zeno::{Format, Vector},
+    zeno::{Format, Transform, Vector},
 };
 
-use crate::{FontInstance, outline::GrayOutlines};
+use crate::{FontInstance, Synthesis, outline::GrayOutlines};
 
 #[derive(Default)]
 pub struct GlyphRasterizer {
@@ -49,8 +49,27 @@ impl GlyphRasterizer {
                 .render(&mut scaler, glyph)
                 .or_else(|| self.outlines.render(key, instance, offset))
                 .or_else(|| {
+                    // Swash emboldens as FreeType does, growing the outline
+                    // up and to the right by twice the strength; shift it
+                    // back to grow it evenly, as Skia's fake bold does. It
+                    // slants after emboldening, a little unlike Chromium.
+                    let synthesis = instance.synthesis;
+                    let half = if synthesis.bold {
+                        crate::outline::fake_bold_width(instance.size) * key.raster_scale() / 2.0
+                    } else {
+                        0.0
+                    };
+                    let skew = if synthesis.italic {
+                        crate::outline::FAKE_ITALIC_SKEW
+                    } else {
+                        0.0
+                    };
                     Render::new(&[Source::Outline, Source::Bitmap(StrikeWith::BestFit)])
                         .format(Format::Alpha)
+                        .embolden(half)
+                        .transform((synthesis != Synthesis::default()).then(|| {
+                            Transform::new(1.0, 0.0, skew, 1.0, -half - skew * half, -half)
+                        }))
                         .offset(offset)
                         .render(&mut scaler, glyph)
                 })

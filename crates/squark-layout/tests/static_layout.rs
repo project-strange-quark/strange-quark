@@ -1361,6 +1361,91 @@ fn matches_stylesheet_faces_by_their_descriptors_and_unicode_ranges() {
 }
 
 #[test]
+fn synthesizes_bold_and_italic_for_faces_that_lack_them() {
+    let regular: &[u8] = include_bytes!(
+        "../../../tests/reftests/cases/r1/_assets/fonts/LiberationSans-Regular.woff2"
+    );
+    let mut fixture = Fixture::new(
+        "@font-face { font-family: Regular; src: url(/regular.woff2) }
+         @font-face { font-family: Medium; src: url(/regular.woff2); font-weight: 500 }
+         @font-face { font-family: Range; src: url(/regular.woff2); font-weight: 100 900 }
+         @font-face { font-family: Shared; src: url(/regular.woff2) }
+         @font-face { font-family: Shared; src: url(/regular.woff2); font-weight: 700 }
+         body { margin: 0; font: 16px/20px Regular, monospace }
+         p { margin: 0; white-space: nowrap }",
+    );
+    // Chromium 159's choices: a web face is emboldened from weight 600 when
+    // none of its weights reaches 600, and slanted for italic and obliques
+    // from 14deg when it is upright.
+    let cases = [
+        ("", [false, false]),
+        ("font-weight: 500", [false, false]),
+        ("font-weight: 600", [true, false]),
+        ("font-weight: 700", [true, false]),
+        ("font-style: italic", [false, true]),
+        ("font-style: oblique", [false, true]),
+        ("font-style: oblique 13deg", [false, false]),
+        ("font-style: oblique 30deg", [false, true]),
+        ("font-weight: 700; font-style: italic", [true, true]),
+        ("font-weight: 700; font-synthesis: none", [false, false]),
+        ("font-weight: 700; font-synthesis: style", [false, false]),
+        (
+            "font-weight: 700; font-synthesis-weight: none",
+            [false, false],
+        ),
+        (
+            "font-style: italic; font-synthesis-style: none",
+            [false, false],
+        ),
+        ("font-family: Medium; font-weight: 700", [true, false]),
+        ("font-family: Range; font-weight: 700", [false, false]),
+        // One file as two faces: matching picks the 700 one.
+        ("font-family: Shared; font-weight: 600", [false, false]),
+        ("font-family: Shared; font-weight: 400", [false, false]),
+    ];
+    let paragraphs: Vec<u32> = cases
+        .iter()
+        .map(|(style, _)| {
+            let p = fixture.element(BODY, "p", &[("style", style)]);
+            fixture.text(p, "Illl");
+            p + 1
+        })
+        .collect();
+    let pack = fixture.pack_with_assets(&[("/regular.woff2", 5, regular)]);
+    let media = screen(VIEWPORT.width, VIEWPORT.height, 1.0);
+    let (mut doc, _, mut cascade) = Cascade::from_pack(
+        &pack,
+        Url::parse("https://app.test/index.html").unwrap(),
+        media.clone(),
+    )
+    .unwrap();
+    cascade.update(&mut doc, media).unwrap();
+    let mut engine = LayoutEngine::default();
+    let tree = engine.layout(&doc, &cascade, VIEWPORT);
+    let runs = |owner: u32| {
+        tree.nodes
+            .values()
+            .filter(|fragment| fragment.owner.raw() == owner)
+            .filter_map(|fragment| match &fragment.content {
+                FragmentContent::Text(runs) => Some((fragment.border_box.size.width, runs)),
+                _ => None,
+            })
+            .flat_map(|(width, runs)| runs.iter().map(move |run| (width, run.font)))
+            .collect::<Vec<_>>()
+    };
+    let advance = runs(paragraphs[0])[0].0;
+    for ((style, expected), text) in cases.iter().zip(paragraphs) {
+        let runs = runs(text);
+        assert_eq!(runs.len(), 1, "{style}");
+        let (width, font) = runs[0];
+        let synthesis = engine.fonts().instance(font).unwrap().synthesis;
+        assert_eq!([synthesis.bold, synthesis.italic], *expected, "{style}");
+        // The synthesis leaves the advances alone.
+        assert_eq!(width, advance, "{style}");
+    }
+}
+
+#[test]
 fn shapes_text_with_font_variation_settings_and_optical_sizing() {
     let mut fixture = Fixture::new(
         "body { font: 20px monospace }

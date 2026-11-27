@@ -284,7 +284,8 @@ pub(crate) fn fetch(
 #[derive(Clone, Copy, PartialEq)]
 enum Load {
     Unloaded,
-    Loaded,
+    /// Registered from the font with this blob ID.
+    Loaded(u64),
     Failed,
 }
 
@@ -317,14 +318,14 @@ impl WebFaces {
     /// Registers the face from its first source that decodes, once.
     pub(crate) fn load(&mut self, index: usize, set: &FaceSet, context: &mut FontContext) -> bool {
         match self.loads[index] {
-            Load::Loaded => return true,
+            Load::Loaded(_) => return true,
             Load::Failed => return false,
             Load::Unloaded => {}
         }
         let face = &set.rules[index];
         let family = alias(index);
         let coverage = &set.rule_coverage[index];
-        let loaded = face.sources.iter().any(|source| {
+        let loaded = face.sources.iter().find_map(|source| {
             let blob = match source {
                 FaceSource::Url(url) => set.fetched.get(url).and_then(Fetched::blob),
                 FaceSource::Local(name) => self
@@ -332,18 +333,24 @@ impl WebFaces {
                     .entry(name.to_lowercase())
                     .or_insert_with(|| installed(context, name))
                     .clone(),
-            };
-            blob.is_some_and(|blob| {
-                let blob = self
-                    .restricted
-                    .entry((blob.id(), coverage.clone()))
-                    .or_insert_with(|| restricted(blob, coverage))
-                    .clone();
-                register(context, blob, &family, &face.attributes)
-            })
+            }?;
+            let blob = self
+                .restricted
+                .entry((blob.id(), coverage.clone()))
+                .or_insert_with(|| restricted(blob, coverage))
+                .clone();
+            register(context, blob.clone(), &family, &face.attributes).then(|| blob.id())
         });
-        self.loads[index] = if loaded { Load::Loaded } else { Load::Failed };
-        loaded
+        self.loads[index] = loaded.map_or(Load::Failed, Load::Loaded);
+        loaded.is_some()
+    }
+
+    /// The ID of the font a loaded face registered.
+    pub(crate) fn registered(&self, index: usize) -> Option<u64> {
+        match self.loads.get(index)? {
+            Load::Loaded(id) => Some(*id),
+            _ => None,
+        }
     }
 }
 

@@ -797,6 +797,10 @@ pub(crate) fn enable_preferences() {
     stylo_static_prefs::set_pref!("layout.css.backdrop-filter.enabled", true);
     // Text shaping sets the variation axes and the optical size.
     stylo_static_prefs::set_pref!("layout.css.font-variations.enabled", true);
+    // Glyph rasterization synthesizes bold and italic unless
+    // `font-synthesis` turns them off. Small caps and positions are never
+    // synthesized, so `none` holds for those too.
+    stylo_static_prefs::set_pref!("layout.css.font-synthesis.enabled", true);
     // The compositor stops scroll chaining at a box that contains its
     // overscroll.
     stylo_static_prefs::set_pref!("layout.css.overscroll-behavior.enabled", true);

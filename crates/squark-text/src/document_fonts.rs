@@ -359,18 +359,16 @@ impl DocumentFont {
         format!("StrangeQuark FontFace {}", self.id)
     }
 
+    /// Registers the face and returns the ID of the font it registered.
     pub(crate) fn register(
         &self,
         context: &mut parley::FontContext,
         coverage: &[RangeInclusive<u32>],
-    ) {
+    ) -> u64 {
         let blob = fontique::Blob::new(Arc::new(self.bytes.clone()));
-        crate::web_fonts::register(
-            context,
-            crate::web_fonts::restricted(blob, coverage),
-            &self.alias(),
-            &self.attributes,
-        );
+        let blob = crate::web_fonts::restricted(blob, coverage);
+        crate::web_fonts::register(context, blob.clone(), &self.alias(), &self.attributes);
+        blob.id()
     }
 }
 
@@ -567,6 +565,64 @@ impl Fonts {
         match face {
             Face::Rule(index) => self.web.load(index, &self.set, &mut self.context),
             Face::Document(_) => true,
+        }
+    }
+
+    /// The faux bold and italic for a run in `font`, shaped for a style
+    /// with the computed font `style`, as Chromium decides them. A web font
+    /// face is emboldened for a weight of 600 or more when none of its
+    /// weights reaches 600, and slanted for `italic` or an oblique of 14deg
+    /// or more when it is upright, as Blink's segmented font faces do. An
+    /// installed font is emboldened when the weight asked for exceeds its
+    /// own by more than 200, and slanted for `italic` and the default
+    /// `oblique` when it is upright, as Blink's font cache does; fontique's
+    /// suggestion follows the same rules. `font-synthesis` turns either off.
+    pub fn synthesis(
+        &self,
+        font: &parley::FontData,
+        suggested: fontique::Synthesis,
+        style: &style::properties::style_structs::Font,
+    ) -> crate::Synthesis {
+        use style::values::computed::font::{FontSynthesis, FontSynthesisStyle, SingleFontFamily};
+        let request = FontRequest::from_font(style);
+        let bold = style.font_synthesis_weight == FontSynthesis::Auto;
+        let italic = match style.font_synthesis_style {
+            FontSynthesisStyle::Auto => true,
+            FontSynthesisStyle::None => false,
+            FontSynthesisStyle::ObliqueOnly => request.style != FontStyle::ITALIC,
+        };
+        let blob = font.data.id();
+        for family in style.font_family.families.iter() {
+            let SingleFontFamily::FamilyName(family) = family else {
+                continue;
+            };
+            let (faces, _) = self.set.match_family(family.name.as_str(), request);
+            if let Some(&face) = faces
+                .iter()
+                .find(|&&face| self.registered(face) == Some(blob))
+            {
+                let face = self.set.attributes(face);
+                return crate::Synthesis {
+                    bold: bold && request.weight >= 600.0 && face.weight[1] < 600.0,
+                    italic: italic
+                        && slope(request.style) >= 14.0
+                        && face.slopes().into_iter().fold(f32::MIN, f32::max) == 0.0,
+                };
+            }
+        }
+        let default_slant =
+            request.style == FontStyle::ITALIC || request.style == FontStyle::oblique(14.0);
+        crate::Synthesis {
+            bold: bold && suggested.embolden(),
+            italic: italic && default_slant && suggested.skew().is_some(),
+        }
+    }
+
+    /// The ID of the font a face registered, once it has loaded.
+    fn registered(&self, face: Face) -> Option<u64> {
+        match face {
+            Face::Rule(index) => self.web.registered(index),
+            Face::Document(index) => self.document_blobs.get(index).copied(),
         }
     }
 }
