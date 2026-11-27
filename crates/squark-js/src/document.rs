@@ -142,6 +142,12 @@ pub enum DocumentTask {
     FullscreenChanged {
         fullscreen: bool,
     },
+    /// The window gained or lost focus, or was hidden (occluded, minimised)
+    /// or shown.
+    WindowState {
+        focused: bool,
+        visible: bool,
+    },
     FontResult {
         face: FaceId,
         result: Result<(), String>,
@@ -219,6 +225,7 @@ struct Realm {
     image_resource: Global<Function>,
     host_reply: Global<Function>,
     fullscreen_change: Global<Function>,
+    window_state: Global<Function>,
     drain_indexed_db: Global<Function>,
     flush_local_storage: Global<Function>,
     network_queued: Arc<AtomicBool>,
@@ -502,6 +509,7 @@ impl<'engine> DocumentRunner<'engine> {
                 .map(|native| Global::new(scope, native));
             let image_resource = function(scope, api, "dispatchImageResult")?;
             let fullscreen_change = function(scope, api, "dispatchFullscreenChange")?;
+            let window_state = function(scope, api, "dispatchWindowState")?;
             clone_value::prepare(scope).ok_or_else(|| setup("failed to stash clone prototypes"))?;
             let install_fonts = function(scope, api, "installFonts")?;
             let font_resource = call(
@@ -550,6 +558,7 @@ impl<'engine> DocumentRunner<'engine> {
                 image_resource: Global::new(scope, image_resource),
                 host_reply: Global::new(scope, host_reply),
                 fullscreen_change: Global::new(scope, fullscreen_change),
+                window_state: Global::new(scope, window_state),
                 drain_indexed_db: Global::new(scope, drain_indexed_db),
                 flush_local_storage: Global::new(scope, flush_local_storage),
                 network_queued: Arc::default(),
@@ -777,6 +786,9 @@ impl<'engine> DocumentRunner<'engine> {
                     DocumentTask::FullscreenChanged { fullscreen } => {
                         self.fullscreen_changed(fullscreen)?
                     }
+                    DocumentTask::WindowState { focused, visible } => {
+                        self.window_state(focused, visible)?
+                    }
                     DocumentTask::FontResult { face, result } => self.font_result(face, result)?,
                     DocumentTask::Eval { script, reply } => {
                         let _ = reply.send(self.eval(&script));
@@ -910,6 +922,26 @@ impl<'engine> DocumentRunner<'engine> {
             let args = platform::reply(scope, request, result)
                 .ok_or_else(|| setup("cannot encode host service reply"))?;
             call(scope, dispatch, &args).map_err(js_error)?;
+            realm.tasks.checkpoint_after_startup(scope);
+            realm.request_frame_if_needed(scope);
+            Ok(())
+        })
+    }
+
+    /// Apply the window's focus and visibility (window focus/blur and
+    /// visibilitychange events).
+    pub fn window_state(&mut self, focused: bool, visible: bool) -> Result<(), DocumentError> {
+        self.enter(|scope, realm| {
+            let dispatch = Local::new(scope, &realm.window_state);
+            let document = Local::new(scope, &realm.document);
+            let focused = v8::Boolean::new(scope, focused);
+            let visible = v8::Boolean::new(scope, visible);
+            call(
+                scope,
+                dispatch,
+                &[document.into(), focused.into(), visible.into()],
+            )
+            .map_err(js_error)?;
             realm.tasks.checkpoint_after_startup(scope);
             realm.request_frame_if_needed(scope);
             Ok(())

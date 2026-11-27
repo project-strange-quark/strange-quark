@@ -125,6 +125,10 @@ type DocumentState = {
   focusChain: Element[];
   focusRevision: number;
   focusVisible: boolean;
+  /** The host window has focus (true until the host says otherwise). */
+  windowFocused?: boolean;
+  /** The host window is shown and not occluded or minimised. */
+  windowVisible?: boolean;
   keyboardModality: boolean;
   inputDetached?: (child: Node) => void;
   url: string;
@@ -1223,6 +1227,40 @@ function focus(document: Document, next: HTMLElement | null, preventScroll: bool
     dispatchTrustedEvent(state.active, new FocusEvent("focus", { relatedTarget: previous, composed: true }), time);
     if (revision === state.focusRevision) {
       dispatchTrustedEvent(state.active, new FocusEvent("focusin", { bubbles: true, relatedTarget: previous, composed: true }), time);
+    }
+  }
+}
+
+/**
+ * Applies a host task: the window gained or lost focus, or was hidden or shown.
+ * As in Chromium, losing focus blurs the focused element (blur, focusout) and
+ * then the window; regaining it focuses the window and then the element again;
+ * `document.activeElement` does not change. Visibility changes fire
+ * visibilitychange on the document.
+ */
+export function dispatchWindowState(document: Document, focused: boolean, visible: boolean, time?: number): void {
+  const state = documents.get(document)!;
+  const view = state.view;
+  const wasFocused = state.windowFocused !== false;
+  const wasVisible = state.windowVisible !== false;
+  state.windowFocused = focused;
+  state.windowVisible = visible;
+  if (wasVisible !== visible) {
+    dispatchTrustedEvent(document, new Event("visibilitychange", { bubbles: true }), time);
+  }
+  if (wasFocused === focused || view === null) return;
+  const active = state.active;
+  if (!focused) {
+    if (active !== null) {
+      dispatchTrustedEvent(active, new FocusEvent("blur", { composed: true }), time);
+      dispatchTrustedEvent(active, new FocusEvent("focusout", { bubbles: true, composed: true }), time);
+    }
+    dispatchTrustedEvent(view as EventTarget, new FocusEvent("blur"), time);
+  } else {
+    dispatchTrustedEvent(view as EventTarget, new FocusEvent("focus"), time);
+    if (state.active !== null && state.active === active) {
+      dispatchTrustedEvent(active, new FocusEvent("focus", { composed: true }), time);
+      dispatchTrustedEvent(active, new FocusEvent("focusin", { bubbles: true, composed: true }), time);
     }
   }
 }
@@ -3030,11 +3068,16 @@ export class Document extends ParentNode {
   set cookie(_value: string) {}
   get readyState(): ReadyState { return documents.get(this)!.ready; }
 
-  // The host reports no window focus, occlusion or minimising to the
-  // document, so a document with a window counts as focused and visible, and
-  // visibilitychange never fires. Documents without a window are neither.
-  hasFocus(): boolean { return documents.get(this)!.view !== null; }
-  get visibilityState(): "visible" | "hidden" { return documents.get(this)!.view === null ? "hidden" : "visible"; }
+  // The host reports window focus and occlusion through dispatchWindowState.
+  // Documents without a window are neither focused nor visible.
+  hasFocus(): boolean {
+    const state = documents.get(this)!;
+    return state.view !== null && state.windowFocused !== false;
+  }
+  get visibilityState(): "visible" | "hidden" {
+    const state = documents.get(this)!;
+    return state.view === null || state.windowVisible === false ? "hidden" : "visible";
+  }
   get hidden(): boolean { return this.visibilityState === "hidden"; }
   getSelection(): Selection | null {
     return documents.get(this)!.view === null ? null : documentSelection(this);

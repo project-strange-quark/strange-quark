@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 export {
-  bootstrapDocument, createDocument, dispatchImageResult, finishDocumentStartup, flushDocument, hasPendingRecords, installCSSOM, installDocumentBindings, installDOM, notifyWindowResize, Node, Element, CharacterData, Text, Comment,
+  bootstrapDocument, createDocument, dispatchImageResult, dispatchWindowState, finishDocumentStartup, flushDocument, hasPendingRecords, installCSSOM, installDocumentBindings, installDOM, notifyWindowResize, Node, Element, CharacterData, Text, Comment,
   Document, XMLDocument, DOMParser, DocumentFragment, DocumentType, HTMLElement, HTMLInputElement, HTMLTextAreaElement, HTMLBRElement,
   HTMLSelectElement, HTMLOptionElement, HTMLButtonElement, HTMLFormElement, HTMLLabelElement, HTMLIFrameElement, HTMLAnchorElement, HTMLCanvasElement, HTMLImageElement, HTMLUnknownElement, HTMLScriptElement, HTMLStyleElement, HTMLLinkElement, SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement,
   HTMLTemplateElement,

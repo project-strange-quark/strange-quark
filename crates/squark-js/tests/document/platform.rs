@@ -937,3 +937,23 @@ fn fullscreen_is_absent_without_a_host() {
     );
     runner.fullscreen_changed(true).unwrap();
 }
+
+#[test]
+fn window_focus_and_visibility_reach_the_page() {
+    let mut h = Harness::new();
+    h.eval(
+        r#"
+        globalThis.seen = [];
+        window.addEventListener("blur", () => seen.push("blur:" + document.hasFocus()));
+        window.addEventListener("focus", () => seen.push("focus:" + document.hasFocus()));
+        document.addEventListener("visibilitychange", () => seen.push(document.visibilityState));
+        "#,
+    );
+    h.runner.window_state(false, true).unwrap();
+    h.runner.window_state(false, false).unwrap();
+    h.runner.window_state(true, true).unwrap();
+    assert_eq!(
+        h.eval("JSON.stringify(seen)"),
+        r#""[\"blur:false\",\"hidden\",\"visible\",\"focus:true\"]""#
+    );
+}
