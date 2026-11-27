@@ -129,15 +129,7 @@ impl<'a> Cascade<'a> {
         document_url: Url,
         media: MediaData,
     ) -> Result<(Document, BatchDecoder, Self), LoadError> {
-        stylo_static_prefs::set_pref!("layout.css.has-selector.enabled", true);
-        stylo_static_prefs::set_pref!("layout.css.appearance.enabled", true);
-        stylo_static_prefs::set_pref!("layout.css.text-overflow.enabled", true);
-        // Layout sizes, lays out and clips contained boxes.
-        stylo_static_prefs::set_pref!("layout.css.contain.enabled", true);
-        // Paint and the GPU renderer filter what lies behind the box.
-        stylo_static_prefs::set_pref!("layout.css.backdrop-filter.enabled", true);
-        // Text shaping sets the variation axes and the optical size.
-        stylo_static_prefs::set_pref!("layout.css.font-variations.enabled", true);
+        enable_preferences();
         let initial = pack.document()?;
         let quirks = match initial.quirks {
             squark_assets::QuirksMode::Standards => QuirksMode::NoQuirks,
@@ -738,6 +730,21 @@ impl<'a> Cascade<'a> {
         }
         Ok((sheets, inline_styles))
     }
+}
+
+/// Turns on the Stylo preferences for the features layout and paint honour.
+/// Stylo drops a declaration whose property's preference is off, so
+/// `CSS.supports` reports it unsupported.
+pub(crate) fn enable_preferences() {
+    stylo_static_prefs::set_pref!("layout.css.has-selector.enabled", true);
+    stylo_static_prefs::set_pref!("layout.css.appearance.enabled", true);
+    stylo_static_prefs::set_pref!("layout.css.text-overflow.enabled", true);
+    // Layout sizes, lays out and clips contained boxes.
+    stylo_static_prefs::set_pref!("layout.css.contain.enabled", true);
+    // Paint and the GPU renderer filter what lies behind the box.
+    stylo_static_prefs::set_pref!("layout.css.backdrop-filter.enabled", true);
+    // Text shaping sets the variation axes and the optical size.
+    stylo_static_prefs::set_pref!("layout.css.font-variations.enabled", true);
 }
 
 /// Canvas stream colours are unpremultiplied, sRGB, and stored as RGBA8.
