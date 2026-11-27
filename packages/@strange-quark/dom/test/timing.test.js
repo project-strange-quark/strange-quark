@@ -48,6 +48,64 @@ test("requestIdleCallback queues callbacks for idle periods and hands them an Id
   assert.equal(loop.idleWakeup(), null);
 });
 
+test("performance records User Timing marks and measures", () => {
+  const before = Date.now();
+  const { clock, global } = timing(1000);
+  const { performance } = global;
+  assert(performance instanceof global.Performance);
+  assert.equal(Object.prototype.toString.call(performance), "[object Performance]");
+  assert.throws(() => new global.Performance(), TypeError);
+  assert.throws(() => new global.PerformanceEntry(), TypeError);
+  assert.throws(() => new global.PerformanceMeasure(), TypeError);
+  assert(Math.abs(performance.timeOrigin + 1000 - before) < 1000);
+  assert.deepEqual(performance.toJSON(), { timeOrigin: performance.timeOrigin });
+  assert.equal(performance.now(), 1000);
+
+  const detail = { nested: [1] };
+  const start = performance.mark("start", { detail });
+  assert(start instanceof global.PerformanceMark && start instanceof global.PerformanceEntry);
+  assert.deepEqual([start.name, start.entryType, start.startTime, start.duration], ["start", "mark", 1000, 0]);
+  assert.deepEqual(start.detail, detail);
+  assert.notEqual(start.detail, detail, "detail is a structured clone");
+  assert.equal(performance.mark("untimed").detail, null);
+  assert.throws(() => performance.mark("navigationStart"), { name: "SyntaxError" });
+  assert.throws(() => performance.mark("x", { startTime: -1 }), TypeError);
+  assert.throws(() => performance.mark("x", { detail: () => {} }), { name: "DataCloneError" });
+  const back = new global.PerformanceMark("back", { startTime: 500 });
+  assert.equal(back.startTime, 500);
+  assert.equal(performance.getEntriesByName("back").length, 0, "a constructed mark is not recorded");
+
+  clock.now = 1250;
+  performance.mark("end");
+  const between = performance.measure("between", "start", "end");
+  assert.deepEqual([between.entryType, between.startTime, between.duration, between.detail], ["measure", 1000, 250, null]);
+  assert.deepEqual(performance.measure("since start", "start").duration, 250);
+  assert.deepEqual(performance.measure("whole").startTime, 0);
+  const timed = performance.measure("timed", { start: 1100, duration: 50, detail: "d" });
+  assert.deepEqual([timed.startTime, timed.duration, timed.detail], [1100, 50, "d"]);
+  const ending = performance.measure("ending", { end: "end", duration: 100 });
+  assert.deepEqual([ending.startTime, ending.duration], [1150, 100]);
+  assert.equal(performance.measure("origin", "navigationStart", "start").duration, 1000);
+  assert.throws(() => performance.measure("missing", "nope"), { name: "SyntaxError" });
+  assert.throws(() => performance.measure("both", { start: 1 }, "end"), TypeError);
+  assert.throws(() => performance.measure("neither", { duration: 1 }), TypeError);
+  assert.throws(() => performance.measure("all", { start: 1, end: 2, duration: 1 }), TypeError);
+
+  assert.deepEqual(performance.getEntries().map(entry => entry.name),
+    ["whole", "origin", "start", "untimed", "between", "since start", "timed", "ending", "end"]);
+  assert.deepEqual(performance.getEntriesByType("mark").map(entry => entry.name), ["start", "untimed", "end"]);
+  assert.deepEqual(performance.getEntriesByType("navigation"), []);
+  assert.deepEqual(performance.getEntriesByName("start", "measure"), []);
+  assert.deepEqual(JSON.parse(JSON.stringify(between)), { name: "between", entryType: "measure", startTime: 1000, duration: 250, detail: null });
+  performance.clearMarks("start");
+  assert.deepEqual(performance.getEntriesByType("mark").map(entry => entry.name), ["untimed", "end"]);
+  performance.clearMeasures();
+  assert.deepEqual(performance.getEntriesByType("measure"), []);
+  performance.clearMarks();
+  assert.deepEqual(performance.getEntries(), []);
+  assert.equal("PerformanceObserver" in global, false);
+});
+
 test("an idle callback timeout runs it as a timer task with didTimeout", () => {
   const { clock, global, loop } = timing();
   const seen = [];

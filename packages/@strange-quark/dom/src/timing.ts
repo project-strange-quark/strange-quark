@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 import { DOMException, Event, EventTarget } from "./events.js";
+import { installPerformance } from "./performance.js";
 
 type Callback = (...args: unknown[]) => void;
 type FrameCallback = (timestamp: number) => void;
@@ -333,8 +334,8 @@ export function installTiming(global: Record<PropertyKey, unknown>, host: Timing
     constructor() { [this.port1, this.port2] = MessagePort.pair(); }
   }
 
+  installPerformance(global, host);
   Object.assign(global, {
-    performance: { now: () => host.now() },
     setTimeout(handler: Callback | string, delay = 0, ...args: unknown[]) {
       if (arguments.length === 0) throw new TypeError("setTimeout requires a handler");
       return createTimer(handler, delay, false, args);
