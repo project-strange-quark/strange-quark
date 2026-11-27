@@ -31,17 +31,26 @@ its optional Tauri compatibility module:
    extern crate squark_tauri as tauri;
    #[cfg(feature = "squark")]
    extern crate squark_tauri as tauri_plugin_dialog; // if the core opens dialogs
+   #[cfg(feature = "squark")]
+   extern crate squark_tauri as tauri_plugin_opener; // if the core opens links
    ```
 
-   The command modules then compile unchanged. Move `tauri::Builder`
-   setup, plugins, menus and window-event hooks into a `tauri-app`-only
-   module, and add a `squark`-only `modules()`:
+   The command modules, and menu code built with `tauri::menu`, then
+   compile unchanged. Move `tauri::Builder` setup, plugins and
+   window-event hooks into a `tauri-app`-only module, and add a
+   `squark`-only `modules()`:
 
    ```rust
    pub fn modules() -> Vec<squark_native::Module> {
        vec![squark_native::Module::new("app")
            .manage(AppState::default())
            .commands(squark_tauri::generate_handler![/* the invoke_handler list */])
+           .setup(|app| {
+               // The menu the Tauri build sets with app.set_menu(...).
+               let handle = tauri::AppHandle::from_native(app.clone());
+               let _ = handle.set_menu(menu::build(&handle).expect("menu"));
+           })
+           .on_menu(|app, id| /* the on_menu_event logic, given AppHandle::from_native(app.clone()) */)
            .on_close_requested(|app| /* the CloseRequested logic */)
            .on_exit(|_| /* the RunEvent::Exit logic */)]
    }
@@ -56,13 +65,14 @@ its optional Tauri compatibility module:
 | `#[tauri::command]`s, `AppHandle`, `State<'_, T>`, `Emitter`, `Manager`, `async_runtime`, `tauri::http` | `squark-tauri`, unchanged code | mechanical |
 | `listen()` events from Rust | `app.emit(...)` reaches the frontend's `listen()` | mechanical |
 | `tauri_plugin_dialog` from Rust | `squark-tauri`'s `DialogExt` (`"*"` filters mean "any file") | mechanical |
+| `tauri_plugin_opener` `open_url` from Rust | `squark-tauri`'s `OpenerExt` (http, https and mailto only; `open_path` errors) | mechanical |
 | `plugin-clipboard-manager` text, `plugin-opener` `open_url`, `webview.setZoom`, `plugin-process` `restart`/`exit` | Handled by `@strange-quark/tauri` | mechanical |
 | `plugin-http` `fetch` | Global `fetch` with `network.allow`, or the core's own client | mechanical |
 | `on_window_event` close interception | `Module::on_close_requested` + `window.destroy()` / `app.window().close()` | mechanical |
 | `RunEvent::Exit` cleanup | `Module::on_exit` | mechanical |
 | `plugin-updater`, tray, global shortcuts, deep links, window-state | Not available; the shim rejects them, so the app's error path runs | stub |
-| Native menus | Not yet (planned) | stub |
-| Custom URI schemes, `convertFileSrc` loads in iframes | Not yet | stub |
+| Native menus (`tauri::menu` builders, `set_menu`, `on_menu_event`) | `squark-tauri`'s `menu`, `AppHandle::set_menu`, `Module::on_menu`. Accelerators run when the page leaves the key alone, as in Chromium. No bar is drawn on Linux yet, so the menu's items are reachable only by their accelerators | behavioural |
+| Custom URI schemes, `convertFileSrc` loads in iframes | Not available: Strange Quark has no iframes | stub |
 | `tauri.conf.json` window size and title | `squark.config.ts` `window` | mechanical |
 
 4. **Configure the build.** Add `@strange-quark/tauri` to the frontend's
