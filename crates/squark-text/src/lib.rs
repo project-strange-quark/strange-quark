@@ -308,6 +308,24 @@ mod tests {
         )]));
         assert_eq!(families(&fonts.with_web_fonts("A", other)), ["Other"]);
 
+        // A changed rule set registers the faces again from the same
+        // restricted fonts, so their font instances carry over.
+        let blob_id = |fonts: &mut Fonts, family: &str| {
+            let info = fonts.context.collection.family_by_name(family)?;
+            let font = info.fonts().first()?;
+            Some(font.load(Some(&mut fonts.context.source_cache))?.id())
+        };
+        let restricted = blob_id(&mut fonts, &alias(1)).unwrap();
+        let mut more = faces.clone();
+        more.push(WebFont {
+            family: "Other".into(),
+            ..faces[0].clone()
+        });
+        assert!(fonts.sync_web_fonts(resources, more, &[]));
+        assert!(fonts.context.collection.family_by_name(&alias(1)).is_none());
+        fonts.with_web_fonts("AЖ", style(400.0));
+        assert_eq!(blob_id(&mut fonts, &alias(1)), Some(restricted));
+
         fonts.sync_web_fonts(resources, Vec::new(), &[]);
         assert!(fonts.context.collection.family_by_name(&alias(0)).is_none());
     }

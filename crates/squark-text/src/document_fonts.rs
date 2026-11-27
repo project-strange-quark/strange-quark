@@ -364,12 +364,12 @@ impl DocumentFont {
         context: &mut parley::FontContext,
         coverage: &[RangeInclusive<u32>],
     ) {
+        let blob = fontique::Blob::new(Arc::new(self.bytes.clone()));
         crate::web_fonts::register(
             context,
-            fontique::Blob::new(Arc::new(self.bytes.clone())),
+            crate::web_fonts::restricted(blob, coverage),
             &self.alias(),
             &self.attributes,
-            coverage,
         );
     }
 }

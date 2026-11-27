@@ -63,17 +63,24 @@ pub(crate) fn alias(index: usize) -> String {
     format!("StrangeQuark CSS Face {index}")
 }
 
+/// The font with its cmap cut to `coverage`, or the font itself when it
+/// maps nothing outside it.
+pub(crate) fn restricted(
+    blob: fontique::Blob<u8>,
+    coverage: &[RangeInclusive<u32>],
+) -> fontique::Blob<u8> {
+    match restrict_cmap(blob.data(), coverage) {
+        Some(font) => fontique::Blob::new(Arc::new(font)),
+        None => blob,
+    }
+}
+
 pub(crate) fn register(
     context: &mut FontContext,
     blob: fontique::Blob<u8>,
     family: &str,
     attributes: &FaceAttributes,
-    coverage: &[RangeInclusive<u32>],
 ) -> bool {
-    let blob = match restrict_cmap(blob.data(), coverage) {
-        Some(font) => fontique::Blob::new(Arc::new(font)),
-        None => blob,
-    };
     let overrides = fontique::FontInfoOverride {
         family_name: Some(family),
         style: Some(crate::css::font_style(attributes.style[0])),
@@ -227,6 +234,10 @@ pub(crate) struct WebFaces {
     coverage: Vec<Coverage>,
     fetched: HashMap<Url, Fetched>,
     installed: HashMap<String, Option<fontique::Blob<u8>>>,
+    /// Fonts with restricted cmaps, by source font and coverage. Reusing
+    /// them across rule set changes keeps font instances, and the glyphs
+    /// rasterized for them, alive.
+    restricted: HashMap<(u64, Coverage), fontique::Blob<u8>>,
 }
 
 impl WebFaces {
@@ -266,6 +277,17 @@ impl WebFaces {
         }
         self.loads = vec![Load::Unloaded; faces.len()];
         self.coverage = coverage;
+        let sources: std::collections::HashSet<u64> = self
+            .fetched
+            .values()
+            .filter_map(|fetched| match fetched {
+                Fetched::Decoded(blob) => Some(blob.id()),
+                _ => None,
+            })
+            .chain(self.installed.values().flatten().map(fontique::Blob::id))
+            .collect();
+        self.restricted
+            .retain(|(source, _), _| sources.contains(source));
     }
 
     /// The characters the face renders.
@@ -297,13 +319,13 @@ impl WebFaces {
                     .clone(),
             };
             blob.is_some_and(|blob| {
-                register(
-                    context,
-                    blob,
-                    &family,
-                    &face.attributes,
-                    &self.coverage[index],
-                )
+                let coverage = &self.coverage[index];
+                let blob = self
+                    .restricted
+                    .entry((blob.id(), coverage.clone()))
+                    .or_insert_with(|| restricted(blob, coverage))
+                    .clone();
+                register(context, blob, &family, &face.attributes)
             })
         });
         self.loads[index] = if loaded { Load::Loaded } else { Load::Failed };
