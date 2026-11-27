@@ -335,17 +335,41 @@ function mouseInit(fields: PointerFields, document: Document) {
   } satisfies MouseInit & { pointerId: number; pointerType: string; isPrimary: boolean; pressure: number };
 }
 
+// keyCode follows Chromium: the Windows virtual-key code for a key value
+// that is not printable (ui/events/keycodes/keyboard_code_conversion.cc),
+// otherwise the letter or digit typed, otherwise the US-layout code of the
+// physical key, and numpad keys always by their position.
 const keyCodes: Record<string, number> = {
-  Alt: 18, Backspace: 8, Control: 17, Delete: 46, End: 35, Enter: 13, Escape: 27, Home: 36, Meta: 91,
-  PageUp: 33, PageDown: 34, Shift: 16, Tab: 9, " ": 32, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40,
+  Backspace: 8, Tab: 9, Clear: 12, Enter: 13, Shift: 16, Control: 17, Alt: 18, Pause: 19, CapsLock: 20,
+  KanaMode: 21, HangulMode: 21, JunjaMode: 23, FinalMode: 24, HanjaMode: 25, KanjiMode: 25, Escape: 27,
+  Convert: 28, NonConvert: 29, Accept: 30, ModeChange: 31, " ": 32, PageUp: 33, PageDown: 34, End: 35, Home: 36,
+  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Select: 41, Print: 42, Execute: 43, PrintScreen: 44,
+  Insert: 45, Delete: 46, Help: 47, Meta: 91, ContextMenu: 93, Standby: 95, NumLock: 144, ScrollLock: 145,
+  BrowserBack: 166, BrowserForward: 167, BrowserRefresh: 168, BrowserStop: 169, BrowserSearch: 170,
+  BrowserFavorites: 171, BrowserHome: 172, AudioVolumeMute: 173, AudioVolumeDown: 174, AudioVolumeUp: 175,
+  MediaTrackNext: 176, MediaTrackPrevious: 177, MediaStop: 178, MediaPlayPause: 179, LaunchMail: 180,
+  LaunchMediaPlayer: 181, LaunchApplication1: 182, LaunchApplication2: 183, AltGraph: 225, Process: 229,
+  Attn: 246, CrSel: 247, ExSel: 248, EraseEof: 249, Play: 250, ZoomToggle: 251,
+};
+const numpadCodes: Record<string, number> = {
+  NumpadMultiply: 106, NumpadAdd: 107, NumpadSubtract: 109, NumpadDecimal: 110, NumpadDivide: 111,
+};
+const punctuationCodes: Record<string, number> = {
+  Space: 32, Semicolon: 186, Equal: 187, Comma: 188, Minus: 189, Period: 190, Slash: 191, Backquote: 192,
+  BracketLeft: 219, Backslash: 220, BracketRight: 221, Quote: 222, IntlBackslash: 226,
 };
 
-function legacyKeyCode(fields: KeyFields, composing: boolean): number {
+function legacyKeyCode({ key, code }: KeyFields, composing: boolean): number {
   if (composing) return 229;
-  if (Object.hasOwn(keyCodes, fields.key)) return keyCodes[fields.key];
-  if (fields.code === "Equal") return 187;
-  if (fields.code === "NumpadAdd") return 107;
-  return /^(Key[A-Z]|Digit[0-9])$/.test(fields.code) ? fields.code.charCodeAt(fields.code.length - 1) : 0;
+  if (Object.hasOwn(keyCodes, key)) return keyCodes[key];
+  const functionKey = /^F([1-9]|1[0-9]|2[0-4])$/.exec(key);
+  if (functionKey !== null) return 111 + Number(functionKey[1]);
+  const numpad = /^Numpad([0-9])$/.exec(code);
+  if (numpad !== null && [...key].length === 1) return 96 + Number(numpad[1]);
+  if (Object.hasOwn(numpadCodes, code)) return numpadCodes[code];
+  if (/^[A-Za-z0-9]$/.test(key)) return key.toUpperCase().charCodeAt(0);
+  if (/^(Key[A-Z]|Digit[0-9])$/.test(code)) return code.charCodeAt(code.length - 1);
+  return Object.hasOwn(punctuationCodes, code) ? punctuationCodes[code] : 0;
 }
 
 function setPointerCapture(this: Element, pointerId: number): void {
