@@ -482,3 +482,62 @@ fn rollover_keeps_large_strings_with_their_records_and_reuses_atoms() {
     assert!(batch.strings().get(0).unwrap().units().eq(text));
     batch.commit();
 }
+
+#[test]
+fn shadow_roots_slots_and_constructed_sheets_create_and_name_live_nodes() {
+    let mut decoder = BatchDecoder::new(ROOT).unwrap();
+    let mut writer = BatchWriter::new();
+    let div = writer
+        .intern(AtomKind::Tag, &"div".encode_utf16().collect::<Vec<_>>())
+        .unwrap();
+    writer.record(CreateElement, 0, 2, div, 0).unwrap();
+    writer.record(AttachShadow, 0, 3, 2, 0).unwrap();
+    writer.record(CreateElement, 0, 4, div, 0).unwrap();
+    writer.record(AssignSlot, 0, 4, 0, 0).unwrap();
+    writer.record(AssignSlot, 0, 4, 2, 0).unwrap();
+    writer.record(CreateSheet, 0, 5, "print", 0).unwrap();
+    writer.record(CreateSheet, 0, 6, NO_STRING, 0).unwrap();
+    writer
+        .record(SheetInsert, 0, 5, 0, "div{color:red}")
+        .unwrap();
+    writer.record(AdoptSheet, 0, 3, 0, 0).unwrap();
+    writer.record(AdoptSheet, 0, 3, 5, 0).unwrap();
+    writer.record(AdoptSheet, 0, ROOT.raw(), 6, 0).unwrap();
+    decoder.validate(&writer.finish()[0]).unwrap().commit();
+
+    for (op, a, b, c) in [
+        // A new shadow root takes a free slot, and its host must be live.
+        (AttachShadow, 3, 2, 0),
+        (AttachShadow, 7, 9, 0),
+        (AttachShadow, 7, 2, 1),
+        (AssignSlot, 9, 0, 0),
+        (AssignSlot, 4, 9, 0),
+        (AssignSlot, 4, 2, 1),
+        (CreateSheet, 5, NO_STRING, 0),
+        (CreateSheet, 7, 99, 0),
+        (AdoptSheet, 9, 0, 0),
+        (AdoptSheet, 3, 9, 0),
+    ] {
+        let mut writer = BatchWriter::new();
+        writer.record(op, 0, a, b, c).unwrap();
+        assert!(
+            decoder.validate(&writer.finish()[0]).is_err(),
+            "{op:?} {a} {b} {c}"
+        );
+    }
+    let mut writer = BatchWriter::new();
+    writer.record(Release, 0, 5, 0, 0).unwrap();
+    writer.record(AttachShadow, 0, 7, 4, 0).unwrap();
+    decoder.validate(&writer.finish()[0]).unwrap().commit();
+    let mut writer = BatchWriter::new();
+    writer
+        .record(
+            CreateSheet,
+            0,
+            NodeId::new(5, 1).unwrap().raw(),
+            NO_STRING,
+            0,
+        )
+        .unwrap();
+    decoder.validate(&writer.finish()[0]).unwrap().commit();
+}

@@ -32,6 +32,10 @@ export const Opcode = {
   Listeners: 0x15,
   SetSelection: 0x16,
   SetPreedit: 0x17,
+  AttachShadow: 0x18,
+  AssignSlot: 0x19,
+  CreateSheet: 0x1a,
+  AdoptSheet: 0x1b,
 } as const;
 
 export const AtomKind = {

@@ -181,7 +181,7 @@ impl ListenerFlags {
 }
 
 /// Opcodes. 0x01–0x0F are listed in docs/architecture.md §4; the comments on
-/// 0x10–0x15 give their operands.
+/// 0x10–0x1B give their operands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum Opcode {
@@ -220,6 +220,21 @@ pub enum Opcode {
     SetSelection = 0x16,
     /// Text control NodeId, preedit string index, UTF-16 cursor within preedit.
     SetPreedit = 0x17,
+    /// New shadow root NodeId, host element NodeId, zero. The shadow root is
+    /// a fragment that no node contains: its host renders it in place of its
+    /// children, and the host stays its host until both are released.
+    AttachShadow = 0x18,
+    /// Slot element NodeId, then a slottable NodeId to append to the slot's
+    /// assigned nodes, or zero to clear them, and zero. squark-dom runs slot
+    /// assignment and sends a slot's whole list whenever it changes.
+    AssignSlot = 0x19,
+    /// New constructed stylesheet id (from the NodeId space, and released
+    /// like a node), media string index or NO_STRING, zero. SHEET_INSERT and
+    /// SHEET_DELETE edit its rules like an owner element's.
+    CreateSheet = 0x1A,
+    /// Document or shadow root NodeId, then a constructed stylesheet id to
+    /// append to its adopted stylesheets, or zero to clear them, and zero.
+    AdoptSheet = 0x1B,
 }
 
 impl Opcode {
@@ -249,6 +264,10 @@ impl Opcode {
             0x15 => Listeners,
             0x16 => SetSelection,
             0x17 => SetPreedit,
+            0x18 => AttachShadow,
+            0x19 => AssignSlot,
+            0x1A => CreateSheet,
+            0x1B => AdoptSheet,
             _ => return None,
         })
     }
@@ -324,7 +343,7 @@ mod tests {
 
     #[test]
     fn every_opcode_round_trips() {
-        for b in 0x01..=0x15u8 {
+        for b in 0x01..=0x1Bu8 {
             let op = Opcode::from_u8(b).unwrap();
             let r = Record {
                 op,
