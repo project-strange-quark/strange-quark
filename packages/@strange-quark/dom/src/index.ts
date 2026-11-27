@@ -4,7 +4,10 @@ export {
   bootstrapDocument, createDocument, dispatchImageResult, finishDocumentStartup, flushDocument, hasPendingRecords, installCSSOM, installDocumentBindings, installDOM, notifyWindowResize, Node, Element, CharacterData, Text, Comment,
   Document, XMLDocument, DOMParser, DocumentFragment, DocumentType, HTMLElement, HTMLInputElement, HTMLTextAreaElement, HTMLBRElement,
   HTMLSelectElement, HTMLOptionElement, HTMLButtonElement, HTMLFormElement, HTMLLabelElement, HTMLIFrameElement, HTMLAnchorElement, HTMLCanvasElement, HTMLImageElement, HTMLUnknownElement, HTMLScriptElement, HTMLStyleElement, HTMLLinkElement, Selection, SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement,
+  HTMLTemplateElement,
 } from "./document.js";
+// Registers per-tag element interfaces with document.js, so it loads after it.
+export * from "./html-elements.js";
 export {
   Event, CompositionEvent, CustomEvent, EventTarget, DOMException, ErrorEvent, FocusEvent, InputEvent, KeyboardEvent, MouseEvent, PointerEvent,
   ProgressEvent, SubmitEvent, UIEvent, WheelEvent, Window,

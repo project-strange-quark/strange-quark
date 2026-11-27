@@ -1089,7 +1089,7 @@ export function moveTabFocus(document: Document, backwards: boolean, time: numbe
   focus(document, next, false, time);
 }
 
-function reflect(prototype: object, fields: Record<string, string>, boolean = false): void {
+export function reflect(prototype: object, fields: Record<string, string>, boolean = false): void {
   for (const [property, attribute] of Object.entries(fields)) {
     Object.defineProperty(prototype, property, {
       configurable: true, enumerable: true,
@@ -1215,7 +1215,7 @@ for (const name of ["click", "dblclick", "input", "change", "focus", "blur", "er
   reflectedEvent(HTMLElement.prototype, name);
 }
 
-function formFor(element: HTMLElement): HTMLFormElement | null {
+export function formFor(element: HTMLElement): HTMLFormElement | null {
   const explicit = element.getAttribute("form");
   if (explicit !== null) {
     const form = element.isConnected && element.ownerDocument.getElementById(explicit);
@@ -2438,7 +2438,7 @@ export class HTMLUnknownElement extends HTMLElement {}
 export class HTMLBRElement extends HTMLElement { declare clear: string; }
 reflect(HTMLBRElement.prototype, { clear: "clear" });
 
-function resolvedURL(element: Element, attribute: string): string {
+export function resolvedURL(element: Element, attribute: string): string {
   const raw = element.getAttribute(attribute);
   if (raw === null) return "";
   const URL = (globalThis as { URL?: new (url: string, base: string) => { href: string } }).URL;
@@ -2608,6 +2608,15 @@ const htmlElementTypes = new Map<string, typeof HTMLElement>([
   ["select", HTMLSelectElement], ["button", HTMLButtonElement], ["form", HTMLFormElement], ["label", HTMLLabelElement], ["iframe", HTMLIFrameElement],
   ["a", HTMLAnchorElement], ["canvas", HTMLCanvasElement], ["img", HTMLImageElement], ["script", HTMLScriptElement], ["style", HTMLStyleElement], ["link", HTMLLinkElement],
 ]);
+const elementInterfaces = new Set<typeof HTMLElement>();
+
+/** Makes `type` the interface of HTML elements with these local names and exposes it on windows. */
+export function defineElementInterface(type: typeof HTMLElement, ...localNames: string[]): void {
+  for (const name of localNames) htmlElementTypes.set(name, type);
+  elementInterfaces.add(type);
+  Object.defineProperty(type.prototype, Symbol.toStringTag, { value: type.name, configurable: true });
+  builtinInterfaces = undefined;
+}
 
 function treeChanged(parent: Node, child: Node, inserted: boolean): void {
   for (let node: Node | null = parent; node !== null; node = node.parentNode) {
@@ -2657,9 +2666,12 @@ function treeChanged(parent: Node, child: Node, inserted: boolean): void {
 
 const templateContents = new WeakMap<TemplateElement, DocumentFragment>();
 
-class TemplateElement extends HTMLElement {
+export class HTMLTemplateElement extends HTMLElement {
   get content(): DocumentFragment | undefined { return templateContents.get(this); }
 }
+Object.defineProperty(HTMLTemplateElement.prototype, Symbol.toStringTag, { value: "HTMLTemplateElement", configurable: true });
+type TemplateElement = HTMLTemplateElement;
+const TemplateElement = HTMLTemplateElement;
 
 export class SVGElement extends Element {}
 
@@ -3530,7 +3542,9 @@ export function installDOM(global: Record<PropertyKey, unknown>, supplied?: Docu
     AbortController, AbortSignal, DOMException, NodeList, HTMLCollection, DOMTokenList, MutationObserver, MutationRecord, CSSStyleDeclaration,
     HTMLElement, HTMLInputElement, HTMLTextAreaElement, HTMLSelectElement, HTMLOptionElement, HTMLBRElement,
     HTMLButtonElement, HTMLFormElement, HTMLFormControlsCollection, RadioNodeList, HTMLLabelElement, HTMLIFrameElement, HTMLAnchorElement, HTMLCanvasElement, HTMLImageElement, HTMLUnknownElement, HTMLScriptElement,
+    HTMLTemplateElement,
   });
+  for (const type of elementInterfaces) global[type.name] = type;
   function Image(width?: number, height?: number): HTMLImageElement {
     if (new.target === undefined) throw new TypeError("Image requires new");
     const image = document.createElement("img") as HTMLImageElement;
