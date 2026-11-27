@@ -57,6 +57,15 @@ Chromium before it is called supported.
 | UI | Radix UI, shadcn/ui, Floating UI |
 | Forms | React Hook Form, Formik |
 | Canvas | Canvas 2D, as used by Excalidraw |
+| Editors and content | Monaco Editor, xterm.js, KaTeX, marked, DOMPurify |
+
+Desktop apps whose UI is React and whose backend is Rust can keep that
+backend: its commands become **native modules**, linked into the app's own
+runtime and called from JavaScript by name. Tauri 2 apps can opt into a
+compatibility module (`squark-tauri` and `@strange-quark/tauri`) so their
+commands, events and frontend run unchanged. See
+[architecture §13](docs/architecture.md#13-native-escape-hatches) and the
+`strange-quark-migrate` skill.
 
 ### React meta-frameworks: no
 
@@ -83,12 +92,17 @@ data mode. Then build it with Strange Quark.
 - **React Native.** Strange Quark runs `react-dom` apps.
 - **WebGL and three.js.** A native GPU view is planned instead.
 - **iframes, service workers, `document.write`, and cross-origin
-  navigation.**
+  navigation.** iframes are designed but come after 0.2.0.
 - **`contenteditable` rich-text editors** (Lexical, Slate, ProseMirror,
   TipTap). They need a full editing host, which comes later. A plain
   `<textarea>` and `<input>` are supported.
-- **Web Workers.** They are planned, but not in the first release. Apps
-  that check `typeof Worker` and fall back keep working.
+- **Shared workers and MessagePorts sent to workers.** Dedicated workers
+  work.
+- **A visible menu bar on Linux.** Menus set by an app work through their
+  accelerators; the bar itself is not drawn yet.
+- **Visible scrollbars.** Scrolling works by wheel, touchpad, keyboard and
+  script, but no scrollbar is drawn. The Chromium reference renders hide
+  them too.
 
 Strange Quark reports features honestly. An API it does not implement is left
 undefined, as in a browser that lacks it, so your app's fallback path runs.
@@ -223,6 +237,14 @@ Linux verdict:
   and transitions, CSS-in-JS, and live reload with `squark dev`.
 - **Excalidraw's platform:** Canvas 2D, fonts, storage, clipboard and file
   dialogs.
+- **A full desktop IDE** (React 19, Monaco, xterm.js, KaTeX, a Tauri 2 Rust
+  backend) runs with its backend linked in as native modules: editing,
+  completion, hover and the diff editor in Monaco, a terminal on a real PTY,
+  git, search, plots, tab drag and drop, and its menu's accelerators.
+- **Platform features those apps rely on:** Web Workers, HTML drag and drop,
+  Range and Selection with caret hit testing, custom elements, CSS tables,
+  `@font-face` weights and styles, window focus and visibility, streaming
+  `TextDecoder`, window title, zoom and close handling.
 - **Excalidraw v0.18.1 ships as one native Linux binary, a signed macOS
   app and a Windows executable,** each passing the same flow against
   Chromium.
@@ -239,6 +261,9 @@ Linux verdict:
 - Direct mode: a React host that writes journal records directly, without
   react-dom and squark-dom, for apps that want less memory per node.
 - QuickJS-ng as a smaller JavaScript engine option.
+- iframes (the design is recorded), then a drawn menu bar on Linux built on
+  them, and OS menu bars on macOS and Windows.
+- Drops from other apps, painted drag images, and scrollbars.
 
 ## Building from source
 

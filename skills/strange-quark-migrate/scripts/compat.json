@@ -1,8 +1,8 @@
 {
-  "snapshot": "Strange Quark v0.1.0, November 2026 (macOS arm64 and x64, Linux x64 and arm64 with glibc 2.35+, Windows x64 and arm64; Compat mode, V8). A probe of the installed runtime wins over this file.",
+  "snapshot": "Strange Quark v0.1.0 plus the 0.2.0 work, November 2026 (macOS arm64 and x64, Linux x64 and arm64 with glibc 2.35+, Windows x64 and arm64; Compat mode, V8). A probe of the installed runtime wins over this file.",
   "statuses": {
     "server": "Runs on a server in the source framework; Strange Quark has no server. Move behind an HTTP API, or stub it.",
-    "shell": "Desktop shell API (Electron, Tauri, Electrobun); no Strange Quark equivalent in v0.1.0. Use a web equivalent if one exists, otherwise stub and flag it.",
+    "shell": "Desktop shell API (Electron, Tauri, Electrobun). A Tauri 2 app can keep its Rust backend as native modules through the optional squark-tauri crate and @strange-quark/tauri package (references/tauri.md). For other shells, use a web equivalent if one exists, otherwise stub and flag it.",
     "node": "Node.js API used from UI code; not available in Strange Quark.",
     "tier2": "Planned for a later Strange Quark release; undefined or ignored today.",
     "not-planned": "Strange Quark does not plan to support it.",
@@ -91,7 +91,8 @@
       "status": "shell",
       "label": "Tauri invoke, plugins or events",
       "pattern": "(@tauri-apps/(api|plugin-[a-z-]+)|window\\.__TAURI(_INTERNALS)?__)",
-      "where": "code"
+      "where": "code",
+      "note": "Maps to native modules: build the backend against squark-tauri and add @strange-quark/tauri (references/tauri.md). Plugins with no equivalent (updater, tray, global shortcuts) reject, so the app's error path runs."
     },
     {
       "id": "electrobun",
@@ -119,7 +120,8 @@
       "status": "shell",
       "label": "Tauri convertFileSrc (local file URLs)",
       "pattern": "\\bconvertFileSrc\\s*\\(",
-      "where": "code"
+      "where": "code",
+      "note": "convertFileSrc URLs serve files to <img> and fetch through Tauri's asset protocol; Strange Quark has no custom URI schemes yet. Stub, or read the file through a native command."
     }
   ],
   "features": [
@@ -174,18 +176,19 @@
         "@codemirror/view",
         "@uiw/react-codemirror"
       ],
-      "note": "Rich-text editors need contenteditable, Selection and Range (tier 2). A plain textarea works."
+      "note": "Rich-text editors need contenteditable (tier 2). Selection and Range work, and a plain textarea works."
     },
     {
       "id": "iframe",
-      "status": "not-planned",
+      "status": "tier2",
       "label": "iframe",
       "pattern": "(<iframe\\b|createElement\\(\\s*['\"]iframe['\"])",
-      "where": "code"
+      "where": "code",
+      "note": "Designed, but after 0.2.0. HTMLIFrameElement exists, but an <iframe> loads nothing and fires no load event."
     },
     {
       "id": "web-workers",
-      "status": "tier2",
+      "status": "limited",
       "label": "Web Workers",
       "pattern": "(new\\s+(Shared)?Worker\\s*\\(|\\?worker(&|['\"]))",
       "where": "code",
@@ -193,7 +196,7 @@
         "comlink",
         "monaco-editor"
       ],
-      "note": "Worker is undefined; code that checks typeof Worker and falls back still works."
+      "note": "Dedicated workers work (module and classic, blob and pack URLs, Vite ?worker). SharedWorker is undefined, and MessagePorts cannot be sent to a worker yet."
     },
     {
       "id": "service-worker",
@@ -238,7 +241,7 @@
     },
     {
       "id": "html5-dnd",
-      "status": "tier2",
+      "status": "limited",
       "label": "HTML5 drag and drop",
       "pattern": "(\\bdraggable\\s*=|onDrag(Start|Over|Enter|Leave|End)\\b|onDrop\\b|addEventListener\\(\\s*['\"](dragstart|drop|dragover)['\"])",
       "where": "code",
@@ -246,7 +249,7 @@
         "react-dropzone",
         "react-dnd-html5-backend"
       ],
-      "note": "Pointer-event drag libraries (dnd-kit, Pragmatic in pointer mode) work; HTML5 DnD and OS file drops do not yet."
+      "note": "HTML drag and drop within the page works (draggable, DataTransfer, drop effects). Drops from other apps, such as files from the desktop, do not arrive yet, and no drag image is painted."
     },
     {
       "id": "webrtc-media-devices",

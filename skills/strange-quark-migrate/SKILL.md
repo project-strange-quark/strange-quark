@@ -9,10 +9,12 @@ Strange Quark runs client-rendered React apps (React 18.3 or 19) as native
 binaries with no WebView. It does not run what React meta-frameworks add on
 top of React: server rendering, React Server Components, server actions and
 functions, API routes, middleware. Nor does it run the backend half of a
-desktop shell: Electron's main process, Tauri's Rust commands, Electrobun's
-Bun side. Those apps need a migration before Strange Quark can build them, and
-the honest answer to "will it work?" depends on how much of the app lives in
-those parts.
+desktop shell as is: Electron's main process, Tauri's Rust commands,
+Electrobun's Bun side. A Tauri 2 backend is the exception that can come along:
+its commands compile as Strange Quark native modules against the optional
+`squark-tauri` crate (`references/tauri.md`). Other apps need a migration
+before Strange Quark can build them, and the honest answer to "will it
+work?" depends on how much of the app lives in those parts.
 
 This skill does four things, in order:
 
@@ -50,9 +52,10 @@ the line.
   web APIs for file pickers, downloads, the clipboard, `localStorage`,
   IndexedDB and opening a URL in the browser. Check the installed-runtime
   probe before relying on any of them.
-- **Stub, and flag, everything with no equivalent.** That means Node or Rust
-  backend calls, IPC, native menus, tray icons, global shortcuts and OS
-  hooks. A stub lives in `src/strange-quark-stubs/`. It keeps the original
+- **Stub, and flag, everything with no equivalent.** That means Node
+  backend calls, Electron and Electrobun IPC, tray icons, global shortcuts
+  and OS hooks. Tauri commands and menus have an equivalent: port them as
+  `references/tauri.md` says. A stub lives in `src/strange-quark-stubs/`. It keeps the original
   function's signature and starts with a `// STRANGE-QUARK STUB:` comment saying
   what the real code did. It either returns clearly fake data or throws
   `NotAvailableInStrangeQuark`, whichever lets the rest of the UI keep working.

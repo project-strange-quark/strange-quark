@@ -1,7 +1,7 @@
 # What Strange Quark supports
 
-This file describes what v0.1.0, the first release, targets, not the
-support in any particular build. It covers the six desktop targets under
+This file describes what v0.1.0, the first release, targets, with the
+0.2.0 work added, not the support in any particular build. It covers the six desktop targets under
 [Platforms](#platforms), in Compat mode, on V8. Run `scripts/probe.mjs`
 against the installed runtime to learn what that binary actually supports.
 Its results take precedence over this target snapshot. `scripts/compat.json` is the machine-readable form that `scan.mjs`
@@ -16,13 +16,14 @@ fallback. Code that calls an API without checking first throws.
 | Area | What is supported |
 | --- | --- |
 | React | React 18.3 and 19.x on the real `react-dom`, unmodified. Fiber, concurrent features, Suspense, portals, refs, controlled inputs, synthetic events |
-| DOM | Node, Element, Text, Comment, DocumentFragment, Document; selectors; MutationObserver; `innerHTML`; `template`; `DOMParser` |
-| Events | Capture, bubble, `passive`, `once`, `signal`. Pointer, mouse, keyboard, focus, input, composition (IME), wheel, touch and custom events. Clipboard events with data |
+| DOM | Node, Element, Text, Comment, DocumentFragment, Document; selectors; MutationObserver; `innerHTML`; `template`; `DOMParser`; `document.implementation`; NodeIterator and TreeWalker; custom elements; Range with `getClientRects`; the Selection API; `caretPositionFromPoint` and `caretRangeFromPoint` |
+| Events | Capture, bubble, `passive`, `once`, `signal`. Pointer, mouse, keyboard, focus, input, composition (IME), wheel, touch, `contextmenu` and custom events. Clipboard events with data. HTML drag and drop within the page. Window focus, blur and `visibilitychange` |
 | CSSOM | `element.style`, `CSSStyleSheet` and `insertRule` (emotion, styled-components), `getComputedStyle`, `matchMedia`, `CSS.supports` |
 | Geometry | Rects, offset, client and scroll metrics; `scrollTo`; `scrollIntoView`; ResizeObserver; IntersectionObserver; `elementFromPoint` |
-| Timing | Timers, `queueMicrotask`, MessageChannel, rAF, `requestIdleCallback`, `performance` |
+| Timing | Timers, `queueMicrotask`, MessageChannel, rAF, `requestIdleCallback`, `performance` (with `mark` and `measure`) |
+| Workers | Dedicated Web Workers, module and classic, from pack, `blob:` and dev-server URLs (Vite's `?worker` included), each a V8 isolate on its own thread |
 | Network | `fetch`, Headers, Request, Response, AbortController, WebSocket, EventSource. Every host must be listed in `squark.config` `network.allow`; there are no cookies and no CORS |
-| Storage and data | File-backed `localStorage`, IndexedDB (enough for idb-keyval and similar), `structuredClone`, `crypto.getRandomValues`, `crypto.randomUUID`, `crypto.subtle` (SHA digests, AES-GCM), Blob, File, FileReader, `blob:` URLs, TextEncoder |
+| Storage and data | File-backed `localStorage`, IndexedDB (enough for idb-keyval and similar), `structuredClone`, `crypto.getRandomValues`, `crypto.randomUUID`, `crypto.subtle` (SHA digests, AES-GCM), Blob, File, FileReader, `blob:` URLs, TextEncoder, TextDecoder (streaming, every WHATWG encoding) |
 | Graphics | `<img>` (PNG, JPEG, WebP, AVIF, GIF), inline SVG, Canvas 2D on Vello (the method set Excalidraw uses: paths, `Path2D`, text, `drawImage`, transforms, clip, dashes, alpha, filter, `getImageData`, `toBlob`), FontFace and `document.fonts` with WOFF2 |
 | Forms | Text, number, password, checkbox, radio and range inputs; textarea; select; button; label; form submit |
 | Files | `<input type=file>` opens a native open dialog. `<a download>` opens a native save dialog. `navigator.clipboard` |
@@ -34,14 +35,19 @@ fallback. Code that calls an API without checking first throws.
 
 These are undefined or ignored today, and a later release may add them:
 
-- Web Workers and SharedWorker (`typeof Worker === "undefined"`)
-- Shadow DOM, custom elements, Range, `moveBefore`
-- Container queries (`@container`), floats, real table layout (tables are
-  approximated with grid), subgrid, anchor positioning, `mask-image`,
-  `border-image`
-- `contenteditable` and the full Selection API, so Lexical, Slate,
-  ProseMirror, TipTap and other rich-text editors do not work
-- Drag and drop
+- SharedWorker, and MessagePorts sent to a worker
+- Shadow DOM, `moveBefore`
+- Container queries (`@container`), floats, subgrid, anchor positioning,
+  `mask-image`, `border-image`; in tables, collapsed borders, captions and
+  `<col>` widths
+- `contenteditable`, so Lexical, Slate, ProseMirror, TipTap and other
+  rich-text editors do not work
+- Drops from other apps (files from the desktop) and painted drag images
+- iframes and nested browsing contexts, designed for after 0.2.0.
+  `HTMLIFrameElement` exists, but loads nothing.
+- A drawn menu bar on Linux: menus set by native modules or the page work
+  through their accelerators only
+- Visible scrollbars: scrolling works, but none is drawn
 - The Web Animations API (`element.animate`), scroll-driven animations,
   view transitions
 - `<video>` and `<audio>`
@@ -53,13 +59,13 @@ These are undefined or ignored today, and a later release may add them:
 - **Server-side anything:** SSR, React Server Components, server actions,
   route handlers, middleware. This is why meta-frameworks need migrating.
 - WebGL (three.js, react-three-fiber, map renderers built on WebGL)
-- iframes and nested browsing contexts. `HTMLIFrameElement` exists, but
-  loads nothing.
 - Service workers, `document.write`, XPath, cross-origin navigation,
   cookies (`document.cookie` reads `""`), CORS
 - Node.js APIs in the UI (`require('fs')`, `process`, `Buffer` from Node)
-- Electron, Tauri or Electrobun shell APIs. The native-module escape hatch
-  (a design in `docs/architecture.md` §13) is not in the first release.
+- Electron and Electrobun shell APIs. A Tauri 2 app can keep its Rust
+  backend as native modules (`docs/architecture.md` §13) through the
+  optional `squark-tauri` crate and `@strange-quark/tauri` package; see
+  `tauri.md`.
 
 ## Platforms
 

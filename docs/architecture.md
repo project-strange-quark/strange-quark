@@ -428,6 +428,8 @@ Consider a click on a span inside a button, on a 2× display. Release produces p
 | Render | Compositor, GPU renderer, present | Layer tree, scroll offsets, compositor animations, every GPU resource | Hit-test data to the main thread; scroll offsets and animation-finished events to the document thread |
 | Worker pool | Parallel restyle, image decode, glyph rasterization, CPU path fallback | Nothing between tasks | Results as resource updates |
 | IO pool | fetch, WebSocket, EventSource, file reads (tokio, 2 threads) | Sockets, file handles | Task queue to the document thread |
+| Web Workers | One thread per `new Worker`, created on demand, each with its own V8 isolate and event loop and no DOM | The worker's JS heap | Structured-clone messages (ArrayBuffers transferred) that wake the other side's loop |
+| Native modules (§13) | Sync commands on the IO pool's blocking threads, async commands on the IO runtime; no threads of their own | The app's module state | Replies and events, coalesced into the document's task queue |
 
 **Frame handoff.** The mailbox holds one frame. A newer commit replaces one the render thread has not taken yet. Resource updates (new glyphs, decoded images, freed textures) travel in a separate ordered queue, so dropping a frame never drops an upload or frees a texture early.
 
@@ -439,14 +441,14 @@ squark-dom implements what React and popular libraries actually call, in tiers. 
 
 | Area | TIER 1 · v1 | TIER 2 | NOT PLANNED |
 | --- | --- | --- | --- |
-| DOM | Node, Element, Text, Comment, DocumentFragment, Document, selectors API, `contains`, `compareDocumentPosition`, MutationObserver, `innerHTML` through html5ever | Shadow DOM, custom elements, `moveBefore`, Range | `document.write`, XPath, iframes |
-| Events | EventTarget with capture, `passive`, `once`, `signal`; Pointer, Mouse, Keyboard, Focus, Input, Composition, Wheel, Touch, Clipboard, Custom events | Drag and drop |  |
+| DOM | Node, Element, Text, Comment, DocumentFragment, Document, selectors API, `contains`, `compareDocumentPosition`, MutationObserver, `innerHTML` through html5ever, Range with text geometry, custom elements, `document.implementation`, NodeIterator and TreeWalker | Shadow DOM, `moveBefore`, iframes (deferred past 0.2.0; the design is recorded) | `document.write`, XPath |
+| Events | EventTarget with capture, `passive`, `once`, `signal`; Pointer, Mouse, Keyboard, Focus, Input, Composition, Wheel, Touch, Clipboard, Custom events; HTML drag and drop within the page; window focus and visibility | Drops from other apps, painted drag images |  |
 | CSSOM | `element.style`, `CSSStyleSheet`, `document.styleSheets`, `getComputedStyle`, `CSS.supports`, `matchMedia` | `adoptedStyleSheets`, Typed OM |  |
 | Geometry | Rects, offset, client and scroll metrics, `scrollTo`, `scrollIntoView`, ResizeObserver, IntersectionObserver, `elementFromPoint` |  |  |
-| Timing | `setTimeout`, `setInterval`, `queueMicrotask`, `MessageChannel`, rAF, `performance.now` | Web Workers, Web Animations API, `requestIdleCallback`, `performance.mark` and `measure` |  |
-| Network, storage | `fetch`, Headers, Request, Response, AbortController, WebSocket, EventSource, URL, TextEncoder, file-backed `localStorage`, IndexedDB, `crypto.getRandomValues`, `crypto.randomUUID`, `crypto.subtle` (SHA digests and AES-GCM) |  | Service workers, cookies, CORS |
+| Timing | `setTimeout`, `setInterval`, `queueMicrotask`, `MessageChannel`, rAF, `performance.now`, `performance.mark` and `measure`, `requestIdleCallback`, dedicated Web Workers (module and classic) | Web Animations API, shared workers, MessagePorts sent to workers |  |
+| Network, storage | `fetch`, Headers, Request, Response, AbortController, WebSocket, EventSource, URL, TextEncoder, TextDecoder (streaming, every WHATWG encoding), file-backed `localStorage`, IndexedDB, `crypto.getRandomValues`, `crypto.randomUUID`, `crypto.subtle` (SHA digests and AES-GCM) |  | Service workers, cookies, CORS |
 | Graphics, media | `<img>`, inline SVG (shapes, paths, text, gradients, `clipPath`), Canvas 2D on Vello | `<video>` and `<audio>` through platform decoders, `navigator.gpu` over wgpu | WebGL |
-| Forms, editing | Text, number, password, checkbox, radio and range inputs; `textarea`, `select`, `button`, `label`, form `submit` events | `contenteditable`, Selection |  |
+| Forms, editing | Text, number, password, checkbox, radio and range inputs; `textarea`, `select`, `button`, `label`, form `submit` events; the Selection API and `selectionchange`; `caretPositionFromPoint` | `contenteditable` |  |
 | Navigation | History API (in memory), `location`, `<a href>` routed to the app or the system browser |  | Multiple documents, cross-origin navigation |
 
 ### Library compatibility
@@ -463,6 +465,10 @@ squark-dom implements what React and popular libraries actually call, in tiers. 
 | Recharts, visx | SVG elements, `getBBox`, text measurement | TIER 1 |
 | Motion (Framer Motion) | rAF and style writes; `element.animate()` for hardware-accelerated values | TIER 1 for rAF animations; WAAPI is tier 2. |
 | Chart.js, Konva | Canvas 2D | TIER 1 Canvas 2D is built, as Excalidraw uses it; these libraries are not checked yet. |
+| Monaco Editor | Range and caret hit testing, Selection, `MouseEvent.pageX`, the editor worker, `@font-face` | TIER 1 Checked in a full IDE (editing, completion, hover, diff editor) and against Chromium. |
+| xterm.js | Hidden-textarea input, `document.hasFocus`, character measurement, ResizeObserver | TIER 1 Checked in a full IDE with a real PTY. |
+| KaTeX | `@font-face` weights and styles, inline tables, fractional `vertical-align` | TIER 1 Formulas within 0.2% of Chromium's pixels; the √ stroke is slightly heavier. |
+| marked, DOMPurify | `document.implementation`, NodeIterator, `<template>` | TIER 1 DOMPurify sanitizes its XSS test payloads exactly as in Chromium. |
 | Lexical, Slate, ProseMirror, TipTap | `contenteditable`, Selection, Range, `beforeinput` | LATER The hardest gap. Needs a full editing host. |
 | three.js, react-three-fiber | WebGL | NO Use `<GpuView>` (§13, planned), or the WebGPU renderer once `navigator.gpu` lands. |
 
@@ -526,6 +532,8 @@ Native modules are built (`squark-native`, below). `<GpuView>` and `@strange-qua
 **Native modules** are Rust functions marked `#[squark_native::export]`, grouped in `squark_native::Module`s, and linked into the app's own runtime, so they cost no extra process or IPC. JavaScript calls them by name through the private `Symbol.for("strange-quark.native")` API (`invoke(module, command, args)`, `listen(event, callback)`), and module code pushes events with `app.emit(event, payload)`. Values cross as JSON. A module runs only if `squark.config.ts` lists it under `native.modules`. Sync commands run on a blocking thread and async ones on the runtime squark-net already owns. Generated TypeScript types are planned.
 
 Strange Quark's own API knows no other shell. Compatibility with one is an optional module an app opts into. For Tauri 2 there are two halves: the `squark-tauri` crate gives a Tauri backend's commands the API they were written against (an app builds its backend with `squark_tauri` named `tauri`), and the `@strange-quark/tauri` package supplies `window.__TAURI_INTERNALS__` over native modules through squark.config's generic `preludes`, so the frontend runs without source changes. Apps that do not use them never install or link them.
+
+**Window menus.** A module (`app.window().set_menu(menu)`) or the page (`window.setMenu(template)` on the native API, in Electron's template shape) sets the window's menu: commands with ids, labels with `&` mnemonics, accelerators in Electron's and Tauri's syntax, check items, submenus, separators and standard roles. Activating a command sends its id to `Module::on_menu` handlers and to the page's `onMenu` listeners. A key goes to the page first, and a matching accelerator runs only if the page did not cancel the keydown (§17). Editing roles register no accelerators, since their keys are the page's own default actions. Linux windows have no menu bar to put the menu in, and the bar Strange Quark will draw needs frame documents, which are deferred past 0.2.0. Until then a Linux menu works through its accelerators and is not visible. macOS and Windows will use the OS menu bar.
 
 Linking the app's Rust into its runtime was chosen over a sidecar process, a JavaScript backend on host APIs, and Wasm modules because it adds the least to the binary and to memory: the runtime's std, tokio, TLS and serde are shared, and there is no second process, isolate or serialization hop.
 
@@ -653,6 +661,8 @@ Direct mode, accessibility, native modules and the devtools client (§5, §13, �
 | Blending | sRGB-encoded space | Linear-light blending | Matches browser output, so designs look as they do in Chrome. |
 | Accessibility | AccessKit (planned) | Per-platform bridges | One tree format, existing adapters for Windows, macOS, Linux and Android. |
 | Native app code | Rust native modules linked into an app runtime that `squark build` compiles (§13) | A sidecar process; a JavaScript backend on host APIs; Wasm modules; dynamically loaded libraries | Smallest binary and memory growth: no duplicated runtime libraries, second process or extra isolate. Dynamic loading needs `unsafe` and duplicates std per library. |
+| Menu accelerators | Run after the page lets the key through | Matched before the page sees the key | Chromium handles non-reserved shortcuts this way, and Electron does on Linux and Windows. A terminal keeps Ctrl+C, and a shortcut the page already handles runs once. |
+| Shell compatibility (Tauri) | Optional crate and package an app opts into (§13) | Tauri's API in Strange Quark's own crates | Strange Quark's API stays its own; apps that do not need the shim never link it. |
 
 ## §18 Risks and open questions
 
