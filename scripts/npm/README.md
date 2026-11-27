@@ -47,19 +47,36 @@ provenance only for public source repositories.
 ### npm credentials
 
 npm can set up trusted publishing (OIDC, no token) only for a package that
-already exists, so the first release uses a token and later ones do not:
+already exists, so the first release of a new package uses a token and later
+ones do not:
 
 1. Create the `strange-quark` npm organization, which owns the
    `@strange-quark` scope.
 2. Create a granular access token with read and write access to all
-   packages and the `@strange-quark` scope, allowed to publish without
-   two-factor prompts, and store it as the `NPM_TOKEN` repository secret.
-   npm caps a write token's lifetime, so give it a short one.
+   packages and the `@strange-quark` scope, with **Bypass two-factor
+   authentication** ticked, and store it as the `NPM_TOKEN` repository
+   secret. Without the bypass, `npm publish` fails with `EOTP`. npm caps a
+   write token's lifetime, so give it a short one.
 3. Push the first `v*` tag.
-4. On npmjs.com, add a trusted publisher to each of the eight packages: this
-   repository and the `release.yml` workflow.
-5. Delete the `NPM_TOKEN` secret and revoke the token. Later releases
+4. Delete the `NPM_TOKEN` secret and revoke the token.
+5. Shortly before the next release, add a trusted publisher on npmjs.com to
+   each of the eight packages: this repository and the `release.yml`
+   workflow. A new trusted publisher expires unless it publishes within two
+   days, so add them when the next tag is ready to go. Releases from then on
    authenticate through the workflow's OIDC token (`id-token: write`).
+
+The first publish of a new package is not visible straight away: `npm
+publish` reports "Your package is being processed", and for a few minutes the
+registry shows only a `0.0.0-stage` placeholder version, which then stays in
+the package's version list. For 0.1.0 all eight packages were live within
+seven minutes.
+
+npm restricts tokens that bypass 2FA: since July 2026 they cannot change
+package settings such as trusted publishers (do that on the website), and
+npm plans to stop them publishing directly from January 2027. After that, a
+new package's first version needs npm's staged publishing, `npm stage
+publish` from the workflow then approval with 2FA, which `publish.mjs` does
+not do yet.
 
 The manual steps, for a local release or to debug the workflow:
 
