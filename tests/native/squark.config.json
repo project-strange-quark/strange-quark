@@ -1,0 +1,6 @@
+{
+  "name": "native-fixture",
+  "window": { "title": "native fixture", "width": 640, "height": 480 },
+  "build": { "command": "true", "distDir": "web" },
+  "native": { "crate": "module", "modules": ["fixture"], "squarkSource": "../.." }
+}

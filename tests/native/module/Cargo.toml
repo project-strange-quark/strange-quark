@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT
+# The native module of tests/native: built into an app runtime by `squark build`.
+[package]
+name = "squark-native-fixture"
+version = "0.0.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+squark-native = { path = "../../../crates/squark-native" }
+tokio = { version = "1", features = ["time"] }

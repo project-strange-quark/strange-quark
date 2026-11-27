@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>native fixture</title>
+  </head>
+  <body>
+    <p id="status">loading</p>
+    <script type="module">
+      // SPDX-License-Identifier: MIT
+      const native = globalThis[Symbol.for("strange-quark.native")];
+      const results = (globalThis.results = { modules: native ? [...native.modules] : null });
+      const settle = (promise) => promise.then((value) => ({ ok: value }), (error) => ({ err: error }));
+      results.echo = await settle(native.invoke("fixture", "echo", { value: [1, "two", { three: 3 }], label: "x" }));
+      results.fail = await settle(native.invoke("fixture", "fail", { message: "No such file" }));
+      results.count = [await native.invoke("fixture", "count"), await native.invoke("fixture", "count")];
+      results.unlisted = await settle(native.invoke("unlisted", "echo", { value: 1 }));
+      results.badArgs = await settle(native.invoke("fixture", "echo", {}));
+      results.delayed = await settle(native.invoke("fixture", "delayed", { millis: 5 }));
+      let ticks = 0;
+      let ordered = true;
+      const off = native.listen("tick", (tick) => {
+        ordered &&= tick.index === ticks && tick.session_id === "s1";
+        ticks++;
+      });
+      const started = performance.now();
+      results.burst = await new Promise((resolve) => {
+        const stop = native.listen("burst-done", (count) => {
+          stop();
+          off();
+          resolve({ count, ticks, ordered, ms: Math.round(performance.now() - started) });
+        });
+        native.invoke("fixture", "burst", { sessionId: "s1", count: 10000 });
+      });
+      document.getElementById("status").textContent = "ready";
+    </script>
+  </body>
+</html>
