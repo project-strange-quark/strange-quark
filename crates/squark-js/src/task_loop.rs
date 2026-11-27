@@ -236,8 +236,22 @@ impl TaskLoop {
         deadline_ms: f64,
         max_tasks: usize,
     ) -> Result<usize, TaskError> {
-        let mut count = 0;
         let mut error = None;
+        let count = self.run_ready_with(scope, deadline_ms, max_tasks, &mut collect(&mut error));
+        error.map_or(Ok(count), Err)
+    }
+
+    /// Like `run_ready`, but `invoke` calls each callback and reports its
+    /// exception, returning whether it completed. A worker reports uncaught
+    /// exceptions as ErrorEvents with their script location.
+    pub(crate) fn run_ready_with(
+        &self,
+        scope: &mut PinScope<'_, '_>,
+        deadline_ms: f64,
+        max_tasks: usize,
+        invoke: &mut Invoke<'_>,
+    ) -> usize {
+        let mut count = 0;
         while count < max_tasks {
             let queue = scope.get_slot_mut::<Queue>().unwrap();
             let now = (queue.clock)();
@@ -252,21 +266,15 @@ impl TaskLoop {
                 }
                 None => break,
             };
-            let result = call(scope, callback, &[]);
+            let completed = invoke(scope, callback, &[]);
             scope.perform_microtask_checkpoint();
-            let result = result.and_then(|value| {
-                if let Some(after) = after_microtasks {
-                    let after = Local::new(scope, after);
-                    call(scope, after, &[])?;
-                }
-                Ok(value)
-            });
-            if let Err(failed) = result {
-                error.get_or_insert(failed);
+            if completed && let Some(after) = after_microtasks {
+                let after = Local::new(scope, after);
+                invoke(scope, after, &[]);
             }
             count += 1;
         }
-        error.map_or(Ok(count), Err)
+        count
     }
 
     /// Runs the frame's task turn and then the rAF snapshot at the tick timestamp.
@@ -288,18 +296,44 @@ impl TaskLoop {
         vsync_ms: f64,
     ) -> Result<(), TaskError> {
         let mut error = None;
+        self.run_animation_with(scope, vsync_ms, &mut collect(&mut error))?;
+        error.map_or(Ok(()), Err)
+    }
+
+    /// Runs the rAF snapshot, calling each callback through `invoke`.
+    pub(crate) fn run_animation_with(
+        &self,
+        scope: &mut PinScope<'_, '_>,
+        vsync_ms: f64,
+        invoke: &mut Invoke<'_>,
+    ) -> Result<(), TaskError> {
         let begin = Local::new(scope, &self.begin_frame);
         call(scope, begin, &[])?;
         let timestamp = v8::Number::new(scope, vsync_ms);
         let next = Local::new(scope, &self.next_animation);
         while let Ok(callback) = Local::<Function>::try_from(call(scope, next, &[])?) {
-            let result = call(scope, callback, &[timestamp.into()]);
+            invoke(scope, callback, &[timestamp.into()]);
             scope.perform_microtask_checkpoint();
-            if let Err(failed) = result {
-                error.get_or_insert(failed);
-            }
         }
-        error.map_or(Ok(()), Err)
+        Ok(())
+    }
+}
+
+/// Calls a task callback with its arguments and returns whether it completed.
+pub(crate) type Invoke<'a> =
+    dyn for<'s> FnMut(&mut PinScope<'s, '_>, Local<'s, Function>, &[Local<'s, Value>]) -> bool + 'a;
+
+/// Calls through `call`, keeping the first failure.
+fn collect(
+    error: &mut Option<TaskError>,
+) -> impl for<'s> FnMut(&mut PinScope<'s, '_>, Local<'s, Function>, &[Local<'s, Value>]) -> bool + '_
+{
+    move |scope, callback, args| match call(scope, callback, args) {
+        Ok(_) => true,
+        Err(failed) => {
+            error.get_or_insert(failed);
+            false
+        }
     }
 }
 

@@ -38,7 +38,7 @@ use crate::{
     loader::{self, RUNTIME_ENTRY, RUNTIME_JOURNAL, ScriptSources},
     native, navigation, network, observer, platform, scroll,
     task_loop::{TaskLoop, call, install_task_host},
-    wasm,
+    wasm, worker,
 };
 
 pub use crate::{
@@ -127,6 +127,8 @@ pub enum DocumentTask {
     NetworkReady,
     /// A native module replied or emitted an event (coalesced).
     NativeReady,
+    /// A worker posted a message, failed or closed (coalesced).
+    WorkerReady,
     ImageResult {
         target: NodeId,
         generation: u32,
@@ -222,6 +224,8 @@ struct Realm {
     network_queued: Arc<AtomicBool>,
     native: Option<Global<Function>>,
     native_queued: Arc<AtomicBool>,
+    workers: Option<Global<Function>>,
+    worker_queued: Arc<AtomicBool>,
     demand: FrameDemand,
     media_changed: bool,
     in_frame: bool,
@@ -316,7 +320,7 @@ impl<'engine> DocumentRunner<'engine> {
             let origin = options.time_origin;
             let host =
                 install_task_host(scope, move || millis(task_clock(), origin)).map_err(setup)?;
-            network::install(scope, host, url.clone(), &sources)
+            network::install(scope, host, url.clone(), &sources, true)
                 .ok_or_else(|| setup("failed to install networking bindings"))?;
             canvas::install(scope, host, sources.canvas.take())
                 .ok_or_else(|| setup("failed to install canvas bindings"))?;
@@ -334,8 +338,10 @@ impl<'engine> DocumentRunner<'engine> {
             let dev = sources.dev;
             native::install(scope, host, sources.native.take())
                 .ok_or_else(|| setup("failed to install native module bindings"))?;
-            loader::install(scope, url, sources);
             let console = bindings::console_enabled(dev, options.test_control);
+            worker::install(scope, host, &sources, console)
+                .ok_or_else(|| setup("failed to install worker bindings"))?;
+            loader::install(scope, url, sources);
             bindings::install(scope, host, console)
                 .ok_or_else(|| setup("failed to install native bindings"))?;
             navigation::install(scope, host)
@@ -435,6 +441,16 @@ impl<'engine> DocumentRunner<'engine> {
             let timing = call(scope, timing, &[global.into(), host.into()]).map_err(setup)?;
             let timing = Local::<Object>::try_from(timing).map_err(setup)?;
             let tasks = TaskLoop::new(scope, timing).map_err(setup)?;
+            let install_workers = function(scope, api, "installWorkers")?;
+            let workers = call(
+                scope,
+                install_workers,
+                &[global.into(), document.into(), host.into()],
+            )
+            .map_err(setup)?;
+            let workers = Local::<Function>::try_from(workers)
+                .ok()
+                .map(|workers| Global::new(scope, workers));
             let install_navigation = function(scope, api, "installNavigation")?;
             call(
                 scope,
@@ -539,6 +555,8 @@ impl<'engine> DocumentRunner<'engine> {
                 network_queued: Arc::default(),
                 native,
                 native_queued: Arc::default(),
+                workers,
+                worker_queued: Arc::default(),
                 demand: options.frame_demand,
                 media_changed: false,
                 in_frame: false,
@@ -581,9 +599,16 @@ impl<'engine> DocumentRunner<'engine> {
                 }
             });
             let queued = Arc::clone(&realm.native_queued);
+            let native_sender = sender.clone();
             native::set_waker(scope, move || {
                 if !queued.swap(true, Ordering::AcqRel) {
-                    let _ = sender.send(DocumentTask::NativeReady);
+                    let _ = native_sender.send(DocumentTask::NativeReady);
+                }
+            });
+            let queued = Arc::clone(&realm.worker_queued);
+            worker::set_waker(scope, move || {
+                if !queued.swap(true, Ordering::AcqRel) {
+                    let _ = sender.send(DocumentTask::WorkerReady);
                 }
             });
         });
@@ -599,7 +624,10 @@ impl<'engine> DocumentRunner<'engine> {
         let mut messages = VecDeque::new();
         let result = self.run_queue(&receiver, &mut messages, &mut committed);
         self.shutdown.close();
-        self.with_realm(|scope, _| native::close(scope));
+        self.with_realm(|scope, _| {
+            native::close(scope);
+            worker::close_all(scope);
+        });
         messages
             .into_iter()
             .chain(receiver.try_iter())
@@ -734,6 +762,9 @@ impl<'engine> DocumentRunner<'engine> {
                     }
                     DocumentTask::NativeReady => {
                         self.realm.native_queued.store(false, Ordering::Release)
+                    }
+                    DocumentTask::WorkerReady => {
+                        self.realm.worker_queued.store(false, Ordering::Release)
                     }
                     DocumentTask::ImageResult {
                         target,
@@ -1115,6 +1146,7 @@ impl<'engine> DocumentRunner<'engine> {
                 .into_iter()
                 .chain(network::wakeup(scope))
                 .chain(native::wakeup(scope))
+                .chain(worker::wakeup(scope))
                 .chain(wasm::wakeup(scope))
                 .min()
         })
@@ -1259,6 +1291,21 @@ impl Realm {
                     break;
                 };
                 if let Err(error) = call(scope, dispatch, &[message]) {
+                    report_message(scope, &error.to_string());
+                }
+                self.tasks.checkpoint_after_startup(scope);
+                if (self.clock)() >= deadline {
+                    break;
+                }
+            }
+        }
+        if let Some(dispatch) = &self.workers {
+            let dispatch = Local::new(scope, dispatch);
+            for _ in 0..MAX_TASKS {
+                let Some(packet) = worker::next(scope) else {
+                    break;
+                };
+                if let Err(error) = call(scope, dispatch, &[packet]) {
                     report_message(scope, &error.to_string());
                 }
                 self.tasks.checkpoint_after_startup(scope);
@@ -1489,7 +1536,7 @@ fn report<'s>(scope: &mut PinScope<'s, '_>, error: Local<'s, Value>) {
     }
 }
 
-fn runtime_module<'s>(
+pub(crate) fn runtime_module<'s>(
     scope: &mut PinScope<'s, '_>,
     name: &'static str,
 ) -> Result<Local<'s, Object>, DocumentError> {

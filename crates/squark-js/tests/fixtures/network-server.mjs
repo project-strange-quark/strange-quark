@@ -35,6 +35,14 @@ const developmentModules = new Map([
     export const shared = typeof left === "function" ? 40 : 0;
     globalThis.devSharedEvaluations = (globalThis.devSharedEvaluations ?? 0) + 1;
   `],
+  ["/dev-worker.js?worker_file&type=module", `
+    import { value } from "./dev-worker-dep.js";
+    const { value: again } = await import("./dev-worker-dep.js");
+    postMessage([value, again, import.meta.url]);
+  `],
+  ["/dev-worker-dep.js", 'export const value = "from the dev server";'],
+  ["/dev-classic-worker.js", 'importScripts("/dev-classic-lib.js"); postMessage([classicValue, location.href]);'],
+  ["/dev-classic-lib.js", 'var classicValue = "classic over HTTP";'],
   ["/dev-entry.js?t=1", 'export const version = 1, url = import.meta.url;'],
   ["/dev-entry.js?t=2", 'export const version = 2, url = import.meta.url;'],
 ]);

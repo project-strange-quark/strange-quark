@@ -220,7 +220,7 @@ pub(crate) fn console_enabled(dev: bool, test_control: bool) -> bool {
         || std::env::var_os("SQUARK_CONSOLE").is_some_and(|value| !value.is_empty() && value != "0")
 }
 
-fn console_write(
+pub(crate) fn console_write(
     scope: &mut PinScope<'_, '_>,
     args: v8::FunctionCallbackArguments<'_>,
     _: v8::ReturnValue<'_>,
@@ -235,7 +235,7 @@ fn console_write(
     eprintln!("console.{prefix}: {text}");
 }
 
-fn log_error(
+pub(crate) fn log_error(
     scope: &mut PinScope<'_, '_>,
     args: v8::FunctionCallbackArguments<'_>,
     _: v8::ReturnValue<'_>,

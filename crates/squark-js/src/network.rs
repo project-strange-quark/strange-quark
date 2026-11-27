@@ -37,6 +37,7 @@ struct Network {
     document: Url,
     dev: bool,
     entry_html: Option<String>,
+    policy: Allowlist,
     transport: Transport,
     incoming: Receiver<(u32, Event)>,
     direct_wakeup: bool,
@@ -46,11 +47,14 @@ struct Network {
     shutdown: DocumentShutdown,
 }
 
+/// Installs fetch and WebSocket bindings. A worker passes `storage: false`:
+/// it has no localStorage and must not open the app's storage files.
 pub(crate) fn install(
     scope: &mut PinScope<'_, '_>,
     host: Local<'_, Object>,
     document: Url,
     sources: &ScriptSources,
+    storage: bool,
 ) -> Option<()> {
     let manifest = sources
         .entry(squark_types::pack::MANIFEST_PATH)
@@ -64,11 +68,13 @@ pub(crate) fn install(
     let storage = manifest
         .app_name
         .as_deref()
+        .filter(|_| storage)
         .and_then(|app| Storage::new(app, sources.storage_root.as_deref()));
     scope.set_slot(Network {
         document,
         dev: sources.dev,
         entry_html: manifest.entry_html,
+        policy: policy.clone(),
         transport: Transport::new(policy, sender),
         incoming,
         direct_wakeup: false,
@@ -103,6 +109,54 @@ pub(crate) fn install(
 
 fn network<'a>(scope: &'a mut PinScope<'_, '_>) -> &'a mut Network {
     scope.get_slot_mut().expect("network bindings installed")
+}
+
+/// Whether a script at `url` comes from the pack rather than the network.
+pub(crate) fn is_packed(scope: &mut PinScope<'_, '_>, url: &Url) -> bool {
+    let net = network(scope);
+    !net.dev && url.origin() == net.document.origin()
+}
+
+/// GETs a whole response on the calling thread, which a worker's
+/// importScripts needs. `cancelled` is polled while the request runs.
+pub(crate) fn fetch_blocking(
+    scope: &mut PinScope<'_, '_>,
+    url: Url,
+    cancelled: &dyn Fn() -> bool,
+) -> Option<(Response, Vec<u8>)> {
+    const CREDIT: usize = 1024 * 1024;
+    const TIMEOUT: Duration = Duration::from_secs(60);
+    let (sender, receiver) = mpsc::channel();
+    let mut transport = Transport::new(network(scope).policy.clone(), sender);
+    transport.fetch(
+        0,
+        Request {
+            url,
+            method: "GET".into(),
+            headers: Vec::new(),
+            body: None,
+            redirect: Redirect::Follow,
+        },
+    );
+    let deadline = Instant::now() + TIMEOUT;
+    let mut response = None;
+    let mut body = Vec::new();
+    while Instant::now() < deadline && !cancelled() {
+        match receiver.recv_timeout(Duration::from_millis(20)) {
+            Ok((_, Event::Headers(head))) => {
+                response = Some(head);
+                transport.credit(0, CREDIT);
+            }
+            Ok((_, Event::Chunk(bytes))) => {
+                body.extend_from_slice(&bytes);
+                transport.credit(0, CREDIT);
+            }
+            Ok((_, Event::End)) => return response.map(|response| (response, body)),
+            Ok(_) | Err(mpsc::RecvTimeoutError::Disconnected) => return None,
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+        }
+    }
+    None
 }
 
 pub(crate) fn set_waker(scope: &mut PinScope<'_, '_>, wake: impl Fn() + Send + Sync + 'static) {

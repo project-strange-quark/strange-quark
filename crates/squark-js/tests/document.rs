@@ -31,6 +31,8 @@ mod network_tests;
 mod platform_tests;
 #[path = "document/shutdown.rs"]
 mod shutdown_tests;
+#[path = "document/worker.rs"]
+mod worker_tests;
 
 use std::{
     cell::{Cell, RefCell},
@@ -92,7 +94,9 @@ fn key(relative: &str) -> std::path::PathBuf {
         .join(relative)
 }
 
-fn sources(pack: impl Fn(&str) -> Option<(String, Vec<u8>)> + 'static) -> ScriptSources {
+fn sources(
+    pack: impl Fn(&str) -> Option<(String, Vec<u8>)> + Send + Sync + 'static,
+) -> ScriptSources {
     let dist = key("packages/@strange-quark/dom/dist");
     assert!(
         dist.join("index.js").is_file(),
