@@ -16,9 +16,9 @@ fallback. Code that calls an API without checking first throws.
 | Area | What is supported |
 | --- | --- |
 | React | React 18.3 and 19.x on the real `react-dom`, unmodified. Fiber, concurrent features, Suspense, portals, refs, controlled inputs, synthetic events |
-| DOM | Node, Element, Text, Comment, DocumentFragment, Document; selectors; MutationObserver; `innerHTML`; `template`; `DOMParser`; `document.implementation`; NodeIterator and TreeWalker; custom elements; Range with `getClientRects`; the Selection API; `caretPositionFromPoint` and `caretRangeFromPoint` |
+| DOM | Node, Element, Text, Comment, DocumentFragment, Document; selectors; MutationObserver; `innerHTML`; `template`; `DOMParser`; `document.implementation`; NodeIterator and TreeWalker; custom elements; Shadow DOM (open and closed, slots, `:host`, `::slotted`, `::part`, event retargeting); Range with `getClientRects`; the Selection API; `caretPositionFromPoint` and `caretRangeFromPoint` |
 | Events | Capture, bubble, `passive`, `once`, `signal`. Pointer, mouse, keyboard, focus, input, composition (IME), wheel, touch, `contextmenu` and custom events. Clipboard events with data. HTML drag and drop within the page. Window focus, blur and `visibilitychange` |
-| CSSOM | `element.style`, `CSSStyleSheet` and `insertRule` (emotion, styled-components), `getComputedStyle`, `matchMedia`, `CSS.supports` |
+| CSSOM | `element.style`, `CSSStyleSheet` and `insertRule` (emotion, styled-components), constructable sheets and `adoptedStyleSheets`, `getComputedStyle`, `matchMedia`, `CSS.supports` |
 | Geometry | Rects, offset, client and scroll metrics; `scrollTo`; `scrollIntoView`; ResizeObserver; IntersectionObserver; `elementFromPoint` |
 | Timing | Timers, `queueMicrotask`, MessageChannel, rAF, `requestIdleCallback`, `performance` (with `mark` and `measure`) |
 | Workers | Dedicated Web Workers, module and classic, from pack, `blob:` and dev-server URLs (Vite's `?worker` included), each a V8 isolate on its own thread |
@@ -29,14 +29,14 @@ fallback. Code that calls an API without checking first throws.
 | Files | `<input type=file>` opens a native open dialog. `<a download>` opens a native save dialog. `navigator.clipboard` |
 | Navigation | History API (in memory), `location`, `<a href>` routed to the app or to the system browser |
 | WebAssembly | Yes, through V8 |
-| CSS | Everything Stylo parses for selectors and values, including `:has()`, `@layer`, `@property`, custom properties, `color-mix()` and `oklch()`. Layout: block, inline, flex, grid, all positions, overflow, sticky, `aspect-ratio`. Paint: gradients, borders, radius, shadows, transforms, opacity, filter, `backdrop-filter`, blend modes, `clip-path`. Transitions and `@keyframes`. Tailwind v4 |
+| CSS | Everything Stylo parses for selectors and values, including `:has()`, `@layer`, `@property`, custom properties, `color-mix()` and `oklch()`. Layout: block, inline, flex, grid, tables, all positions, overflow, sticky, `aspect-ratio`. Text: `@font-face` matching by weight, style and `unicode-range`, synthetic bold and italic, `ex`/`ch`/`cap` from the font. Paint: gradients, borders, radius, shadows, transforms, opacity, filter, `backdrop-filter`, blend modes, `clip-path`. Transitions and `@keyframes`. Tailwind v4 |
 
 ## Not yet (tier 2: planned)
 
 These are undefined or ignored today, and a later release may add them:
 
 - SharedWorker, and MessagePorts sent to a worker
-- Shadow DOM, `moveBefore`
+- Declarative shadow DOM (`<template shadowrootmode>`), `moveBefore`
 - Container queries (`@container`), floats, subgrid, anchor positioning,
   `mask-image`, `border-image`; in tables, collapsed borders, captions and
   `<col>` widths

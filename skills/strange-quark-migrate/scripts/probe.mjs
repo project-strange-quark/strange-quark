@@ -189,7 +189,19 @@ const PROBE_SCRIPT = `(() => {
   }));
   add("SharedWorker", () => window.SharedWorker);
   add("navigator.serviceWorker", () => own(navigator, "serviceWorker"));
-  add("Element.attachShadow", () => Element.prototype.attachShadow, (value) => typeof value === "function");
+  add("Element.attachShadow", () => Element.prototype.attachShadow, () => {
+    // A slot projects the host's child, and the shadow tree's style is scoped.
+    const host = document.createElement("div");
+    host.innerHTML = "<span>light</span>";
+    document.body.appendChild(host);
+    const root = host.attachShadow({ mode: "open" });
+    root.innerHTML = "<style>:host { display: block; width: 40px } span { color: red }</style><slot></slot>";
+    const slotted = root.querySelector("slot").assignedNodes()[0];
+    const ok = host.shadowRoot === root && slotted === host.firstChild &&
+      host.getBoundingClientRect().width === 40 && getComputedStyle(slotted).color !== "rgb(255, 0, 0)";
+    host.remove();
+    return ok;
+  });
   add("customElements", () => window.customElements, (registry) => {
     const name = "squark-probe-" + Math.random().toString(36).slice(2);
     let connected = false;

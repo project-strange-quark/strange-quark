@@ -242,8 +242,9 @@ Linux verdict:
   completion, hover and the diff editor in Monaco, a terminal on a real PTY,
   git, search, plots, tab drag and drop, and its menu's accelerators.
 - **Platform features those apps rely on:** Web Workers, HTML drag and drop,
-  Range and Selection with caret hit testing, custom elements, CSS tables,
-  `@font-face` weights and styles, window focus and visibility, streaming
+  Range and Selection with caret hit testing, custom elements and Shadow
+  DOM, constructable stylesheets, CSS tables, `@font-face` weights and
+  styles, synthetic bold and italic, window focus and visibility, streaming
   `TextDecoder`, window title, zoom and close handling.
 - **Excalidraw v0.18.1 ships as one native Linux binary, a signed macOS
   app and a Windows executable,** each passing the same flow against

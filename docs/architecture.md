@@ -342,8 +342,8 @@ Five sources feed one cascade, which has four consumers. Inline styles arrive as
 | --- | --- | --- | --- |
 | Selectors, cascade | Everything Stylo supports, including `:has()`, `:is()`, `:where()`, `:focus-visible`, `@layer`, `@supports`, `@property` |  |  |
 | Values | Custom properties, `calc()` `min()` `max()` `clamp()`, `color-mix()`, `oklch()` `oklab()` `lab()`, `rem` `dvh` `svh` `lvh` |  |  |
-| Layout | block, inline, inline-block, flex, grid, `contents`, all `position` values, overflow, `aspect-ratio`, `gap`, `z-index`, `contain` | Container queries (needs style and layout to interleave), floats, true table layout, subgrid, anchor positioning | Multi-column, vertical writing modes, regions, shapes |
-| Text | `font-*`, variable fonts, `@font-face` (WOFF2, TTF, OTF), `line-height`, spacing, `white-space`, `word-break`, `overflow-wrap`, `text-overflow: ellipsis`, `-webkit-line-clamp`, decorations, `text-shadow`, bidi | `hyphens`, `text-wrap: balance \| pretty`, ruby | Vertical text |
+| Layout | block, inline, inline-block, flex, grid, table (CSS Tables 3 column widths, cell alignment, anonymous boxes), `contents`, all `position` values, overflow, `aspect-ratio`, `gap`, `z-index`, `contain` | Container queries (needs style and layout to interleave), floats, collapsed table borders, captions and `<col>` widths, subgrid, anchor positioning | Multi-column, vertical writing modes, regions, shapes |
+| Text | `font-*`, variable fonts, `@font-face` (WOFF2, TTF, OTF) with weight, style and `unicode-range` matching, synthetic bold and italic (`font-synthesis`), font-relative units (`ex`, `ch`, `cap`, `ic`) from the primary font, `line-height`, spacing, `white-space`, `word-break`, `overflow-wrap`, `text-overflow: ellipsis`, `-webkit-line-clamp`, decorations, `text-shadow`, bidi | `hyphens`, `text-wrap: balance \| pretty`, ruby | Vertical text |
 | Paint | Backgrounds with linear, radial and conic gradients; borders (solid, dashed, dotted, double); `border-radius`; `box-shadow`; `outline`; `opacity`; 2D and 3D transforms; `filter`; `backdrop-filter`; `mix-blend-mode`; `clip-path`; `accent-color`; `cursor`; `pointer-events` | `mask-image`, `border-image`, `background-blend-mode` |  |
 | Motion | Transitions, `@keyframes`, `will-change`. The compositor runs `transform`, `opacity` and `filter`; the document thread runs the rest | Scroll-driven animations, view transitions |  |
 | Media queries | Width, height, orientation, `prefers-color-scheme`, `prefers-reduced-motion`, `prefers-contrast`, resolution, `hover`, `pointer` |  | Print, `@page` |
@@ -360,7 +360,7 @@ The layout tree is built from the mirror and computed styles: `display: none` pr
 | `flex`, `inline-flex` | Flexbox | Taffy flexbox |
 | `grid`, `inline-grid` | Grid without subgrid | Taffy grid |
 | `inline`, `inline-block`, text | Inline formatting context | Parley lays out the text runs. Each inline-block, inline-flex or replaced element is an inline box whose size comes from a nested Taffy pass through Taffy’s measure hook. |
-| `table` and its parts | Table layout | v1 maps tables onto Taffy grid with auto columns and `colspan` as spans, and warns. True table layout is tier 2. |
+| `table` and its parts | Table layout | squark-layout's own: CSS Tables 3 column widths (fixed and auto), rows that cells fill, `vertical-align` inside cells, row and table baselines, anonymous rows, cells and tables. Collapsed borders, captions and `<col>` widths are not done. |
 | `position: absolute` | Out of flow, containing block is the nearest positioned ancestor | A second pass after Taffy, because Taffy positions absolute children against their parent |
 | `position: fixed` | Containing block is the viewport, or the nearest transformed ancestor | Same second pass |
 | `position: sticky` | In flow, offset during scrolling | A constraint rect for the compositor, so sticky headers move without JavaScript |
@@ -441,9 +441,9 @@ squark-dom implements what React and popular libraries actually call, in tiers. 
 
 | Area | TIER 1 · v1 | TIER 2 | NOT PLANNED |
 | --- | --- | --- | --- |
-| DOM | Node, Element, Text, Comment, DocumentFragment, Document, selectors API, `contains`, `compareDocumentPosition`, MutationObserver, `innerHTML` through html5ever, Range with text geometry, custom elements, `document.implementation`, NodeIterator and TreeWalker | Shadow DOM, `moveBefore`, iframes (deferred past 0.2.0; the design is recorded) | `document.write`, XPath |
+| DOM | Node, Element, Text, Comment, DocumentFragment, Document, selectors API, `contains`, `compareDocumentPosition`, MutationObserver, `innerHTML` through html5ever, Range with text geometry, custom elements, `document.implementation`, NodeIterator and TreeWalker, Shadow DOM (open and closed roots, slots, event retargeting, `delegatesFocus`, scoped styles with `:host`, `::slotted` and `::part`) | Declarative shadow DOM, `moveBefore`, iframes (deferred past 0.2.0; the design is recorded) | `document.write`, XPath |
 | Events | EventTarget with capture, `passive`, `once`, `signal`; Pointer, Mouse, Keyboard, Focus, Input, Composition, Wheel, Touch, Clipboard, Custom events; HTML drag and drop within the page; window focus and visibility | Drops from other apps, painted drag images |  |
-| CSSOM | `element.style`, `CSSStyleSheet`, `document.styleSheets`, `getComputedStyle`, `CSS.supports`, `matchMedia` | `adoptedStyleSheets`, Typed OM |  |
+| CSSOM | `element.style`, `CSSStyleSheet` (constructable, with `replace` and `replaceSync`), `adoptedStyleSheets`, `document.styleSheets`, `getComputedStyle`, `CSS.supports`, `matchMedia` | Typed OM |  |
 | Geometry | Rects, offset, client and scroll metrics, `scrollTo`, `scrollIntoView`, ResizeObserver, IntersectionObserver, `elementFromPoint` |  |  |
 | Timing | `setTimeout`, `setInterval`, `queueMicrotask`, `MessageChannel`, rAF, `performance.now`, `performance.mark` and `measure`, `requestIdleCallback`, dedicated Web Workers (module and classic) | Web Animations API, shared workers, MessagePorts sent to workers |  |
 | Network, storage | `fetch`, Headers, Request, Response, AbortController, WebSocket, EventSource, URL, TextEncoder, TextDecoder (streaming, every WHATWG encoding), file-backed `localStorage`, IndexedDB, `crypto.getRandomValues`, `crypto.randomUUID`, `crypto.subtle` (SHA digests and AES-GCM) |  | Service workers, cookies, CORS |
@@ -465,7 +465,7 @@ squark-dom implements what React and popular libraries actually call, in tiers. 
 | Recharts, visx | SVG elements, `getBBox`, text measurement | TIER 1 |
 | Motion (Framer Motion) | rAF and style writes; `element.animate()` for hardware-accelerated values | TIER 1 for rAF animations; WAAPI is tier 2. |
 | Chart.js, Konva | Canvas 2D | TIER 1 Canvas 2D is built, as Excalidraw uses it; these libraries are not checked yet. |
-| Monaco Editor | Range and caret hit testing, Selection, `MouseEvent.pageX`, the editor worker, `@font-face` | TIER 1 Checked in a full IDE (editing, completion, hover, diff editor) and against Chromium. |
+| Monaco Editor | Range and caret hit testing, Selection, `MouseEvent.pageX`, the editor worker, `@font-face`, Shadow DOM for its context menu | TIER 1 Checked in a full IDE (editing, completion, hover, diff editor) and against Chromium. |
 | xterm.js | Hidden-textarea input, `document.hasFocus`, character measurement, ResizeObserver | TIER 1 Checked in a full IDE with a real PTY. |
 | KaTeX | `@font-face` weights and styles, inline tables, fractional `vertical-align` | TIER 1 Formulas within 0.2% of Chromium's pixels; the √ stroke is slightly heavier. |
 | marked, DOMPurify | `document.implementation`, NodeIterator, `<template>` | TIER 1 DOMPurify sanitizes its XSS test payloads exactly as in Chromium. |

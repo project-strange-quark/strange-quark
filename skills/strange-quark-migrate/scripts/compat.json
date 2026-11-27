@@ -212,11 +212,12 @@
       "note": "navigator.serviceWorker is undefined. Guarded registration is skipped harmlessly."
     },
     {
-      "id": "shadow-dom",
+      "id": "declarative-shadow-dom",
       "status": "tier2",
-      "label": "Shadow DOM or custom elements",
-      "pattern": "(\\.attachShadow\\s*\\(|customElements\\.define\\s*\\()",
-      "where": "code"
+      "label": "Declarative shadow DOM (<template shadowrootmode>)",
+      "pattern": "shadowrootmode",
+      "where": "code",
+      "note": "attachShadow, slots, scoped styles, adoptedStyleSheets and custom elements work; a <template shadowrootmode> in HTML stays a plain template."
     },
     {
       "id": "waapi",
