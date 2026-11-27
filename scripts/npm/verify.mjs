@@ -66,8 +66,9 @@ function validateManifestMetadata(pkg, entry, expectedVersion) {
   }
 
   if (entry.name === "strange-quark") {
-    if (pkg.bin?.squark !== "./dist/cli.js") {
-      errors.push(`${label}: bin.squark must be "./dist/cli.js"`);
+    // npm publish rewrites "./dist/cli.js" to this and warns that it fixed it.
+    if (pkg.bin?.squark !== "dist/cli.js") {
+      errors.push(`${label}: bin.squark must be "dist/cli.js"`);
     }
     if (!pkg.exports?.["."]?.types || !pkg.exports?.["./config"]?.types) {
       errors.push(`${label}: exports must include types for "." and "./config"`);

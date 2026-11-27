@@ -44,7 +44,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "squark": "./dist/cli.js"
+    "squark": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
