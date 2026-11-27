@@ -1,0 +1,53 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Synthetic bold and italic for faces that lack them</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    /* Only the regular file: bold and italic are synthesized. */
+    @font-face {
+      font-family: "SansRegular";
+      src: url("../_assets/fonts/LiberationSans-Regular.woff2") format("woff2");
+      font-weight: 400;
+    }
+    /* Monaco's pattern: faces at 400 and 500 only, so 700 matches the
+       500 face and is still emboldened. */
+    @font-face {
+      font-family: "SansMedium";
+      src: url("../_assets/fonts/LiberationSans-Regular.woff2") format("woff2");
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: "SansMedium";
+      src: url("../_assets/fonts/LiberationSans-Regular.woff2") format("woff2");
+      font-weight: 500;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 6px 12px; font: 22px/26px "SansRegular", monospace; }
+    p { margin: 0; white-space: nowrap; }
+    .w600 { font-weight: 600; }
+    .w700 { font-weight: 700; }
+    .italic { font-style: italic; }
+    .oblique { font-style: oblique 30deg; }
+    .none { font-synthesis: none; }
+    .medium { font-family: "SansMedium", monospace; }
+    .small { font: 700 12px/16px "TestAssistant", sans-serif; }
+    .large { font-size: 40px; line-height: 44px; }
+  </style>
+</head>
+<body>
+  <p>Regular Illmn 0123</p>
+  <p class="w700">Fake bold Illmn 0123</p>
+  <p class="w600">Semibold 600 Illmn</p>
+  <p class="italic">Fake italic Illmn</p>
+  <p class="w700 oblique">Oblique bold Illmn</p>
+  <p class="medium w700">500 face at 700</p>
+  <p class="w700 italic none">font-synthesis: none</p>
+  <p class="small">Assistant has no bold face: twelve pixel text</p>
+  <p class="w700 italic large">Bold italic</p>
+</body>
+</html>

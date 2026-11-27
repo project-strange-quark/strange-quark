@@ -1,0 +1,55 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- reftest: {"width":400,"height":300,"dpr":1,"maxChannelDelta":8,"maxDiffRatio":0.02} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Font-relative units from the primary font's metrics</title>
+  <link rel="stylesheet" href="../_assets/r1.css">
+  <style>
+    /* Only the space, E, H, I, L and T: no "0" and no "x". */
+    @font-face {
+      font-family: "TestVar";
+      src: url("../_assets/fonts/SquarkVar.ttf") format("truetype");
+    }
+    * { box-sizing: border-box; }
+    html { font: 16px "TestSans", sans-serif; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    body { padding: 8px 12px; font-size: 13px; }
+    .bar { height: 12px; margin: 0 0 3px 0; background: #2563eb; }
+    .mono { font-family: "TestMono", monospace; background: #059669; }
+    .assistant { font-family: "TestAssistant", sans-serif; background: #d97706; }
+    .arabic { font-family: "TestArabic", serif; background: #7c3aed; }
+    .var { font-family: "TestVar", serif; background: #db2777; }
+    .root { background: #0891b2; }
+    p {
+      max-width: 34ch;
+      margin: 4px 0 0 0;
+      padding: 0 1ex;
+      border-left: 0.5cap solid #111827;
+      line-height: 16px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Liberation Sans: "0" advance, OS/2 x-height and cap height. -->
+  <div class="bar" style="width: 34ch"></div>
+  <div class="bar" style="width: 40ex"></div>
+  <div class="bar" style="width: 30cap"></div>
+  <!-- No 水 U+6C34: 1em. -->
+  <div class="bar" style="width: 20ic"></div>
+  <div class="bar mono" style="width: 40ch"></div>
+  <div class="bar assistant" style="width: 50ch"></div>
+  <div class="bar assistant" style="width: 30cap"></div>
+  <!-- Noto Naskh Arabic has no x-height or cap height: both are the ascent. -->
+  <div class="bar arabic" style="width: 20ex"></div>
+  <div class="bar arabic" style="width: 15cap"></div>
+  <!-- No "0": 0.5em. -->
+  <div class="bar var" style="width: 40ch"></div>
+  <div class="bar var" style="width: 30cap"></div>
+  <!-- The root's font: Liberation Sans at 16px. -->
+  <div class="bar root" style="width: 30rch"></div>
+  <div class="bar root" style="width: 30rex"></div>
+  <p>A paragraph limited to thirty-four zeros wraps where Chromium wraps it.</p>
+</body>
+</html>

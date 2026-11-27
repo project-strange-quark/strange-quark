@@ -598,7 +598,7 @@ fn all_r1_reftest_cases_compile_and_validate_through_squark_journal() {
             }
         }
     }
-    assert_eq!(count, 159, "expected all 159 R1 reftest cases");
+    assert_eq!(count, 161, "expected all 161 R1 reftest cases");
 }
 
 #[test]
