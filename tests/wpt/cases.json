@@ -18,5 +18,17 @@
   "dom/nodes/Document-createComment.html",
   "dom/nodes/Document-createTextNode.html",
   "dom/nodes/Element-removeAttribute.html",
-  "dom/nodes/Node-parentElement.html"
+  "dom/nodes/Node-parentElement.html",
+  "dom/ranges/Range-attributes.html",
+  "dom/ranges/Range-commonAncestorContainer-2.html",
+  "dom/ranges/Range-constructor.html",
+  "dom/ranges/Range-detach.html",
+  "dom/ranges/Range-intersectsNode-2.html",
+  "dom/ranges/Range-intersectsNode-binding.html",
+  "dom/ranges/Range-mutations-normalize.html",
+  "dom/ranges/Range-stringifier.html",
+  "selection/document-selectionchange.html",
+  "selection/extend-exception.html",
+  "selection/getRangeAt.html",
+  "selection/toString-ff-bug-001.html"
 ]

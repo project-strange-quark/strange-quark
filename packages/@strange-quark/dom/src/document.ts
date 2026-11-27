@@ -18,6 +18,11 @@ import { AbortController, AbortSignal } from "./abort.js";
 import { computedStyle, CSSStyleDeclaration } from "./style.js";
 import { NodeFilter, TreeWalker, treeWalker } from "./tree-walker.js";
 import { MutationObserver, MutationRecord, observeDetachedSubtree, queueMutation } from "./mutation.js";
+import {
+  AbstractRange, createRange, installRangeGeometry, NodeRange, Range, rangesAfterInsert, rangesBeforeRemove, rangesMergeText,
+  rangesReplaceData, rangesSplitText, StaticRange,
+} from "./range.js";
+import { documentSelection, Selection, textControlFocused, textControlSelectionChanged } from "./selection.js";
 
 import {
   createSheet, CSSRule, CSSRuleList, CSSStyleSheet, detachSheet, styleSheetList, StyleSheetList,
@@ -109,7 +114,6 @@ type DocumentState = {
   active: HTMLElement | null;
   focusChain: Element[];
   focusRevision: number;
-  selection?: Selection;
   focusVisible: boolean;
   keyboardModality: boolean;
   inputDetached?: (child: Node) => void;
@@ -145,13 +149,13 @@ let realmDocument: Document | undefined;
 
 function nodeState(node: Node): NodeState { return nodes.get(node)!; }
 
-function childrenOf(node: Node): readonly Node[] { return nodeState(node).children ?? noChildren; }
+export function childrenOf(node: Node): readonly Node[] { return nodeState(node).children ?? noChildren; }
 
 function ownerOf(node: Node): Document {
   return node instanceof Document ? node : nodeState(node).owner!;
 }
 
-function defaultDocument(): Document {
+export function defaultDocument(): Document {
   return realmDocument ??= createDocument(new Journal());
 }
 
@@ -328,13 +332,7 @@ export class Node extends EventTarget {
   get nodeValue(): string | null { return nodeState(this).value; }
   set nodeValue(value: string | null) {
     const state = nodeState(this);
-    if (state.value !== null) {
-      const oldValue = state.value;
-      state.value = value == null ? "" : String(value);
-      journalFor(this)?.record(Opcode.SetText, nodeId(this), state.value, 0);
-      if (this instanceof Text && this.parentNode instanceof HTMLStyleElement) syncStyleText(this.parentNode, true);
-      queueMutation(this, { type: "characterData", oldValue });
-    }
+    if (state.value !== null) replaceCharacterData(this, 0, state.value.length, value == null ? "" : String(value));
   }
 
   get textContent(): string | null {
@@ -377,18 +375,31 @@ export class Node extends EventTarget {
   }
 
   normalize(): void {
-    let previous: Text | null = null;
-    for (const child of [...this.childNodes]) {
-      if (child instanceof Text) {
-        if (child.length === 0) this.removeChild(child);
-        else if (previous !== null) {
-          previous.appendData(child.data);
-          this.removeChild(child);
-        } else previous = child;
-      } else {
-        previous = null;
+    for (let child = this.firstChild; child !== null;) {
+      if (!(child instanceof Text)) {
         child.normalize();
+        child = child.nextSibling;
+        continue;
       }
+      if (child.length === 0) {
+        const next = child.nextSibling;
+        this.removeChild(child);
+        child = next;
+        continue;
+      }
+      const merged: Text[] = [];
+      for (let next = child.nextSibling; next instanceof Text; next = next.nextSibling) merged.push(next);
+      if (merged.length !== 0) {
+        let length = child.length;
+        replaceCharacterData(child, length, 0, merged.map(text => text.data).join(""));
+        const index = childrenOf(this).indexOf(child);
+        for (const [position, text] of merged.entries()) {
+          rangesMergeText(child, text, length, this, index + 1 + position);
+          length += text.length;
+        }
+        for (const text of merged) this.removeChild(text);
+      }
+      child = child.nextSibling;
     }
   }
 
@@ -413,7 +424,7 @@ function comparisonOrder(node: Node): number {
   return id;
 }
 
-function expectNode(value: unknown): asserts value is Node {
+export function expectNode(value: unknown): asserts value is Node {
   if (typeof value !== "object" || value === null || !nodes.has(value as Node)) throw new TypeError("Expected a Node");
 }
 
@@ -529,7 +540,7 @@ export abstract class CharacterData extends Node {
 
   appendData(data: string): void {
     if (arguments.length < 1) throw new TypeError("appendData requires data");
-    this.data += String(data);
+    replaceCharacterData(this, this.length, 0, String(data));
   }
 
   substringData(offset: number, count: number): string {
@@ -556,8 +567,18 @@ export abstract class CharacterData extends Node {
     count >>>= 0;
     data = String(data);
     if (offset > this.length) fail("IndexSizeError", "Offset exceeds the data length");
-    this.data = this.data.slice(0, offset) + data + this.data.slice(offset + count);
+    replaceCharacterData(this, offset, Math.min(count, this.length - offset), data);
   }
+}
+
+function replaceCharacterData(node: Node, offset: number, count: number, data: string): void {
+  const state = nodeState(node);
+  const oldValue = state.value!;
+  state.value = oldValue.slice(0, offset) + data + oldValue.slice(offset + count);
+  journalFor(node)?.record(Opcode.SetText, nodeId(node), state.value, 0);
+  if (node instanceof Text && node.parentNode instanceof HTMLStyleElement) syncStyleText(node.parentNode, true);
+  queueMutation(node, { type: "characterData", oldValue });
+  rangesReplaceData(node, offset, count, data.length);
 }
 
 export class Text extends CharacterData {
@@ -571,10 +592,15 @@ export class Text extends CharacterData {
   splitText(offset: number): Text {
     if (arguments.length === 0) throw new TypeError("splitText requires offset");
     offset >>>= 0;
-    if (offset > this.length) fail("IndexSizeError", "Offset exceeds the data length");
+    const length = this.length;
+    if (offset > length) fail("IndexSizeError", "Offset exceeds the data length");
     const split = ownerOf(this).createTextNode(this.data.slice(offset));
-    this.parentNode?.insertBefore(split, this.nextSibling);
-    this.data = this.data.slice(0, offset);
+    const parent = this.parentNode;
+    if (parent !== null) {
+      parent.insertBefore(split, this.nextSibling);
+      rangesSplitText(this, split, offset, parent, childrenOf(parent).indexOf(this));
+    }
+    replaceCharacterData(this, offset, length - offset, "");
     return split;
   }
 
@@ -979,6 +1005,7 @@ function focus(document: Document, next: HTMLElement | null, preventScroll: bool
     state.active = next;
     state.focusVisible = state.keyboardModality || textControl(next) || editableHost(next);
     stateOn(next, ElementState.Focus | (state.focusVisible ? ElementState.FocusVisible : 0), true);
+    if (textControl(next)) textControlFocused(next, selectionFor(next));
     journalFor(next)?.record(Opcode.Focus, nodeId(next), preventScroll ? FocusFlags.PreventScroll : 0, 0);
   }
   const chain = elementChain(state.active);
@@ -1168,7 +1195,7 @@ export class HTMLElement extends Element {
 reflect(HTMLElement.prototype, { title: "title", lang: "lang", dir: "dir", accessKey: "accesskey", slot: "slot" });
 reflect(HTMLElement.prototype, { hidden: "hidden", draggable: "draggable" }, true);
 for (const name of ["click", "dblclick", "input", "change", "focus", "blur", "error", "load", "reset", "submit", "beforeinput",
-  "focusin", "focusout", "select", "search", "cancel", "copy", "cut", "paste", "compositionstart", "compositionupdate", "compositionend", "keydown", "keyup", "keypress", "wheel", "touchmove", "mousedown", "mouseup", "mousemove",
+  "focusin", "focusout", "select", "selectionchange", "search", "cancel", "copy", "cut", "paste", "compositionstart", "compositionupdate", "compositionend", "keydown", "keyup", "keypress", "wheel", "touchmove", "mousedown", "mouseup", "mousemove",
   "mouseover", "mouseout", "mouseenter", "mouseleave", "pointerdown", "pointerup", "pointermove", "pointercancel",
   "pointerover", "pointerout", "pointerenter", "pointerleave", "gotpointercapture", "lostpointercapture",
   "transitionrun", "transitionstart", "transitionend", "transitioncancel",
@@ -1211,15 +1238,20 @@ function setTextSelection(element: TextControl, start: number, end: number, dire
   if (start === previous.start && end === previous.end && next.direction === previous.direction) return;
   const composition = compositions.get(element.ownerDocument);
   if (!preview && textControl(element) && !(composition?.control === element && composition.preview)) writeSelection(element, next);
+  if (textControl(element)) textControlSelectionChanged(element, next);
   if (!notify) return;
   endHistoryGroup(element);
-  const dispatch = () => dispatchTrustedEvent(element, new Event("select", { bubbles: true }));
-  const host = documents.get(element.ownerDocument)!.bindings;
-  if (host !== undefined) host.postTask(dispatch);
+  queueDocumentTask(element.ownerDocument, () => dispatchTrustedEvent(element, new Event("select", { bubbles: true })));
+}
+
+/** Queues a task on the document's event loop, or a timer or microtask outside the engine. */
+export function queueDocumentTask(document: Document, task: () => void): void {
+  const host = documents.get(document)!.bindings;
+  if (host !== undefined) host.postTask(task);
   else {
-    const view = element.ownerDocument.defaultView as { setTimeout?: (callback: () => void, delay: number) => void } | null;
-    if (view?.setTimeout !== undefined) view.setTimeout(dispatch, 0);
-    else Promise.resolve().then(dispatch);
+    const view = document.defaultView as { setTimeout?: (callback: () => void, delay: number) => void } | null;
+    if (view?.setTimeout !== undefined) view.setTimeout(task, 0);
+    else Promise.resolve().then(task);
   }
 }
 
@@ -1238,24 +1270,6 @@ function selectAll(element: TextControl): void {
 
 function moveCaret(element: TextControl, value: string): void {
   setTextSelection(element, value.length, value.length, undefined, false);
-}
-
-const selectionToken = Symbol("Selection constructor");
-export class Selection {
-  #document: Document;
-  constructor(token: symbol, document: Document) {
-    if (token !== selectionToken) throw new TypeError("Illegal Selection constructor");
-    this.#document = document;
-  }
-
-  toString(): string {
-    const target = this.#document.activeElement;
-    if (!textControl(target)) return "";
-    const { start, end } = selectionFor(target);
-    return target instanceof HTMLInputElement && target.type === "password"
-      ? "•".repeat(end - start)
-      : target.value.slice(start, end);
-  }
 }
 
 const inputTypes = new Set("button checkbox color date datetime-local email file hidden image month number password radio range reset search submit tel text time url week".split(" "));
@@ -2716,8 +2730,7 @@ export class Document extends ParentNode {
   set cookie(_value: string) {}
   get readyState(): ReadyState { return documents.get(this)!.ready; }
   getSelection(): Selection | null {
-    const state = documents.get(this)!;
-    return state.view === null ? null : state.selection ??= new Selection(selectionToken, this);
+    return documents.get(this)!.view === null ? null : documentSelection(this);
   }
 
   get scrollingElement(): Element | null {
@@ -2810,6 +2823,7 @@ export class Document extends ParentNode {
   }
 
   createDocumentFragment(): DocumentFragment { return new DocumentFragment(this); }
+  createRange(): Range { return createRange(this); }
   createTreeWalker(root: Node, whatToShow = NodeFilter.SHOW_ALL, filter: Parameters<typeof treeWalker>[2] = null): TreeWalker {
     return treeWalker(root, whatToShow, filter);
   }
@@ -2955,7 +2969,7 @@ function serializeXML(node: Node): string {
   return children === "" ? xml + "/>" : xml + ">" + children + "</" + name + ">";
 }
 
-for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", "paste"]) reflectedEvent(Document.prototype, name);
+for (const name of ["input", "change", "click", "focus", "blur", "copy", "cut", "paste", "selectionchange"]) reflectedEvent(Document.prototype, name);
 
 function attributeKey(namespace: string | null, localName: string): string { return `${namespace ?? ""}\0${localName}`; }
 
@@ -3246,7 +3260,9 @@ function detach(parent: Node, child: Node): void {
     throw new Error("Cannot remove a node from a different parent");
   }
   const siblings = nodeState(parent).children!;
-  siblings.splice(siblings.indexOf(child), 1);
+  const index = siblings.indexOf(child);
+  rangesBeforeRemove(child, parent, index);
+  siblings.splice(index, 1);
   state.parent = null;
   if (state.tracked !== undefined) state.tracked.parent = 0;
 }
@@ -3277,6 +3293,7 @@ function insert(parent: Node, child: Node, before: Node | null): void {
   const childState = nodeState(child);
   const siblings = parentState.children ??= [];
   const index = before === null ? siblings.length : siblings.indexOf(before);
+  if (before !== null) rangesAfterInsert(parent, index);
   siblings.splice(index, 0, child);
   childState.parent = parent;
   if (childState.tracked !== undefined) childState.tracked.parent = parentState.id;
@@ -3458,6 +3475,7 @@ export function installDOM(global: Record<PropertyKey, unknown>, supplied?: Docu
     PointerEvent, WheelEvent, InputEvent, SubmitEvent, ErrorEvent, ProgressEvent,
     CSSStyleSheet, CSSRule, CSSRuleList, StyleSheetList, HTMLStyleElement, HTMLLinkElement,
     SVGElement, SVGGraphicsElement, SVGSVGElement, SVGTextContentElement, NodeFilter, TreeWalker, Selection,
+    AbstractRange, NodeRange, StaticRange, Range,
     getSelection: () => document.getSelection(),
     AbortController, AbortSignal, DOMException, NodeList, HTMLCollection, DOMTokenList, MutationObserver, MutationRecord, CSSStyleDeclaration,
     HTMLElement, HTMLInputElement, HTMLTextAreaElement, HTMLSelectElement, HTMLOptionElement, HTMLBRElement,
@@ -3576,7 +3594,7 @@ function adjacentPosition(element: Element, position: string): { parent: Node; b
   }
 }
 
-function parseMarkup(context: Element, html: string): Node[] {
+export function parseMarkup(context: Element, html: string): Node[] {
   if (html === "") return [];
   const document = context.ownerDocument;
   const bindings = documents.get(document)!.bindings;
@@ -3672,7 +3690,7 @@ function readFromEngine<T>(node: Node, read: (bindings: DocumentBindings, id: nu
   return read(bindings, id);
 }
 
-function nativeRead(node: Node, kind: number, argument?: unknown): unknown {
+export function nativeRead(node: Node, kind: number, argument?: unknown): unknown {
   return readFromEngine(node, (bindings, id) => bindings.query(kind, kind === 6 ? 0 : id, argument));
 }
 
@@ -3739,7 +3757,7 @@ function lookupElement(scope: Node, id: number | null, detachedNodes?: Map<numbe
   return node instanceof Element ? node : null;
 }
 
-class DOMRect {
+export class DOMRect {
   constructor(public x = 0, public y = 0, public width = 0, public height = 0) {}
   get top(): number { return Math.min(this.y, this.y + this.height); }
   get left(): number { return Math.min(this.x, this.x + this.width); }
@@ -3763,6 +3781,7 @@ function method(prototype: object, name: string, value: Function): void {
 export function installDocumentBindings(global: Record<PropertyKey, unknown>, document: Document, bindings: DocumentBindings): void {
   documents.get(document)!.bindings = bindings;
   global.DOMRect = DOMRect;
+  installRangeGeometry(global);
   global.getComputedStyle = function getComputedStyle(element: Element, pseudo: string | null = null): CSSStyleDeclaration {
     if (!(element instanceof Element)) throw new TypeError("Expected an Element");
     const selector = pseudo === null || pseudo === "" ? null : String(pseudo);
