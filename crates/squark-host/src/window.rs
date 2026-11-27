@@ -105,6 +105,9 @@ pub fn run_window(request: WindowRequest) -> Result<(), HostError> {
         .run_app(&mut app)
         .map_err(|error| failure("WindowError", error));
     let shutdown = app.threads.take().map_or(Ok(()), Threads::stop);
+    if let Some(native) = &app.native {
+        native.dispatcher.exit();
+    }
     result?;
     shutdown?;
     app.error.map_or(Ok(()), Err)

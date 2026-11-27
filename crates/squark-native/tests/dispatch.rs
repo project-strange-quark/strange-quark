@@ -195,3 +195,15 @@ fn events_before_a_document_attaches_are_dropped_and_state_can_be_added_later() 
     assert!(dispatcher.app().try_state::<u16>().is_none());
     assert_eq!(dispatcher.close_requested(), CloseRequest::Allow);
 }
+
+#[test]
+fn exit_handlers_run_once() {
+    let runs = Arc::new(AtomicUsize::new(0));
+    let counted = Arc::clone(&runs);
+    let dispatcher = dispatcher([Module::new("demo").on_exit(move |_| {
+        counted.fetch_add(1, Ordering::SeqCst);
+    })]);
+    dispatcher.exit();
+    dispatcher.exit();
+    assert_eq!(runs.load(Ordering::SeqCst), 1);
+}

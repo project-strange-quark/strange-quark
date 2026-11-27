@@ -61,6 +61,7 @@ pub fn run_headless_control(request: ScreenshotRequest, socket: &Path) -> Result
     let service_fullscreen = fullscreen.clone();
     let recorded_window = RecordedWindow::default();
     let native = request.native.clone();
+    let exit_native = request.native.clone();
     let signal = submit.clone();
     let (wake, demand) = FrameWake::pair(move || {
         let _ = signal.send(Event::Demand);
@@ -122,6 +123,9 @@ pub fn run_headless_control(request: ScreenshotRequest, socket: &Path) -> Result
         request_document_stop(&shutdown, &session.tasks, &pending_canvas);
         let document = join_scoped_document_thread(doc);
         drop(session);
+        if let Some(native) = &exit_native {
+            native.exit();
+        }
         result.and(document)
     })
 }

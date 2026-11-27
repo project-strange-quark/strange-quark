@@ -103,6 +103,9 @@ pub trait NativeDispatcher: Send + Sync {
     fn invoke(&self, call: NativeCall, reply: NativeReply);
     /// The user asked to close the window (title bar, Alt+F4, ⌘Q).
     fn close_requested(&self) -> CloseRequest;
+    /// The app is ending: the window closed or the app exited. Called once,
+    /// after the page has stopped, so modules can stop child processes.
+    fn exit(&self) {}
 }
 
 impl fmt::Debug for dyn NativeDispatcher {

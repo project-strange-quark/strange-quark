@@ -106,6 +106,7 @@ impl<T: ?Sized> State<T> {
 
 type CloseHandler = Arc<dyn Fn(&App) -> CloseRequest + Send + Sync>;
 type SetupHandler = Box<dyn FnOnce(&App) + Send>;
+type ExitHandler = Box<dyn FnOnce(&App) + Send>;
 
 /// A named set of commands, the state they share, and lifecycle hooks.
 pub struct Module {
@@ -114,6 +115,7 @@ pub struct Module {
     states: Vec<(TypeId, Arc<dyn Any + Send + Sync>)>,
     setup: Vec<SetupHandler>,
     on_close: Option<CloseHandler>,
+    on_exit: Vec<ExitHandler>,
 }
 
 impl fmt::Debug for Module {
@@ -136,6 +138,7 @@ impl Module {
             states: Vec::new(),
             setup: Vec::new(),
             on_close: None,
+            on_exit: Vec::new(),
         }
     }
 
@@ -165,6 +168,14 @@ impl Module {
         handler: impl Fn(&App) -> CloseRequest + Send + Sync + 'static,
     ) -> Self {
         self.on_close = Some(Arc::new(handler));
+        self
+    }
+
+    /// Run once when the app ends (the window closed or the app exited),
+    /// after the page has stopped: stop child processes here, as Tauri apps
+    /// do on `RunEvent::Exit`.
+    pub fn on_exit(mut self, handler: impl FnOnce(&App) + Send + 'static) -> Self {
+        self.on_exit.push(Box::new(handler));
         self
     }
 }
@@ -351,6 +362,7 @@ pub struct Dispatcher {
     enabled: RwLock<Vec<String>>,
     setup: Mutex<Vec<SetupHandler>>,
     on_close: Vec<CloseHandler>,
+    on_exit: Mutex<Vec<ExitHandler>>,
 }
 
 impl fmt::Debug for Dispatcher {
@@ -368,6 +380,7 @@ pub fn dispatcher(modules: impl IntoIterator<Item = Module>) -> Arc<Dispatcher> 
     let mut commands = HashMap::new();
     let mut setup = Vec::new();
     let mut on_close = Vec::new();
+    let mut on_exit = Vec::new();
     for module in modules {
         for (id, state) in module.states {
             app.0
@@ -388,6 +401,7 @@ pub fn dispatcher(modules: impl IntoIterator<Item = Module>) -> Arc<Dispatcher> 
         }
         setup.extend(module.setup);
         on_close.extend(module.on_close);
+        on_exit.extend(module.on_exit);
         names.push(module.name);
     }
     Arc::new(Dispatcher {
@@ -397,6 +411,7 @@ pub fn dispatcher(modules: impl IntoIterator<Item = Module>) -> Arc<Dispatcher> 
         enabled: RwLock::default(),
         setup: Mutex::new(setup),
         on_close,
+        on_exit: Mutex::new(on_exit),
     })
 }
 
@@ -501,6 +516,14 @@ impl NativeDispatcher for Dispatcher {
             CloseRequest::Prevent
         } else {
             CloseRequest::Allow
+        }
+    }
+
+    fn exit(&self) {
+        let handlers =
+            std::mem::take(&mut *self.on_exit.lock().unwrap_or_else(|poison| poison.into_inner()));
+        for handler in handlers {
+            handler(&self.app);
         }
     }
 }
