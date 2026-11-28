@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { comparePngBuffers } from "../../reftests/src/compare.mjs";
+import { launchable } from "../../excalidraw/src/build.mjs";
 import { ChromiumDriver } from "./chromium-driver.mjs";
 import { SquarkDriver } from "./squark-driver.mjs";
 import { runCounterScript } from "./scripts/counter.mjs";
@@ -100,7 +101,7 @@ export async function compareAppAcrossEngines({
   // 2. Run the interaction script in the built native binary via SquarkDriver first so
   // windowed runs can report the compositor's actual viewport/DPR to Chromium.
   const squarkDriver = await SquarkDriver.launch({
-    binaryPath: nativeBinary,
+    binaryPath: launchable(nativeBinary).executable,
     width,
     height,
     dpr: headless ? dpr : null,

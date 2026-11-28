@@ -17,6 +17,7 @@
       results.unlisted = await settle(native.invoke("unlisted", "echo", { value: 1 }));
       results.badArgs = await settle(native.invoke("fixture", "echo", {}));
       results.delayed = await settle(native.invoke("fixture", "delayed", { millis: 5 }));
+      results.tauri = await window.__TAURI_INTERNALS__.invoke("greet", { greetingTarget: "hello" });
       let ticks = 0;
       let ordered = true;
       const off = native.listen("tick", (tick) => {

@@ -66,6 +66,11 @@ fn guard_close(guard: State<CloseGuard>, enabled: bool) {
     guard.0.store(enabled, Ordering::SeqCst);
 }
 
+#[squark_tauri::command]
+fn greet(greeting_target: String) -> String {
+    format!("Tauri says {greeting_target}")
+}
+
 pub fn modules() -> Vec<Module> {
     vec![
         Module::new("fixture")
@@ -81,5 +86,6 @@ pub fn modules() -> Vec<Module> {
                 }
             }),
         Module::new("unlisted").commands(handlers![echo]),
+        Module::new("tauri-fixture").commands(squark_tauri::generate_handler![greet]),
     ]
 }
