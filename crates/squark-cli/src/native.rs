@@ -392,18 +392,25 @@ mod tests {
 
     #[test]
     fn runtime_manifest_links_the_app_crate_against_the_source_checkout() {
-        let manifest = runtime_manifest(
-            Path::new("/src/sq"),
-            Path::new("/app/native"),
-            "demo",
-            &["squark".into()],
-            false,
-        );
-        assert!(manifest.contains(r#"squark-host = { path = "/src/sq/crates/squark-host" }"#));
-        assert!(manifest.contains(
-            r#"app = { path = "/app/native", package = "demo", features = ["squark"], default-features = false }"#
-        ));
-        assert!(manifest.contains(r#"stylo = { path = "/src/sq/vendor/stylo" }"#));
+        let (source, app) = if cfg!(windows) {
+            (r"\\?\C:\src\Strange Quark", r"\\?\D:\app\native")
+        } else {
+            ("/src/Strange Quark", r#"/app/"native""#)
+        };
+        let source = Path::new(source);
+        let manifest = runtime_manifest(source, Path::new(app), "demo", &["squark".into()], false);
+        for (dependency, path) in [
+            ("squark-host", source.join("crates/squark-host")),
+            ("squark-native", source.join("crates/squark-native")),
+            ("stylo", source.join("vendor/stylo")),
+        ] {
+            let path = serde_json::to_string(path.to_str().unwrap()).unwrap();
+            assert!(manifest.contains(&format!("{dependency} = {{ path = {path} }}")));
+        }
+        let app = serde_json::to_string(app).unwrap();
+        assert!(manifest.contains(&format!(
+            r#"app = {{ path = {app}, package = "demo", features = ["squark"], default-features = false }}"#
+        )));
         assert!(manifest.contains("[workspace]"));
     }
 
