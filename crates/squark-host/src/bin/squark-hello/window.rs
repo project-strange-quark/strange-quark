@@ -6,7 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use squark_gpu::{Error, WindowRenderer};
+use squark_gpu::{Error, WindowRenderer, WindowSurface};
 use winit::{
     application::ApplicationHandler,
     dpi::{LogicalSize, PhysicalSize},
@@ -68,17 +68,19 @@ impl App {
                     .with_title("squark-hello")
                     .with_inner_size(LogicalSize::new(width, height))
                     .with_resizable(false)
-                    .with_visible(false),
+                    // Metal cannot acquire a drawable until the window is visible.
+                    .with_visible(cfg!(target_os = "macos")),
             )?,
         );
         let (redraw, requests) = mpsc::channel();
         redraw.send(window.inner_size())?;
+        let surface = WindowSurface::new(window.clone())?;
         let worker_window = Arc::clone(&window);
         let proxy = self.proxy.clone();
         let join = thread::Builder::new()
             .name("strange-quark".into())
             .spawn(move || {
-                if let Err(error) = render(worker_window, requests, &proxy) {
+                if let Err(error) = render(worker_window, surface, requests, &proxy) {
                     let _ = proxy.send_event(RenderEvent::Failed(error));
                 }
             })?;
@@ -154,11 +156,12 @@ impl ApplicationHandler<RenderEvent> for App {
 
 fn render(
     window: Arc<Window>,
+    surface: WindowSurface,
     requests: mpsc::Receiver<PhysicalSize<u32>>,
     proxy: &EventLoopProxy<RenderEvent>,
 ) -> Result<(), Error> {
-    let mut renderer = pollster::block_on(WindowRenderer::new(
-        Arc::clone(&window),
+    let mut renderer = pollster::block_on(WindowRenderer::with_surface(
+        surface,
         &scene::frame(),
         scene::SIZE,
     ))?;

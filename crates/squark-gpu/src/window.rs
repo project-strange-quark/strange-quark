@@ -21,8 +21,14 @@ impl WindowRenderer {
         frame: &Frame,
         scene_size: [u32; 2],
     ) -> Result<Self, Error> {
-        let instance = native_instance();
-        let surface = instance.create_surface(window)?;
+        Self::with_surface(WindowSurface::new(window)?, frame, scene_size).await
+    }
+
+    pub async fn with_surface(
+        WindowSurface { instance, surface }: WindowSurface,
+        frame: &Frame,
+        scene_size: [u32; 2],
+    ) -> Result<Self, Error> {
         let adapter = Renderer::adapter(&instance, Some(&surface)).await?;
         let renderer = Renderer::new(&adapter).await?;
         let presenter = SurfacePresenter::new(surface, &adapter, &renderer.device, scene_size)?;

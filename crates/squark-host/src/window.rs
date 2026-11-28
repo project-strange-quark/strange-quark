@@ -363,6 +363,11 @@ impl App {
 
     /// Tell the page about window focus and visibility once either changes.
     fn report_window_state(&mut self) {
+        // The document accepts only media preferences before its first tick.
+        // AppKit can send focus changes as soon as the window is created.
+        if !self.shown {
+            return;
+        }
         let state = (self.focused, !self.occluded);
         if self.reported_window_state == Some(state) {
             return;
@@ -779,6 +784,7 @@ impl ApplicationHandler<Event> for App {
                 if let Some(window) = &self.window {
                     window.set_visible(true);
                 }
+                self.report_window_state();
                 self.refresh_cursor();
                 eprintln!("squark-runtime presented its first frame");
                 if self.request.exit_after_first_frame {

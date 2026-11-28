@@ -125,10 +125,14 @@ fn packed_window_presents_a_frame_and_can_exit_cleanly() {
     let initial_tick = stderr
         .find("squark-startup initial-frame-tick ")
         .expect(&stderr);
-    let gpu_setup = stderr
-        .find("squark-startup instance-and-surface ")
-        .expect(&stderr);
+    let gpu_setup = stderr.find("squark-startup adapter ").expect(&stderr);
     assert!(initial_tick < gpu_setup, "{stderr}");
+    if cfg!(target_os = "linux") {
+        let surface = stderr
+            .find("squark-startup instance-and-surface ")
+            .expect(&stderr);
+        assert!(initial_tick < surface, "{stderr}");
+    }
 }
 
 #[test]
@@ -136,13 +140,18 @@ fn window_startup_failure_reports_the_gpu_error() {
     if std::env::var("SQUARK_WINDOW_TESTS").as_deref() != Ok("1") {
         return;
     }
+    let mut command = Command::new(env!("CARGO_BIN_EXE_squark-runtime"));
+    #[cfg(not(target_os = "macos"))]
+    command
+        .env(
+            "VK_ICD_FILENAMES",
+            pack().with_file_name("missing-icd.json"),
+        )
+        .env_remove("VK_DRIVER_FILES");
+    #[cfg(target_os = "macos")]
+    command.args(["--gpu-adapter", "software"]);
     let output = timeout::output(
-        Command::new(env!("CARGO_BIN_EXE_squark-runtime"))
-            .env(
-                "VK_ICD_FILENAMES",
-                pack().with_file_name("missing-icd.json"),
-            )
-            .env_remove("VK_DRIVER_FILES")
+        command
             .arg(pack().with_file_name("runtime-canvas.sqpak"))
             .arg("--exit-after-first-frame"),
         Duration::from_secs(10),
