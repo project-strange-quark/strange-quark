@@ -15,17 +15,43 @@ const MOD_CTRL = 1 << 1;
 const MOD_ALT = 1 << 2;
 const MOD_META = 1 << 3;
 
+// macOS limits sockaddr_un.sun_path to 104 bytes including the NUL terminator,
+// and os.tmpdir() is a ~49-byte /var/folders/... path there.
+const UNIX_SUN_PATH_MAX = 103;
+
 /**
  * A fresh test-control socket path. On Windows, where neither Node nor
  * squark-runtime speaks Unix domain sockets, it is a named pipe,
- * `\\.\pipe\squark-<tag>-…`; elsewhere it is a `.sock` file in the temp
- * directory.
+ * `\\.\pipe\squark-<tag>-…`; elsewhere it is a `.sock` file kept short enough
+ * to fit within macOS's 104-byte `sun_path` (using `/tmp` on macOS or when
+ * `os.tmpdir()` would exceed the limit).
  */
-export function controlSocketPath(tag = "tc") {
-  const name = `squark-${tag}-${process.pid}-${crypto.randomBytes(4).toString("hex")}`;
-  return process.platform === "win32"
-    ? `\\\\.\\pipe\\${name}`
-    : path.join(os.tmpdir(), `${name}.sock`);
+export function controlSocketPath(
+  tag = "tc",
+  { platform = process.platform, tmpDir = os.tmpdir() } = {},
+) {
+  const suffix = `${process.pid}-${crypto.randomBytes(4).toString("hex")}`;
+  if (platform === "win32") {
+    return `\\\\.\\pipe\\squark-${tag}-${suffix}`;
+  }
+  const preferredDir = platform === "darwin" ? "/tmp" : tmpDir;
+  let candidate = path.posix.join(preferredDir, `squark-${tag}-${suffix}.sock`);
+  if (Buffer.byteLength(candidate) > UNIX_SUN_PATH_MAX) {
+    candidate = path.posix.join("/tmp", `squark-${tag}-${suffix}.sock`);
+  }
+  if (Buffer.byteLength(candidate) > UNIX_SUN_PATH_MAX) {
+    const overhead = Buffer.byteLength(`/tmp/squark--${suffix}.sock`);
+    const maxTagBytes = Math.max(0, UNIX_SUN_PATH_MAX - overhead);
+    let shortTag = "";
+    for (const ch of String(tag)) {
+      if (Buffer.byteLength(shortTag + ch) > maxTagBytes) break;
+      shortTag += ch;
+    }
+    candidate = shortTag
+      ? `/tmp/squark-${shortTag}-${suffix}.sock`
+      : `/tmp/squark-${suffix}.sock`;
+  }
+  return candidate;
 }
 
 export function encodeModifiers(modifiers = {}) {

@@ -121,13 +121,36 @@ test("SquarkDriver.launch spawns a process with --test-control and shuts down on
   }
 });
 
-test("controlSocketPath names a pipe on Windows and a temp-dir socket elsewhere", () => {
+test("controlSocketPath names a pipe on Windows and keeps Unix sockets within sun_path", () => {
   const first = controlSocketPath("unit");
   assert.notEqual(first, controlSocketPath("unit"));
   if (process.platform === "win32") {
     assert.match(first, /^\\\\\.\\pipe\\squark-unit-\d+-[0-9a-f]{8}$/);
   } else {
-    assert.equal(path.dirname(first), os.tmpdir());
+    const expectedDir = process.platform === "darwin" ? "/tmp" : os.tmpdir();
+    assert.equal(path.dirname(first), expectedDir);
     assert.match(path.basename(first), /^squark-unit-\d+-[0-9a-f]{8}\.sock$/);
+    assert.ok(Buffer.byteLength(first) < 104, `socket path must fit macOS sun_path: ${first}`);
   }
+
+  // Platform-explicit checks independent of the host OS.
+  const win = controlSocketPath("unit", { platform: "win32" });
+  assert.match(win, /^\\\\\.\\pipe\\squark-unit-\d+-[0-9a-f]{8}$/);
+
+  const macDeepTmp = "/var/folders/ab/cdefghijklmnopqrstuvwxyz012345/T";
+  const mac = controlSocketPath("unit", { platform: "darwin", tmpDir: macDeepTmp });
+  assert.equal(path.posix.dirname(mac), "/tmp");
+  assert.ok(Buffer.byteLength(mac) < 104);
+
+  const macLongTag = controlSocketPath("x".repeat(120), { platform: "darwin", tmpDir: macDeepTmp });
+  assert.equal(path.posix.dirname(macLongTag), "/tmp");
+  assert.ok(Buffer.byteLength(macLongTag) < 104);
+
+  const linuxDeepTmp = "/very/deep/" + "nested/".repeat(14) + "tmp";
+  const linuxFallback = controlSocketPath("unit", { platform: "linux", tmpDir: linuxDeepTmp });
+  assert.equal(path.posix.dirname(linuxFallback), "/tmp");
+  assert.ok(Buffer.byteLength(linuxFallback) < 104);
+
+  const linuxShort = controlSocketPath("unit", { platform: "linux", tmpDir: "/tmp" });
+  assert.equal(path.posix.dirname(linuxShort), "/tmp");
 });
