@@ -90,9 +90,21 @@ test("plugin commands map to the platform or reject plainly", async () => {
 });
 
 test("convertFileSrc follows Tauri's per-platform URL form", () => {
-  fresh(fixtureTransport());
-  assert.equal(core.convertFileSrc("/home/me/a b.png", "app-plugin"), "app-plugin://localhost/%2Fhome%2Fme%2Fa%20b.png");
-  assert.equal(core.convertFileSrc("/x"), "asset://localhost/%2Fx");
+  const unix = { navigator: { platform: "Linux x86_64" } };
+  installTauri(unix, { transport: fixtureTransport() });
+  assert.equal(
+    unix.__TAURI_INTERNALS__.convertFileSrc("/home/me/a b.png", "app-plugin"),
+    "app-plugin://localhost/%2Fhome%2Fme%2Fa%20b.png",
+  );
+  assert.equal(unix.__TAURI_INTERNALS__.convertFileSrc("/x"), "asset://localhost/%2Fx");
+
+  const windows = { navigator: { platform: "Win32" } };
+  installTauri(windows, { transport: fixtureTransport() });
+  assert.equal(
+    windows.__TAURI_INTERNALS__.convertFileSrc("C:\\Users\\me\\a b.png", "app-plugin"),
+    "http://app-plugin.localhost/C%3A%5CUsers%5Cme%5Ca%20b.png",
+  );
+  assert.equal(windows.__TAURI_INTERNALS__.convertFileSrc("C:\\x"), "http://asset.localhost/C%3A%5Cx");
 });
 
 test("nativeTransport routes through the private native API and fails clearly without it", async () => {
