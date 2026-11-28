@@ -28,6 +28,22 @@ export function appExecutable(input) {
   return path.join(contents, "MacOS", executable);
 }
 
+export function appArtifactBytes(input) {
+  if (process.platform === "darwin") {
+    const binaryDir = path.dirname(input);
+    const contents = path.dirname(binaryDir);
+    const bundle = path.basename(binaryDir) === "MacOS" && path.basename(contents) === "Contents"
+      ? path.dirname(contents)
+      : input;
+    if (bundle.endsWith(".app") && fs.statSync(bundle).isDirectory()) {
+      return fs.readdirSync(bundle, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile())
+        .reduce((bytes, entry) => bytes + fs.statSync(path.join(entry.parentPath, entry.name)).size, 0);
+    }
+  }
+  return fs.statSync(input).size;
+}
+
 export function processTreeRssKb(rows, rootPid) {
   const processes = new Map();
   const children = new Map();

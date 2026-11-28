@@ -18,7 +18,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
-import { appExecutable, controlEndpoint, removeControlEndpoint, rssKbOfTree } from "./platform.mjs";
+import { appArtifactBytes, appExecutable, controlEndpoint, removeControlEndpoint, rssKbOfTree } from "./platform.mjs";
 
 // ---- arguments -------------------------------------------------------------------
 
@@ -443,7 +443,7 @@ const report = {
   root,
   runsPerEngine: runs,
   chromium: { ...summarize(chromiumRuns), domStableAcrossRuns: stable(chromiumRuns) },
-  strangeQuark: skipSquark ? "not measured" : { ...summarize(squarkRuns), domStableAcrossRuns: stable(squarkRuns), binaryBytes: fs.statSync(squarkBinary).size },
+  strangeQuark: skipSquark ? "not measured" : { ...summarize(squarkRuns), domStableAcrossRuns: stable(squarkRuns), binaryBytes: appArtifactBytes(squarkBinary) },
   tolerance: { maxChannelDelta: 8, maxDiffRatio: 0.005, dom: "exact" },
   checkpoints,
 };

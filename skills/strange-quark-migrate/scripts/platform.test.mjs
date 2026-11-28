@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { appExecutable, controlEndpoint, processTreeRssKb } from "./platform.mjs";
+import { appArtifactBytes, appExecutable, controlEndpoint, processTreeRssKb } from "./platform.mjs";
 
 test("control endpoints use local named pipes on Windows and short Unix socket paths", () => {
   assert.ok(controlEndpoint("win32").startsWith("\\\\.\\pipe\\sqm-"));
@@ -34,4 +34,21 @@ test("app bundles resolve the executable from Info.plist", { skip: process.platf
   const binary = path.join(contents, "MacOS", "My App");
   assert.equal(appExecutable(bundle), binary);
   assert.equal(appExecutable(binary), binary);
+});
+
+test("app size includes the runtime, pack and metadata", { skip: process.platform !== "darwin" }, (t) => {
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), "sqm-size-"));
+  t.after(() => fs.rmSync(work, { recursive: true, force: true }));
+  const bundle = path.join(work, "Fixture.app");
+  const binary = path.join(bundle, "Contents", "MacOS", "Fixture");
+  for (const [file, bytes] of [
+    [binary, 11],
+    [path.join(bundle, "Contents", "Resources", "app.sqpak"), 13],
+    [path.join(bundle, "Contents", "Info.plist"), 17],
+  ]) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, Buffer.alloc(bytes));
+  }
+  assert.equal(appArtifactBytes(bundle), 41);
+  assert.equal(appArtifactBytes(binary), 41);
 });
