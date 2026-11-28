@@ -29,11 +29,11 @@ async function waitFor(driver, expression, { label, timeoutMs = 15_000, interval
   let last;
   while (performance.now() < deadline) {
     try {
-      last = await driver.eval(expression);
+      last = typeof expression === "function" ? await expression() : await driver.eval(expression);
+      if (last) return last;
     } catch (error) {
       last = `eval error: ${error.message}`;
     }
-    if (last) return last;
     await sleep(intervalMs);
   }
   throw new Error(`timed out waiting for ${label ?? expression} (last=${JSON.stringify(last)})`);
@@ -119,6 +119,12 @@ export async function measureNativeDevLoop({
       );
     }
     const mountMs = performance.now() - launchedAt;
+
+    // The app can mount before Vite's WebSocket receives its startup message.
+    await waitFor(driver, () => driver.stderrText().includes("console.debug: [vite] connected."), {
+      label: "the Vite HMR connection",
+      timeoutMs: mountTimeoutMs,
+    });
 
     // One untimed save first: the first HMR update also re-applies the CSS
     // module, so it pays a full restyle that a steady-state edit does not.
