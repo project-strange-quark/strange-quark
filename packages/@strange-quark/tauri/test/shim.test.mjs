@@ -168,4 +168,16 @@ test("the config helper fills in squark.config's generic preludes", async () => 
     { file: "./fixtures/replies.js" },
     { file: SHIM_FILE, globals: { __STRANGE_QUARK_TAURI__: { fixture: true } } },
   ]);
+  for (const unchanged of [
+    "./fixtures/replies.js",
+    "../fixtures/replies.js",
+    ".\\fixtures\\replies.js",
+    "/abs/replies.js",
+    "C:\\repo\\replies.js",
+    "d:/repo/replies.js",
+    "\\\\server\\share\\replies.js",
+    "\\\\?\\C:\\repo\\replies.js",
+  ]) {
+    assert.equal(tauri({ fixture: unchanged }).preludes[0].file, unchanged);
+  }
 });

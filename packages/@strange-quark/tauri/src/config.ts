@@ -24,6 +24,18 @@ export interface TauriPrelude {
 
 export const SHIM_FILE = "@strange-quark/tauri/dist/tauri.classic.js";
 
+function fixturePath(fixture: string): string {
+  if (
+    fixture.startsWith(".") ||
+    fixture.startsWith("/") ||
+    fixture.startsWith("\\\\") ||
+    /^[a-zA-Z]:[\\/]/.test(fixture)
+  ) {
+    return fixture;
+  }
+  return `./${fixture}`;
+}
+
 export function tauri(options: TauriOptions = {}): { preludes: TauriPrelude[] } {
   const config: Record<string, unknown> = {};
   if (options.module !== undefined) config.module = options.module;
@@ -31,7 +43,7 @@ export function tauri(options: TauriOptions = {}): { preludes: TauriPrelude[] } 
   const preludes: TauriPrelude[] = [];
   if (options.fixture !== undefined) {
     config.fixture = true;
-    preludes.push({ file: options.fixture.startsWith(".") || options.fixture.startsWith("/") ? options.fixture : `./${options.fixture}` });
+    preludes.push({ file: fixturePath(options.fixture) });
   }
   preludes.push({ file: SHIM_FILE, globals: { __STRANGE_QUARK_TAURI__: config } });
   return { preludes };
