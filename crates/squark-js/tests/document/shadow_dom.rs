@@ -95,15 +95,32 @@ fn shadow_trees_style_lay_out_and_hit_test_through_the_engine() {
     );
     assert_eq!(
         runner
-            .eval(
-                "[rect(light)[3], getComputedStyle(light).color, getComputedStyle(host2).color,
-                  (() => { const range = document.createRange(); range.selectNodeContents(items[0].firstChild);
-                           return range.getBoundingClientRect().y; })()]"
-            )
+            .eval("[rect(light)[3], getComputedStyle(light).color, getComputedStyle(host2).color]")
             .unwrap(),
-        r#"[13,"rgb(0, 128, 0)","rgb(255, 0, 0)",30]"#,
+        r#"[13,"rgb(0, 128, 0)","rgb(255, 0, 0)"]"#,
         "slotted nodes inherit through their slot"
     );
+    // The font sets the text's offset within each item. The shadow layout
+    // positions the two items 20 CSS pixels apart.
+    let text_rects: [[f32; 4]; 2] = serde_json::from_str(
+        &runner
+            .eval(
+                "items.slice(0, 2).map(item => {
+                    const range = document.createRange();
+                    range.selectNodeContents(item.firstChild);
+                    const { x, y, width, height } = range.getBoundingClientRect();
+                    return [x, y, width, height];
+                })",
+            )
+            .unwrap(),
+    )
+    .unwrap();
+    let [
+        [first_x, first_y, width, height],
+        [second_x, second_y, _, _],
+    ] = text_rects;
+    assert_eq!([first_x, second_x, second_y - first_y], [40.0, 40.0, 20.0]);
+    assert!(width > 0.0 && height > 0.0 && first_y < 50.0 && first_y + height > 30.0);
 
     runner
         .eval(

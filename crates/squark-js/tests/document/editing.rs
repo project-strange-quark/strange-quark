@@ -809,7 +809,7 @@ fn text_rect_and_caret_queries_hit_test_through_the_painter() {
         .eval(
             r#"
         document.body.replaceChildren();
-        document.body.style.cssText = "margin: 0; font: 16px/20px 'Liberation Mono', monospace";
+        document.body.style.cssText = "margin: 0; font: 16px/20px monospace";
         const line = document.body.appendChild(document.createElement("div"));
         line.id = "line";
         line.style.cssText = "position: absolute; left: 30px; top: 10px; width: 200px; white-space: pre";
@@ -823,15 +823,10 @@ fn text_rect_and_caret_queries_hit_test_through_the_painter() {
     runner.frame(tick(origin, 1, 0)).unwrap();
     let line = get_node(&mut runner, &pack, "line");
     let cover = get_node(&mut runner, &pack, "cover");
-    // The caret query names the Text node, which the rect query then measures.
-    let caret: (u32, u32) = serde_json::from_str(
-        &runner
-            .eval("__squark.query(15, 1, [30 + 9.6 * 2.3, 20])")
-            .unwrap(),
-    )
-    .unwrap();
-    let text = caret.0;
-    assert_eq!(caret.1, 2);
+    // The caret query at the start of the line names the Text node.
+    let at_start = runner.eval("__squark.query(15, 1, [30, 20])").unwrap();
+    let (text, offset): (u32, u32) = serde_json::from_str(&at_start).unwrap();
+    assert_eq!(offset, 0);
     assert!(text != line.raw() && text != cover.raw());
     let rects: Vec<[f32; 4]> = serde_json::from_str(
         &runner
@@ -846,9 +841,18 @@ fn text_rect_and_caret_queries_hit_test_through_the_painter() {
         unreachable!()
     };
     assert_eq!(one[0], 30.0);
-    assert!((two[2] - 2.0 * one[2]).abs() < 0.01 && one[2] > 9.0);
-    assert!(one[1] > 5.0 && one[1] < 15.0 && one[3] > 15.0);
+    assert!(one[2] > 0.0 && (two[2] - 2.0 * one[2]).abs() < 0.01);
+    assert!(one[1] < 20.0 && 20.0 < one[1] + one[3]);
     assert_eq!(caret, [30.0 + two[2], one[1], 0.0, one[3]]);
+    // The installed monospace font determines the glyph advance. A point
+    // within the first half of the third glyph lands at offset 2.
+    let x = caret[0] + one[2] * 0.3;
+    assert_eq!(
+        runner
+            .eval(&format!("__squark.query(15, 1, [{x}, 20])"))
+            .unwrap(),
+        format!("[{text},2]")
+    );
     assert_eq!(
         runner
             .eval(&format!(
