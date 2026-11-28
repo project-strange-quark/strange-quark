@@ -44,11 +44,24 @@ impl Accelerator {
     /// Electron's and Tauri's syntax: `CmdOrCtrl+Shift+F`, `Alt+F4`, `Ctrl+=`.
     /// `CmdOrCtrl` is Command on macOS and Control elsewhere.
     pub(crate) fn parse(text: &str) -> Result<Self, String> {
-        let mut modifiers = Modifiers::default();
-        let parts: Vec<&str> = text.split('+').map(str::trim).collect();
-        let Some((key, held)) = parts.split_last() else {
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
             return Err("empty accelerator".into());
+        }
+        let (held, key): (Vec<&str>, &str) = if trimmed == "+" {
+            (Vec::new(), "+")
+        } else if let Some(before_plus) = trimmed.strip_suffix('+') {
+            let before_plus = before_plus.trim_end();
+            let Some(mods) = before_plus.strip_suffix('+') else {
+                return Err(format!("unknown key \"\" in {text:?}"));
+            };
+            (mods.split('+').map(str::trim).collect(), "+")
+        } else {
+            let mut parts: Vec<&str> = trimmed.split('+').map(str::trim).collect();
+            let key = parts.pop().ok_or_else(|| "empty accelerator".to_owned())?;
+            (parts, key)
         };
+        let mut modifiers = Modifiers::default();
         for modifier in held {
             match modifier.to_ascii_lowercase().as_str() {
                 "commandorcontrol" | "commandorctrl" | "cmdorctrl" | "cmdorcontrol" => {
@@ -60,7 +73,7 @@ impl Accelerator {
                 }
                 "control" | "ctrl" => modifiers.ctrl = true,
                 "command" | "cmd" | "super" | "meta" => modifiers.meta = true,
-                "alt" | "option" => modifiers.alt = true,
+                "alt" | "option" | "opt" => modifiers.alt = true,
                 "shift" => modifiers.shift = true,
                 other => return Err(format!("unknown modifier {other:?} in {text:?}")),
             }
@@ -76,11 +89,13 @@ impl Accelerator {
     }
 }
 
-/// A key name as `KeyboardEvent.code`, and whether it implies Shift (`Plus`,
-/// `!` and the other shifted US-layout characters Electron accepts).
+/// A key name as `KeyboardEvent.code`, and whether it implies Shift (`+`,
+/// `Plus`, `!` and the other shifted US-layout characters Electron accepts).
 fn key_code(name: &str) -> Option<(String, bool)> {
+    if name == "+" || name.eq_ignore_ascii_case("plus") {
+        return Some(("Equal".into(), true));
+    }
     let shifted = match name {
-        "Plus" | "plus" => Some("Equal"),
         ")" => Some("Digit0"),
         "!" => Some("Digit1"),
         "@" => Some("Digit2"),
@@ -142,8 +157,8 @@ fn key_code(name: &str) -> Option<(String, bool)> {
         "space" => "Space",
         "tab" => "Tab",
         "backspace" => "Backspace",
-        "delete" => "Delete",
-        "insert" => "Insert",
+        "delete" | "del" => "Delete",
+        "insert" | "ins" => "Insert",
         "return" | "enter" => "Enter",
         "up" | "arrowup" => "ArrowUp",
         "down" | "arrowdown" => "ArrowDown",
@@ -151,13 +166,31 @@ fn key_code(name: &str) -> Option<(String, bool)> {
         "right" | "arrowright" => "ArrowRight",
         "home" => "Home",
         "end" => "End",
-        "pageup" => "PageUp",
-        "pagedown" => "PageDown",
+        "pageup" | "pgup" => "PageUp",
+        "pagedown" | "pgdown" => "PageDown",
         "escape" | "esc" => "Escape",
         "capslock" => "CapsLock",
         "numlock" => "NumLock",
         "scrolllock" => "ScrollLock",
         "printscreen" => "PrintScreen",
+        "pause" => "Pause",
+        "contextmenu" => "ContextMenu",
+        "help" => "Help",
+        "intlbackslash" => "IntlBackslash",
+        "volumeup" | "audiovolumeup" => "AudioVolumeUp",
+        "volumedown" | "audiovolumedown" => "AudioVolumeDown",
+        "volumemute" | "audiovolumemute" => "AudioVolumeMute",
+        "medianexttrack" | "mediatracknext" => "MediaTrackNext",
+        "mediaprevioustrack" | "mediatrackprevious" => "MediaTrackPrevious",
+        "mediastop" => "MediaStop",
+        "mediaplaypause" => "MediaPlayPause",
+        "browserback" => "BrowserBack",
+        "browserforward" => "BrowserForward",
+        "browserrefresh" => "BrowserRefresh",
+        "browserstop" => "BrowserStop",
+        "browsersearch" => "BrowserSearch",
+        "browserfavorites" => "BrowserFavorites",
+        "browserhome" => "BrowserHome",
         "numadd" => "NumpadAdd",
         "numsub" => "NumpadSubtract",
         "nummult" => "NumpadMultiply",
@@ -200,6 +233,7 @@ fn w3c_code(lower: &str) -> Option<(String, bool)> {
         "multiply" => "NumpadMultiply".into(),
         "divide" => "NumpadDivide".into(),
         "decimal" => "NumpadDecimal".into(),
+        "comma" => "NumpadComma".into(),
         "equal" => "NumpadEqual".into(),
         _ => match single(rest) {
             Some(digit) if digit.is_ascii_digit() => format!("Numpad{}", digit as char),
@@ -462,9 +496,77 @@ mod tests {
         assert_eq!(parse("Ctrl+NumpadEnter").code, "NumpadEnter");
         let plus = parse("Ctrl+Plus");
         assert_eq!((plus.code.as_str(), plus.modifiers.shift), ("Equal", true));
+        assert_eq!(parse("Ctrl+PLUS"), plus);
+        assert_eq!(parse("Ctrl++"), plus);
+        assert_eq!(parse("Ctrl + +"), plus);
+        assert_eq!(
+            parse("CmdOrCtrl++"),
+            Accelerator {
+                modifiers: Modifiers {
+                    shift: true,
+                    ..ctrl()
+                },
+                code: "Equal".into(),
+            }
+        );
+        assert_eq!(
+            parse("+"),
+            Accelerator {
+                modifiers: Modifiers {
+                    shift: true,
+                    ..Modifiers::default()
+                },
+                code: "Equal".into(),
+            }
+        );
+        assert!(parse("Opt+Del").modifiers.alt);
+        assert_eq!(parse("Opt+Del").code, "Delete");
+        assert_eq!(parse("Ctrl+Ins").code, "Insert");
+        assert_eq!(parse("Ctrl+PgUp").code, "PageUp");
+        assert_eq!(parse("Ctrl+PgDown").code, "PageDown");
+        assert_eq!(parse("Ctrl+Pause").code, "Pause");
+        assert_eq!(parse("Ctrl+ContextMenu").code, "ContextMenu");
+        assert_eq!(parse("Ctrl+IntlBackslash").code, "IntlBackslash");
+        assert_eq!(parse("Ctrl+NumpadComma").code, "NumpadComma");
+        assert_eq!(
+            parse("Ctrl+VolumeUp").code,
+            format!("{:?}", winit::keyboard::KeyCode::AudioVolumeUp)
+        );
+        assert_eq!(
+            parse("Ctrl+VolumeDown").code,
+            format!("{:?}", winit::keyboard::KeyCode::AudioVolumeDown)
+        );
+        assert_eq!(
+            parse("Ctrl+VolumeMute").code,
+            format!("{:?}", winit::keyboard::KeyCode::AudioVolumeMute)
+        );
+        assert_eq!(
+            parse("Ctrl+MediaNextTrack").code,
+            format!("{:?}", winit::keyboard::KeyCode::MediaTrackNext)
+        );
+        assert_eq!(
+            parse("Ctrl+MediaPreviousTrack").code,
+            format!("{:?}", winit::keyboard::KeyCode::MediaTrackPrevious)
+        );
+        assert_eq!(
+            parse("Ctrl+MediaStop").code,
+            format!("{:?}", winit::keyboard::KeyCode::MediaStop)
+        );
+        assert_eq!(
+            parse("Ctrl+MediaPlayPause").code,
+            format!("{:?}", winit::keyboard::KeyCode::MediaPlayPause)
+        );
+        assert_eq!(
+            parse("Ctrl+BrowserBack").code,
+            format!("{:?}", winit::keyboard::KeyCode::BrowserBack)
+        );
         assert!(parse("Super+Up").modifiers.meta);
         assert!(Accelerator::parse("Hyper+A").is_err());
         assert!(Accelerator::parse("Ctrl+Banana").is_err());
+        assert!(Accelerator::parse("Ctrl+").is_err());
+        assert!(Accelerator::parse("++").is_err());
+        assert!(Accelerator::parse("Ctrl+++").is_err());
+        assert!(Accelerator::parse("Ctrl++A").is_err());
         assert!(Accelerator::parse("").is_err());
     }
 
