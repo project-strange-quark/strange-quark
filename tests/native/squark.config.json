@@ -1,7 +1,7 @@
 {
   "name": "native-fixture",
   "window": { "title": "native fixture", "width": 640, "height": 480 },
-  "build": { "command": "true", "distDir": "web" },
+  "build": { "command": "node -e 0", "distDir": "web" },
   "native": { "crate": "module", "modules": ["fixture", "tauri-fixture"], "squarkSource": "../.." },
   "preludes": [{
     "file": "@strange-quark/tauri/dist/tauri.classic.js",
