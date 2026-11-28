@@ -1,18 +1,28 @@
 # Project Strange Quark
 
+[![npm](https://img.shields.io/npm/v/strange-quark?logo=npm&label=npm)](https://www.npmjs.com/package/strange-quark)
+[![CI](https://github.com/project-strange-quark/strange-quark/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/project-strange-quark/strange-quark/actions/workflows/ci.yml)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
+[![Node](https://img.shields.io/node/v/strange-quark?logo=node.js&label=node)](scripts/npm/README.md#minimum-nodejs-version-for-users-22180)
+[![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-informational)](#platforms)
+[![React](https://img.shields.io/badge/react-18.3%20%7C%2019-61dafb?logo=react)](#react-apps-yes)
+
 **Run your React app as a native desktop app. No WebView, no bundled browser.**
 
 Strange Quark takes the app you already build for the browser and turns it into
 a single native binary. Your components, hooks and npm libraries run
 unmodified, on the real `react-dom`.
 
-> **Status: v0.1.0, the first release, for Linux, macOS and Windows.** It
-> builds upstream [Excalidraw](https://github.com/excalidraw/excalidraw)
-> v0.18.1 into one native app without changing a line of its source, and
-> the app matches the same build in Chromium: it passes the same end-to-end
-> flow against Chromium on Linux (Vulkan), macOS (Metal) and Windows
-> (Direct3D 12). See [Excalidraw](#excalidraw) for the measurements,
-> [Platforms](#platforms), [What works](#what-works) and [Next](#next).
+> **Status: v0.2.0, for Linux, macOS and Windows.** It builds upstream
+> [Excalidraw](https://github.com/excalidraw/excalidraw) v0.18.1 into one
+> native app without changing a line of its source, and the app passes the
+> same end-to-end flow as Chromium on Linux (Vulkan), macOS (Metal) and
+> Windows (Direct3D 12). 0.2.0 adds what larger desktop apps need: native
+> modules that link the app's Rust into its runtime, optional Tauri 2
+> compatibility, window menus, Web Workers, Shadow DOM, CSS tables, Range and
+> Selection. See the [changelog](CHANGELOG.md), [Excalidraw](#excalidraw) for
+> the measurements, [Platforms](#platforms), [What works](#what-works) and
+> [Next](#next).
 
 ## How it works
 
@@ -98,8 +108,9 @@ data mode. Then build it with Strange Quark.
   `<textarea>` and `<input>` are supported.
 - **Shared workers and MessagePorts sent to workers.** Dedicated workers
   work.
-- **A visible menu bar on Linux.** Menus set by an app work through their
-  accelerators; the bar itself is not drawn yet.
+- **A visible menu bar.** Menus set by an app work through their
+  accelerators on every platform, but no bar is shown yet: Linux will get a
+  drawn one, and macOS and Windows the OS menu bar.
 - **Visible scrollbars.** Scrolling works by wheel, touchpad, keyboard and
   script, but no scrollbar is drawn. The Chromium reference renders hide
   them too.
@@ -148,7 +159,8 @@ Run `squark` through your project, as above. A bare `npx squark` outside a
 project fetches an unrelated npm package called `squark`; to try Strange
 Quark without installing it, run `npx strange-quark build`.
 
-Optional settings go in `squark.config.ts`:
+Optional settings go in `squark.config.ts`
+([every option](docs/configuration.md)):
 
 ```ts
 // squark.config.ts
@@ -167,6 +179,16 @@ export default defineConfig({
   },
 });
 ```
+
+### Calling Rust from your app
+
+If your app needs the file system, a PTY, a database or a Rust backend you
+already have, write it as a **native module**: Rust functions marked
+`#[squark_native::export]`, linked into your app's own runtime and called from
+JavaScript by name. Name the crate under `native` in `squark.config.ts`, and
+`squark build` builds the runtime with it from a Strange Quark source
+checkout. [docs/native-modules.md](docs/native-modules.md) is the guide, with
+the menu API and the Tauri 2 path.
 
 ### Distributing your app
 
@@ -296,6 +318,20 @@ scripts/check.sh              # the full test and lint suite
 `cargo build --profile dist -p squark-host --bin squark-runtime -p squark-cli --bin squark`
 builds the stripped runtime that `squark build` packs by default, in
 `target/dist/`.
+
+## Documentation
+
+- [Configuration and CLI reference](docs/configuration.md): every
+  `squark.config` option, command, flag and environment variable.
+- [Native modules](docs/native-modules.md): calling Rust from your app,
+  menus, window control, and porting a Tauri 2 app.
+- [Architecture](docs/architecture.md): the design, module by module.
+- [Migration skill](skills/strange-quark-migrate/SKILL.md): a guide (and an
+  agent skill) for porting an existing React, Electron, Tauri or
+  meta-framework app, with measurement scripts.
+- [Changelog](CHANGELOG.md): what each release added and changed.
+- [Releasing](scripts/npm/README.md): how the npm packages are built,
+  staged and published.
 
 ## Contributing
 
