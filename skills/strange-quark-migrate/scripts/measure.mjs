@@ -16,8 +16,9 @@ import http from "node:http";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { spawn, execFileSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
+import { appExecutable, controlEndpoint, removeControlEndpoint, rssKbOfTree } from "./platform.mjs";
 
 // ---- arguments -------------------------------------------------------------------
 
@@ -30,9 +31,9 @@ const opt = (name, fallback = null) => {
 const distDir = opt("--dist") && path.resolve(opt("--dist"));
 const flowsPath = opt("--flows") && path.resolve(opt("--flows"));
 const outDir = path.resolve(opt("--out", "strange-quark-migration/results"));
-const squarkBinary = opt("--squark-binary") && path.resolve(opt("--squark-binary"));
+const squarkInput = opt("--squark-binary");
 const runs = Math.max(1, Number(opt("--runs", "3")));
-const skipSquark = flag("--skip-squark") || !squarkBinary;
+const skipSquark = flag("--skip-squark") || !squarkInput;
 const gpuAdapter = opt("--gpu-adapter", null);
 const timeoutMs = Number(opt("--timeout", "30000"));
 const depsDir = path.resolve(opt("--deps-dir", path.join(os.homedir(), ".cache", "strange-quark-migrate")));
@@ -41,6 +42,7 @@ if (!distDir || !flowsPath) {
   console.error("usage: measure.mjs --dist <dir> --flows <flows.json> --out <dir> [--squark-binary <path>] [--runs N] [--skip-squark]");
   process.exit(2);
 }
+const squarkBinary = skipSquark ? null : appExecutable(path.resolve(squarkInput));
 
 const requireFromDeps = createRequire(path.join(depsDir, "package.json"));
 let chromiumLib, PNG;
@@ -117,45 +119,23 @@ const percentile = (xs, p) => {
 };
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-function rssKbOfTree(pid) {
-  // Resident set size of a process and all its descendants (Linux /proc).
-  const children = new Map();
-  for (const d of fs.readdirSync("/proc")) {
-    if (!/^\d+$/.test(d)) continue;
-    try {
-      const stat = fs.readFileSync(`/proc/${d}/stat`, "utf8");
-      const ppid = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
-      if (!children.has(ppid)) children.set(ppid, []);
-      children.get(ppid).push(Number(d));
-    } catch {
-      /* process went away */
-    }
-  }
-  let total = 0;
-  const stack = [pid];
-  while (stack.length) {
-    const p = stack.pop();
-    try {
-      const m = /VmRSS:\s+(\d+)/.exec(fs.readFileSync(`/proc/${p}/status`, "utf8"));
-      if (m) total += Number(m[1]);
-    } catch {
-      /* gone */
-    }
-    for (const c of children.get(p) ?? []) stack.push(c);
-  }
-  return total;
-}
-
 function findChromium() {
-  const candidates = [process.env.SQUARK_CHROMIUM_PATH, "/usr/bin/chromium", "/usr/bin/chromium-browser"];
-  for (const c of candidates) if (c && fs.existsSync(c)) return c;
-  for (const name of ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable"]) {
-    try {
-      return execFileSync("which", [name], { encoding: "utf8" }).trim();
-    } catch {
-      /* next */
-    }
-  }
+  const system = {
+    darwin: ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium"],
+    win32: [process.env.ProgramFiles, process.env["ProgramFiles(x86)"], process.env.LOCALAPPDATA]
+      .filter(Boolean).map((dir) => path.join(dir, "Google", "Chrome", "Application", "chrome.exe")),
+    linux: ["/usr/bin/chromium", "/usr/bin/chromium-browser"],
+  };
+  const names = process.platform === "win32"
+    ? ["chrome.exe", "chromium.exe"]
+    : ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable"];
+  const fromPath = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean)
+    .flatMap((dir) => names.map((name) => path.join(dir, name)));
+  const candidates = [
+    process.env.SQUARK_CHROMIUM_PATH, chromiumLib.executablePath(), ...(system[process.platform] ?? []), ...fromPath,
+  ];
+  const executable = candidates.find((candidate) => candidate && fs.statSync(candidate, { throwIfNoEntry: false })?.isFile());
+  if (executable) return executable;
   throw new Error("No Chromium found; set SQUARK_CHROMIUM_PATH");
 }
 
@@ -230,16 +210,18 @@ class SquarkEngine {
   buffer = "";
   async start() {
     this.dataHome = fs.mkdtempSync(path.join(os.tmpdir(), "sqm-data-")); // fresh storage per run
-    this.sock = path.join(os.tmpdir(), `sqm-${process.pid}-${Date.now()}.sock`);
+    this.sock = controlEndpoint();
     const args = ["--test-control", this.sock, "--headless", "--width", String(viewport.width), "--height", String(viewport.height), "--dpr", "1"];
     if (gpuAdapter) args.push("--gpu-adapter", gpuAdapter);
     const t0 = performance.now();
     this.child = spawn(squarkBinary, args, { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, XDG_DATA_HOME: this.dataHome } });
     this.stderr = "";
+    this.child.once("error", (error) => { this.spawnError = error; });
     this.child.stderr.on("data", (c) => { this.stderr += c; });
     this.child.stdout.on("data", (c) => { this.stderr += c; });
     this.socket = await this.connect();
-    this.socket.on("data", (chunk) => this.onData(chunk));
+    this.socket.setEncoding("utf8").on("data", (chunk) => this.onData(chunk));
+    this.socket.on("error", (error) => this.rejectPending(error));
     const deadline = Date.now() + timeoutMs;
     while (true) {
       await this.request("frame.waitIdle", { frames: 1 });
@@ -252,7 +234,9 @@ class SquarkEngine {
     const deadline = Date.now() + timeoutMs;
     return new Promise((resolve, reject) => {
       const attempt = () => {
-        if (this.child.exitCode !== null) return reject(new Error(`strange-quark exited (${this.child.exitCode}) before opening test control:\n${this.stderr.slice(-2000)}`));
+        if (this.spawnError) return reject(this.spawnError);
+        const status = this.child.exitCode ?? this.child.signalCode;
+        if (status !== null) return reject(new Error(`strange-quark exited (${status}) before opening test control:\n${this.stderr.slice(-2000)}`));
         const s = net.createConnection({ path: this.sock });
         s.once("connect", () => resolve(s));
         s.once("error", () => {
@@ -287,6 +271,13 @@ class SquarkEngine {
       this.socket.write(JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n");
     });
   }
+  rejectPending(error) {
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.timer);
+      pending.reject(error);
+    }
+    this.pending.clear();
+  }
   async eval(js) { return (await this.request("dom.eval", { script: js })).value; }
   idle() { return this.request("frame.waitIdle", { frames: 2 }); }
   async center(sel) {
@@ -312,11 +303,16 @@ class SquarkEngine {
   }
   rssKb() { return this.child?.pid ? rssKbOfTree(this.child.pid) : null; }
   async stop() {
-    try { await this.request("app.quit"); } catch { /* already gone */ }
-    await sleep(200);
-    if (this.child && this.child.exitCode === null) this.child.kill("SIGKILL");
-    try { fs.unlinkSync(this.sock); } catch { /* fine */ }
-    fs.rmSync(this.dataHome, { recursive: true, force: true });
+    if (this.socket && !this.socket.destroyed) {
+      try { await this.request("app.quit"); } catch { /* already gone */ }
+      this.socket.destroy();
+    }
+    if (this.child?.pid && this.child.exitCode === null && this.child.signalCode === null) {
+      await sleep(200);
+      if (this.child.exitCode === null && this.child.signalCode === null) this.child.kill("SIGKILL");
+    }
+    removeControlEndpoint(this.sock);
+    if (this.dataHome) fs.rmSync(this.dataHome, { recursive: true, force: true });
   }
 }
 

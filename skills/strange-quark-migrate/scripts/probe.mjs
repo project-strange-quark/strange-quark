@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { appExecutable, controlEndpoint, removeControlEndpoint } from "./platform.mjs";
 
 const argv = process.argv.slice(2);
 const flag = (name) => argv.includes(name);
@@ -32,6 +33,7 @@ if (!outArg || Boolean(squarkBinaryArg) === Boolean(squarkCliArg) || !Number.isF
 const outPath = path.resolve(outArg);
 const cliPath = squarkCliArg && path.resolve(squarkCliArg);
 let runtimePath = squarkBinaryArg && path.resolve(squarkBinaryArg);
+const executableSuffix = process.platform === "win32" ? ".exe" : "";
 
 function run(command, args, { cwd, env, timeout = timeoutMs } = {}) {
   return new Promise((resolve, reject) => {
@@ -70,21 +72,23 @@ function isExecutableFile(file) {
 }
 
 function findRuntime(cli) {
+  const name = "squark-runtime" + executableSuffix;
   const candidates = [
     process.env.SQUARK_RUNTIME_BIN,
-    path.join(path.dirname(cli), "squark-runtime"),
-    path.resolve(path.dirname(cli), "../dist/squark-runtime"),
+    path.join(path.dirname(cli), name),
+    path.resolve(path.dirname(cli), "../dist", name),
   ].filter(Boolean).map((candidate) => path.resolve(candidate));
   return candidates.find(isExecutableFile) ?? null;
 }
 
 function findSquarkPacker() {
   const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-  const pathCandidates = (process.env.PATH ?? "").split(path.delimiter).map((dir) => path.join(dir, "squark"));
+  const name = "squark" + executableSuffix;
+  const pathCandidates = (process.env.PATH ?? "").split(path.delimiter).map((dir) => path.join(dir, name));
   const candidates = [
     ...pathCandidates,
-    path.join(projectRoot, "target/debug/squark"),
-    path.join(projectRoot, "target/dist/squark"),
+    path.join(projectRoot, "target/debug", name),
+    path.join(projectRoot, "target/dist", name),
   ];
   return candidates.find(isExecutableFile) ?? null;
 }
@@ -391,7 +395,7 @@ class SquarkEngine {
   }
 
   async start() {
-    this.socketPath = path.join(this.tempDir, `squark-probe-${process.pid}.sock`);
+    this.socketPath = controlEndpoint();
     this.child = spawn(this.binary, [this.input, "--test-control", this.socketPath, "--headless", "--width", "800", "--height", "600"], {
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, XDG_DATA_HOME: path.join(this.tempDir, "data") },
@@ -400,7 +404,7 @@ class SquarkEngine {
     this.child.stderr.on("data", (chunk) => { this.output += chunk; });
     this.child.once("error", (error) => { this.spawnError = error; });
     this.socket = await this.connect();
-    this.socket.on("data", (chunk) => this.onData(chunk));
+    this.socket.setEncoding("utf8").on("data", (chunk) => this.onData(chunk));
     this.socket.on("error", (error) => this.rejectPending(error));
     await this.request("frame.waitIdle", { frames: 2 });
     const result = await this.eval(PROBE_SCRIPT);
@@ -428,8 +432,9 @@ class SquarkEngine {
     return new Promise((resolve, reject) => {
       const attempt = () => {
         if (this.spawnError) return reject(new Error(`could not start runtime: ${this.spawnError.message}`));
-        if (this.child.exitCode !== null) {
-          return reject(new Error(`runtime exited (${this.child.exitCode}) before opening test control:\n${this.output.slice(-2000)}`));
+        const status = this.child.exitCode ?? this.child.signalCode;
+        if (status !== null) {
+          return reject(new Error(`runtime exited (${status}) before opening test control:\n${this.output.slice(-2000)}`));
         }
         const socket = net.createConnection({ path: this.socketPath });
         socket.once("connect", () => resolve(socket));
@@ -490,16 +495,18 @@ class SquarkEngine {
   }
 
   async stop() {
-    try { await this.request("app.quit"); } catch { /* runtime may already have stopped */ }
-    this.socket?.destroy();
-    if (this.child && this.child.exitCode === null) {
+    if (this.socket && !this.socket.destroyed) {
+      try { await this.request("app.quit"); } catch { /* runtime may already have stopped */ }
+      this.socket.destroy();
+    }
+    if (this.child?.pid && this.child.exitCode === null && this.child.signalCode === null) {
       await Promise.race([
         new Promise((resolve) => this.child.once("close", resolve)),
         new Promise((resolve) => setTimeout(resolve, 1000)),
       ]);
-      if (this.child.exitCode === null) this.child.kill("SIGKILL");
+      if (this.child.exitCode === null && this.child.signalCode === null) this.child.kill("SIGKILL");
     }
-    try { fs.unlinkSync(this.socketPath); } catch { /* already removed */ }
+    removeControlEndpoint(this.socketPath);
   }
 }
 
@@ -525,6 +532,7 @@ async function main() {
       throw new Error(`could not find squark-runtime for ${cliPath}; set SQUARK_RUNTIME_BIN or use --squark-binary <runtime-or-app>`);
     }
   }
+  runtimePath = appExecutable(runtimePath);
   if (!isExecutableFile(runtimePath)) throw new Error(`runtime is not an executable file: ${runtimePath}`);
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "strange-quark-probe-"));
