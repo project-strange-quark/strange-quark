@@ -74,7 +74,15 @@ pub fn run_window(request: WindowRequest) -> Result<(), HostError> {
     let pack = Arc::new(open_pack(&request.input)?);
     let settings = WindowSettings::load(manifest(&pack)?, &request)?;
     initialize_v8();
-    let events = EventLoop::<Event>::with_user_event()
+    let mut builder = EventLoop::<Event>::with_user_event();
+    #[cfg(target_os = "macos")]
+    {
+        use winit::platform::macos::EventLoopBuilderExtMacOS;
+        // AppKit key equivalents otherwise run before the document gets
+        // its keydown and can bypass native close-request handlers.
+        builder.with_default_menu(false);
+    }
+    let events = builder
         .build()
         .map_err(|error| failure("WindowError", error))?;
     drop(setup_start);
@@ -190,6 +198,8 @@ enum Event {
     /// A menu item activated by its accelerator, after the page let the
     /// key through.
     Menu(Activation),
+    #[cfg(target_os = "macos")]
+    MacWindowAction(MacWindowAction),
     Control(Call),
     Failed(HostError),
 }
@@ -307,6 +317,9 @@ impl App {
                 .map_err(|error| failure("WindowError", error))?,
         );
         drop(window_start);
+        if cfg!(target_os = "macos") {
+            self.start_key_decisions();
+        }
         self.threads = Some(Threads::start(
             window.clone(),
             Arc::clone(&self.pack),
@@ -409,15 +422,19 @@ impl App {
                 events.exit();
             }
             WindowOp::SetMenu(menu) => {
-                if menu.is_some() && self.key_decisions.is_none() {
-                    let proxy = self.proxy.clone();
-                    self.key_decisions = Some(KeyDecisions::start(move |activation| {
-                        proxy.send_event(Event::Menu(activation)).is_ok()
-                    }));
+                if menu.is_some() {
+                    self.start_key_decisions();
                 }
                 self.menu.set(menu);
             }
         }
+    }
+
+    fn start_key_decisions(&mut self) {
+        self.key_decisions.get_or_insert_with(|| {
+            let proxy = self.proxy.clone();
+            KeyDecisions::start(move |activation| proxy.send_event(Event::Menu(activation)).is_ok())
+        });
     }
 
     /// The decision channel for a key that matches a menu accelerator.
@@ -425,8 +442,54 @@ impl App {
         &self,
         task: &InputTask,
     ) -> Option<mpsc::Sender<Result<InputResult, DocumentError>>> {
-        let activation = self.menu.accelerator(task)?;
-        Some(self.key_decisions.as_ref()?.watch(activation))
+        if let Some(activation) = self.menu.accelerator(task) {
+            return Some(self.key_decisions.as_ref()?.watch(activation));
+        }
+        #[cfg(target_os = "macos")]
+        {
+            self.macos_key_decision(task)
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            None
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn macos_key_decision(
+        &self,
+        task: &InputTask,
+    ) -> Option<mpsc::Sender<Result<InputResult, DocumentError>>> {
+        use squark_types::host::{KeyKind, Modifiers};
+        let Input::Key {
+            kind: KeyKind::Down,
+            key,
+            repeat: false,
+            composing: false,
+            ..
+        } = &task.input
+        else {
+            return None;
+        };
+        let command = Modifiers {
+            meta: true,
+            ..Modifiers::default()
+        };
+        if task.modifiers != command {
+            return None;
+        }
+        let action = match key.as_str() {
+            "q" | "Q" => return Some(self.key_decisions.as_ref()?.watch(Activation::Close)),
+            "h" | "H" => MacWindowAction::Hide,
+            "m" | "M" => MacWindowAction::Minimize,
+            _ => return None,
+        };
+        let proxy = self.proxy.clone();
+        // The closure carries the action and the decision thread applies the
+        // same cancellation and timeout handling as an app menu accelerator.
+        let decision =
+            KeyDecisions::start(move |_| proxy.send_event(Event::MacWindowAction(action)).is_ok());
+        Some(decision.watch(Activation::Close))
     }
 
     /// Run a menu item: commands go to the modules and the page.
@@ -704,6 +767,13 @@ impl App {
     }
 }
 
+#[cfg(target_os = "macos")]
+#[derive(Clone, Copy)]
+enum MacWindowAction {
+    Hide,
+    Minimize,
+}
+
 impl ApplicationHandler<Event> for App {
     fn resumed(&mut self, events: &ActiveEventLoop) {
         if self.window.is_none()
@@ -799,6 +869,18 @@ impl ApplicationHandler<Event> for App {
             Event::Fullscreen { id, enter } => self.set_fullscreen(id, enter),
             Event::Window(op) => self.window_op(events, op),
             Event::Menu(activation) => self.activate(events, activation),
+            #[cfg(target_os = "macos")]
+            Event::MacWindowAction(action) => match action {
+                MacWindowAction::Hide => {
+                    use winit::platform::macos::ActiveEventLoopExtMacOS;
+                    events.hide_application();
+                }
+                MacWindowAction::Minimize => {
+                    if let Some(window) = &self.window {
+                        window.set_minimized(true);
+                    }
+                }
+            },
             Event::Control(call) => self.control(events, call),
             Event::RequestRedraw(_) => {}
             Event::Failed(error) => {
@@ -1001,6 +1083,7 @@ impl Threads {
             pipeline: render,
             gpu: None,
             surface,
+            initial_refresh: refresh_interval(&window),
         };
         let render = spawn("strange-quark", proxy, move |proxy| {
             run_render(
@@ -1053,6 +1136,7 @@ struct RenderServices {
     /// A surface made on the main thread, for window systems that need it
     /// made there. The render thread makes one otherwise.
     surface: Option<WindowSurface>,
+    initial_refresh: Duration,
 }
 
 impl Drop for RenderServices {
@@ -1106,7 +1190,7 @@ fn run_render(
     let mut clock = FrameClock::new(system.self_paced);
     let mut timeline = Timeline::new();
     clock.limit_refresh(timeline.cadence_limit()?);
-    clock.refresh(refresh_interval(&window));
+    clock.refresh(services.initial_refresh);
 
     // The document can bootstrap as soon as it knows the viewport. Canvas
     // reads can queue on this thread until the device is ready to service them.
@@ -1327,7 +1411,10 @@ fn run_render(
             puffin::profile_scope!("blit and present");
             let compositor_paced = clock.compositor_paced();
             gpu.present(tick.viewport.device, || {
-                if compositor_paced {
+                // AppKit's implementation is a no-op, but winit calls it
+                // synchronously on the main thread. The render thread must
+                // be able to finish even after the window event loop exits.
+                if compositor_paced && !cfg!(target_os = "macos") {
                     window.pre_present_notify();
                 }
             })

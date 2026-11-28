@@ -180,16 +180,19 @@ fn render(
             continue;
         }
 
-        let event =
-            if renderer.present([size.width, size.height], || window.pre_present_notify())? {
-                if presented {
-                    continue;
-                }
-                presented = true;
-                RenderEvent::FirstPresent
-            } else {
-                RenderEvent::Retry
-            };
+        let event = if renderer.present([size.width, size.height], || {
+            if !cfg!(target_os = "macos") {
+                window.pre_present_notify();
+            }
+        })? {
+            if presented {
+                continue;
+            }
+            presented = true;
+            RenderEvent::FirstPresent
+        } else {
+            RenderEvent::Retry
+        };
         if proxy.send_event(event).is_err() {
             break;
         }
