@@ -449,6 +449,29 @@ fn macos_window_shortcuts_respect_the_page_and_custom_menu() {
     );
 }
 
+#[test]
+#[cfg(windows)]
+fn minimizing_and_restoring_a_window_updates_document_visibility() {
+    if std::env::var("SQUARK_WINDOW_TESTS").as_deref() != Ok("1") {
+        return;
+    }
+    let pack = pack();
+    let run = timeout::output(
+        Command::new("node")
+            .arg(pack.with_file_name("windows-visibility-driver.mjs"))
+            .arg(env!("CARGO_BIN_EXE_squark-runtime"))
+            .arg(pack),
+        Duration::from_secs(45),
+    )
+    .unwrap();
+    assert!(
+        run.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+}
+
 fn run_blob_driver(mode: &str) {
     let fixtures = pack().parent().unwrap().to_owned();
     let output = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(

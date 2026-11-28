@@ -274,6 +274,9 @@ impl Session {
                     let result = control::leave_fullscreen(&self.fullscreen, &self.tasks);
                     control::send(reply, result);
                 }
+                Request::SetMinimized { .. } => {
+                    control::send(reply, Err(failure("ControlError", "no window to minimize")));
+                }
                 Request::MenuGet {} => {
                     let menu = lock(&self.menu).to_json();
                     control::send(reply, Ok(json!({ "menu": menu })));

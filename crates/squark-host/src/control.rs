@@ -74,6 +74,9 @@ pub(crate) enum Request {
     /// Leaves fullscreen as the window system would (a compositor key).
     #[serde(rename = "window.leaveFullscreen")]
     LeaveFullscreen {},
+    /// Minimize or restore the real window.
+    #[serde(rename = "window.setMinimized")]
+    SetMinimized { minimized: bool },
     /// The window's menu, in the page API's template shape (null for none).
     #[serde(rename = "menu.get")]
     MenuGet {},

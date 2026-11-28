@@ -381,7 +381,12 @@ impl App {
         if !self.shown {
             return;
         }
-        let state = (self.focused, !self.occluded);
+        let minimized = cfg!(windows)
+            && self
+                .window
+                .as_ref()
+                .is_some_and(|window| window.is_minimized() == Some(true));
+        let state = (self.focused, !self.occluded && !minimized);
         if self.reported_window_state == Some(state) {
             return;
         }
@@ -691,6 +696,16 @@ impl App {
                 let result = control::leave_fullscreen(&self.recorded_fullscreen, &tasks);
                 control::send(reply, result);
             }
+            Request::SetMinimized { minimized } => {
+                let result = self.window.as_ref().map_or_else(
+                    || Err(failure("ControlError", "no window to minimize")),
+                    |window| {
+                        window.set_minimized(minimized);
+                        Ok(json!({ "ok": true }))
+                    },
+                );
+                control::send(reply, result);
+            }
             Request::MenuGet {} => {
                 control::send(reply, Ok(json!({ "menu": self.menu.to_json() })));
             }
@@ -798,7 +813,12 @@ impl ApplicationHandler<Event> for App {
         let window = self.window.as_ref().unwrap();
         match event {
             WindowEvent::CloseRequested => self.close_requested(events),
-            WindowEvent::Resized(size) => self.resize(size, window.scale_factor()),
+            WindowEvent::Resized(size) => {
+                self.resize(size, window.scale_factor());
+                // Win32 sends a resize on minimize and restore.
+                #[cfg(windows)]
+                self.report_window_state();
+            }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.resize(window.inner_size(), scale_factor)
             }
