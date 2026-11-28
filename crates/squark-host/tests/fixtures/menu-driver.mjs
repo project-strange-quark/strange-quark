@@ -40,12 +40,17 @@ try {
     ["file.open", "file.save", "strange-quark-menu-1", "file.disabled", "separator", "quit"]);
   assert.equal(await driver.eval("log.splice(0).join()"), "menu-set");
 
+  // The other platform's accelerator modifier does not run the command.
+  await driver.press("o", process.platform === "darwin" ? { ctrl: true } : { meta: true });
+  await settle();
+  assert.deepEqual(await driver.eval("log.splice(0)"), []);
+
   // An accelerator the page leaves alone runs its item.
   await driver.press("o", { primary: true });
   await waitFor("log.length === 1");
   assert.deepEqual(await driver.eval("log.splice(0)"), ["menu:file.open"]);
 
-  // The page handles Ctrl+S in the editor and cancels it: no menu Save.
+  // The page cancels the same Save chord registered by the menu.
   await driver.eval("document.getElementById('editor').focus(), true");
   await driver.press("s", { primary: true });
   await settle();

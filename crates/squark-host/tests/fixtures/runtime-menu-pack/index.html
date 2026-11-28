@@ -12,9 +12,10 @@
   addEventListener("unhandledrejection", event => errors.push(String(event.reason)));
   const native = globalThis[Symbol.for("strange-quark.native")];
   native.onMenu(id => log.push(`menu:${id}`));
-  // The editor handles Ctrl+S itself, so the menu's Save must not run too.
+  // The editor handles the platform's Save chord, so the menu's Save must not run too.
+  const isMac = navigator.platform === "MacIntel";
   document.getElementById("editor").addEventListener("keydown", event => {
-    if (event.ctrlKey && event.code === "KeyS") {
+    if ((isMac ? event.metaKey : event.ctrlKey) && event.code === "KeyS") {
       event.preventDefault();
       log.push("editor:save");
     }
