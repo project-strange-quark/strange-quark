@@ -103,6 +103,69 @@ test("syncVersions keeps internal workspace dependency pins in sync and catches 
   }
 });
 
+test("syncVersions handles CRLF Cargo.lock and Cargo.toml and preserves their line endings", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "squark-npm-sync-crlf-"));
+  try {
+    fs.copyFileSync(path.join(REPO_ROOT, "LICENSE"), path.join(tmp, "LICENSE"));
+    const dirsToCopy = [
+      "packages/strange-quark",
+      "packages/@strange-quark/vite-plugin",
+      ...PLATFORM_TARGETS.map((t) => t.dir),
+    ];
+    for (const rel of dirsToCopy) {
+      const dstDir = path.join(tmp, rel);
+      fs.mkdirSync(dstDir, { recursive: true });
+      fs.copyFileSync(path.join(REPO_ROOT, rel, "package.json"), path.join(dstDir, "package.json"));
+      const lic = path.join(REPO_ROOT, rel, "LICENSE");
+      if (fs.existsSync(lic)) {
+        fs.copyFileSync(lic, path.join(dstDir, "LICENSE"));
+      }
+    }
+
+    const toCrlf = (text) => text.replace(/\r?\n/g, "\r\n");
+    const cargoTomlPath = path.join(tmp, "Cargo.toml");
+    const cargoLockPath = path.join(tmp, "Cargo.lock");
+    fs.writeFileSync(cargoTomlPath, toCrlf(fs.readFileSync(path.join(REPO_ROOT, "Cargo.toml"), "utf8")));
+    fs.writeFileSync(cargoLockPath, toCrlf(fs.readFileSync(path.join(REPO_ROOT, "Cargo.lock"), "utf8")));
+
+    // Matching CRLF Cargo.lock passes --check.
+    const initial = syncVersions({ repoRoot: tmp, check: true });
+    assert.equal(initial.version, "0.1.0");
+    assert.ok(initial.cratesChecked > 0);
+
+    // Drift one Cargo.lock entry and verify --check detects it even with CRLF.
+    const driftedLock = fs
+      .readFileSync(cargoLockPath, "utf8")
+      .replace(
+        /\[\[package\]\]\r\nname = "squark-host"\r\nversion = "0\.1\.0"/,
+        '[[package]]\r\nname = "squark-host"\r\nversion = "0.0.0"',
+      );
+    fs.writeFileSync(cargoLockPath, driftedLock);
+    assert.throws(
+      () => syncVersions({ repoRoot: tmp, check: true }),
+      /Cargo\.lock Cargo\.lock entry is "0\.0\.0", expected "0\.1\.0"/,
+    );
+
+    // Syncing to 0.2.0 updates CRLF Cargo.lock and Cargo.toml while keeping CRLF endings intact.
+    const updated = syncVersions({ repoRoot: tmp, version: "0.2.0", check: false });
+    assert.ok(updated.updated.includes("Cargo.lock"));
+    assert.ok(updated.updated.includes("Cargo.toml"));
+
+    const lockAfter = fs.readFileSync(cargoLockPath, "utf8");
+    assert.match(lockAfter, /\[\[package\]\]\r\nname = "squark-host"\r\nversion = "0\.2\.0"/);
+    assert.doesNotMatch(lockAfter, /name = "squark-[a-z-]+"\r?\nversion = "0\.1\.0"/);
+    assert.doesNotMatch(lockAfter, /(?<!\r)\n/, "Cargo.lock must keep CRLF line endings");
+
+    const tomlAfter = fs.readFileSync(cargoTomlPath, "utf8");
+    assert.match(tomlAfter, /\[workspace\.package\]\r\nversion = "0\.2\.0"/);
+    assert.doesNotMatch(tomlAfter, /(?<!\r)\n/, "Cargo.toml must keep CRLF line endings");
+
+    assert.equal(syncVersions({ repoRoot: tmp, check: true }).version, "0.2.0");
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test("stagePackages and verifyPackages succeed for all 6 synthetic targets in an isolated stageDir", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "squark-npm-stage-all-"));
   try {

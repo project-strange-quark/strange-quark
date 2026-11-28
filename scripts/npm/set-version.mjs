@@ -165,17 +165,17 @@ function syncCargoVersions({ repoRoot, targetVersion, check, issues, updated, re
   const edits = [
     {
       files: [rootManifest],
-      pattern: /(\[workspace\.package\][^[]*?\nversion = ")([^"]+)(")/g,
+      pattern: /(\[workspace\.package\][^[]*?\r?\nversion = ")([^"]+)(")/g,
       what: "[workspace.package] version",
     },
     {
       files: manifests,
-      pattern: /^(squark-[a-z-]+\s*=\s*\{[^}\n]*\bversion\s*=\s*"=?)([^"]+)(")/gm,
+      pattern: /^(squark-[a-z-]+\s*=\s*\{[^}\r\n]*\bversion\s*=\s*"=?)([^"]+)(")/gm,
       what: "internal crate version requirement",
     },
     {
       files: [path.join(repoRoot, "Cargo.lock")].filter((file) => fs.existsSync(file)),
-      pattern: /(\[\[package\]\]\nname = "squark-[a-z-]+"\nversion = ")([^"]+)(")/g,
+      pattern: /(\[\[package\]\]\r?\nname = "squark-[a-z-]+"\r?\nversion = ")([^"]+)(")/g,
       what: "Cargo.lock entry",
     },
   ];
