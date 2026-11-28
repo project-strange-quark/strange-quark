@@ -152,7 +152,7 @@ test("the classic script installs from the injected config", async () => {
 });
 
 test("classic.mjs strips exports and normalizes CRLF sources from Windows tsc output", async () => {
-  const { toClassicScript } = await import("../scripts/classic.mjs");
+  const { toClassicScript } = await import("../scripts/classic-script.mjs");
   const built = fs.readFileSync(new URL("../dist/index.js", import.meta.url), "utf8");
   assert.equal(built.includes("\r"), false, "tsconfig newLine: lf keeps dist/index.js LF-only");
   const crlfSource = `${built.replace(/\r?\n/g, "\r\n")}export {};\r\n`;
