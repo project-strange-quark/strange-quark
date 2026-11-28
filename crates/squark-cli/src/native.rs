@@ -202,6 +202,28 @@ fn toolchain_channel(text: &str) -> Option<String> {
     None
 }
 
+fn nested_cargo(toolchain: Option<&str>) -> Command {
+    // Cargo exports its own binary and compiler settings to commands it
+    // runs. Start Cargo from PATH so rustup can use the source checkout's
+    // toolchain, and build the app runtime with its own settings.
+    let mut command = Command::new("cargo");
+    for name in [
+        "CARGO",
+        "CARGO_TARGET_DIR",
+        "CARGO_ENCODED_RUSTFLAGS",
+        "RUSTC",
+        "RUSTC_WRAPPER",
+        "RUSTC_WORKSPACE_WRAPPER",
+        "RUSTUP_TOOLCHAIN",
+    ] {
+        command.env_remove(name);
+    }
+    if let Some(channel) = toolchain {
+        command.env("RUSTUP_TOOLCHAIN", channel);
+    }
+    command
+}
+
 pub fn build_native_runtime(
     project_dir: &Path,
     native: &RawNativeConfig,
@@ -265,17 +287,7 @@ pub fn build_native_runtime(
     let toolchain = fs::read_to_string(source.join("rust-toolchain.toml"))
         .ok()
         .and_then(|text| toolchain_channel(&text));
-    let mut command = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
-    // A parent cargo (`cargo run -p squark-cli`) must not pin its own
-    // target directory onto the nested build. The toolchain is pinned to
-    // the checkout's: rustup picks rustc per crate directory otherwise, and
-    // an app crate under its own rust-toolchain.toml would be compiled by a
-    // different rustc than the runtime it links into.
-    command.env_remove("RUSTUP_TOOLCHAIN");
-    if let Some(channel) = &toolchain {
-        command.env("RUSTUP_TOOLCHAIN", channel);
-    }
-    let status = command
+    let status = nested_cargo(toolchain.as_deref())
         .current_dir(&dir)
         .args([
             "build",
@@ -286,7 +298,6 @@ pub fn build_native_runtime(
         .arg(dir.join("Cargo.toml"))
         .arg("--target-dir")
         .arg(&target_dir)
-        .env_remove("CARGO_TARGET_DIR")
         .status()
         .map_err(|error| CliError::CommandFailed {
             command: "cargo build (app runtime)".to_owned(),
@@ -367,6 +378,34 @@ pub fn preludes(project_dir: &Path, preludes: &[RawPrelude]) -> Result<Option<Pr
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn nested_cargo_uses_path_and_discards_parent_compiler_settings() {
+        use std::{collections::HashMap, ffi::OsStr};
+
+        let command = nested_cargo(Some("1.98.1"));
+        assert_eq!(command.get_program(), "cargo");
+        let env: HashMap<_, _> = command.get_envs().collect();
+        for name in [
+            "CARGO",
+            "CARGO_TARGET_DIR",
+            "CARGO_ENCODED_RUSTFLAGS",
+            "RUSTC",
+            "RUSTC_WRAPPER",
+            "RUSTC_WORKSPACE_WRAPPER",
+        ] {
+            assert_eq!(env.get(OsStr::new(name)), Some(&None), "{name}");
+        }
+        assert_eq!(
+            env[OsStr::new("RUSTUP_TOOLCHAIN")],
+            Some(OsStr::new("1.98.1"))
+        );
+        assert!(
+            nested_cargo(None)
+                .get_envs()
+                .any(|(name, value)| { name == "RUSTUP_TOOLCHAIN" && value.is_none() })
+        );
+    }
+
     #[test]
     fn the_nested_build_uses_the_checkouts_toolchain_channel() {
         assert_eq!(
