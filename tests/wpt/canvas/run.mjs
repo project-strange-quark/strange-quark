@@ -211,7 +211,7 @@ async function runNativeCases({ cases, squarkBin, runtimeBin, gpuAdapter, env = 
           width: 800,
           height: 600,
           gpuAdapter,
-          env,
+          env: env ?? {},
           timeoutMs,
         });
         const deadline = Date.now() + timeoutMs;
