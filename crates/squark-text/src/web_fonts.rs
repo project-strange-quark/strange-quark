@@ -418,3 +418,140 @@ pub(crate) fn installed(context: &mut FontContext, name: &str) -> Option<fontiqu
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use skrifa::{MetadataProvider, raw::FileRef, string::StringId};
+
+    use super::*;
+
+    fn test_font(name: &str) -> Arc<[u8]> {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/reftests/cases/r1/_assets/fonts")
+            .join(name);
+        let bytes = std::fs::read(&path).expect("read test font fixture");
+        crate::decode_font(&bytes).expect("decode test font fixture")
+    }
+
+    /// Packs standalone sfnt fonts into a single TrueType Collection (`ttcf` v1.0).
+    fn pack_ttc(fonts: &[&[u8]]) -> Vec<u8> {
+        let mut parsed = Vec::with_capacity(fonts.len());
+        for data in fonts {
+            let FileRef::Font(font) = FileRef::new(data).expect("valid standalone sfnt") else {
+                panic!("expected standalone font");
+            };
+            parsed.push(font);
+        }
+        let header_len = 12 + 4 * parsed.len();
+        let mut dir_offsets = Vec::with_capacity(parsed.len());
+        let mut cursor = header_len;
+        for font in &parsed {
+            dir_offsets.push(cursor);
+            cursor += 12 + 16 * font.table_directory.table_records().len();
+        }
+        let mut out = Vec::with_capacity(cursor);
+        out.extend(b"ttcf");
+        out.extend(1_u16.to_be_bytes());
+        out.extend(0_u16.to_be_bytes());
+        out.extend(u32::try_from(parsed.len()).unwrap().to_be_bytes());
+        for offset in &dir_offsets {
+            out.extend(u32::try_from(*offset).unwrap().to_be_bytes());
+        }
+        let mut table_cursor = cursor;
+        let mut payloads = Vec::new();
+        for font in &parsed {
+            let directory = &font.table_directory;
+            let records = directory.table_records();
+            let count = u16::try_from(records.len()).unwrap();
+            let selector = 15 - count.max(1).leading_zeros() as u16;
+            let range = 16_u16 << selector;
+            out.extend(directory.sfnt_version().to_be_bytes());
+            for word in [count, range, selector, count * 16 - range] {
+                out.extend(word.to_be_bytes());
+            }
+            for record in records {
+                let tag = record.tag();
+                let bytes = font.table_data(tag).unwrap().as_bytes();
+                out.extend(tag.to_be_bytes());
+                out.extend(record.checksum().to_be_bytes());
+                out.extend(u32::try_from(table_cursor).unwrap().to_be_bytes());
+                out.extend(u32::try_from(bytes.len()).unwrap().to_be_bytes());
+                table_cursor += bytes.len().next_multiple_of(4);
+                payloads.push(bytes);
+            }
+        }
+        for bytes in payloads {
+            out.extend(bytes);
+            out.resize(out.len().next_multiple_of(4), 0);
+        }
+        out
+    }
+
+    fn full_names(blob: &fontique::Blob<u8>) -> Vec<String> {
+        let FileRef::Font(file) = FileRef::new(blob.data()).expect("standalone sfnt") else {
+            panic!("expected extracted standalone font, got collection");
+        };
+        file.localized_strings(StringId::FULL_NAME)
+            .map(|name| name.chars().collect())
+            .collect()
+    }
+
+    #[test]
+    fn installed_extracts_only_the_matched_face_from_a_ttc_collection() {
+        let regular = test_font("LiberationSans-Regular.woff2");
+        let bold = test_font("LiberationSans-Bold.woff2");
+        let collection = pack_ttc(&[&regular, &bold]);
+        assert!(matches!(
+            FileRef::new(&collection),
+            Ok(FileRef::Collection(_))
+        ));
+
+        let mut context = FontContext {
+            collection: fontique::Collection::new(fontique::CollectionOptions {
+                shared: false,
+                system_fonts: false,
+            }),
+            source_cache: fontique::SourceCache::default(),
+        };
+        let registered = context
+            .collection
+            .register_fonts(fontique::Blob::new(Arc::new(collection)), None);
+        assert_eq!(registered.len(), 1);
+        assert_eq!(registered[0].1.len(), 2, "collection registers both faces");
+
+        let matched_bold =
+            installed(&mut context, "Liberation Sans Bold").expect("match bold face in ttc");
+        assert!(
+            full_names(&matched_bold)
+                .iter()
+                .any(|name| name.eq_ignore_ascii_case("Liberation Sans Bold")),
+            "expected bold full name, got {:?}",
+            full_names(&matched_bold)
+        );
+        let matched_regular =
+            installed(&mut context, "Liberation Sans").expect("match regular face in ttc");
+        assert!(
+            full_names(&matched_regular)
+                .iter()
+                .any(|name| name.eq_ignore_ascii_case("Liberation Sans")),
+            "expected regular full name, got {:?}",
+            full_names(&matched_regular)
+        );
+        assert_ne!(matched_bold.data(), matched_regular.data());
+
+        // Aliasing the extracted face registers only that single face.
+        assert!(register(
+            &mut context,
+            matched_bold,
+            "Aliased Bold",
+            &FaceAttributes::default(),
+        ));
+        let aliased = context
+            .collection
+            .family_by_name("Aliased Bold")
+            .expect("aliased family registered");
+        assert_eq!(aliased.fonts().len(), 1);
+    }
+}
