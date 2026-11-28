@@ -136,12 +136,13 @@ fn packed_window_presents_a_frame_and_can_exit_cleanly() {
 }
 
 #[test]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn window_startup_failure_reports_the_gpu_error() {
     if std::env::var("SQUARK_WINDOW_TESTS").as_deref() != Ok("1") {
         return;
     }
     let mut command = Command::new(env!("CARGO_BIN_EXE_squark-runtime"));
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
     command
         .env(
             "VK_ICD_FILENAMES",
