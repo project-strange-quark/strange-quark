@@ -10,7 +10,8 @@
     "noEmitOnError": true,
     "skipLibCheck": true,
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "newLine": "lf"
   },
   "include": ["src/**/*.ts"]
 }

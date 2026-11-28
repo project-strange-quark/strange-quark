@@ -139,6 +139,26 @@ test("the classic script installs from the injected config", async () => {
   assert.equal(typeof installTauriFromConfig, "function");
 });
 
+test("classic.mjs strips exports and normalizes CRLF sources from Windows tsc output", async () => {
+  const { toClassicScript } = await import("../scripts/classic.mjs");
+  const built = fs.readFileSync(new URL("../dist/index.js", import.meta.url), "utf8");
+  assert.equal(built.includes("\r"), false, "tsconfig newLine: lf keeps dist/index.js LF-only");
+  const crlfSource = `${built.replace(/\r?\n/g, "\r\n")}export {};\r\n`;
+  const script = toClassicScript(crlfSource);
+  assert.equal(script.includes("\r"), false, "classic output should use LF line endings");
+  assert.doesNotMatch(script, /^\s*export\b/m);
+  const context = vm.createContext({
+    __STRANGE_QUARK_TAURI__: { fixture: true },
+    __STRANGE_QUARK_TAURI_FIXTURE__: { ping: "pong" },
+    Symbol,
+    Promise,
+    Uint32Array,
+    Math,
+  });
+  vm.runInContext(script, context);
+  assert.equal(await context.__TAURI_INTERNALS__.invoke("ping", {}), "pong");
+});
+
 test("the config helper fills in squark.config's generic preludes", async () => {
   const { tauri, SHIM_FILE } = await import("@strange-quark/tauri/config");
   assert.deepEqual(tauri({ module: "demo" }), {
