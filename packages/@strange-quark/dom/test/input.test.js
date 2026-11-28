@@ -65,10 +65,10 @@ function pointerScene(os) {
       event.constructor.name]));
   }
   let time = 0;
-  const send = (type, target, button, buttons, clickCount = undefined) => dispatch({
+  const send = (type, target, button, buttons, clickCount = undefined, modifiers = {}) => dispatch({
     id: 1, type, target: nodeId(target), related: 0, time: time += 10, cancelable: true, fields: {
       pointerType: "mouse", pointerId: 1, button, buttons, isPrimary: true, boundaryUpdate: false, x: 5, y: 5,
-      pressure: buttons === 0 ? 0 : 0.5, samples: [], clickCount, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false,
+      pressure: buttons === 0 ? 0 : 0.5, samples: [], clickCount, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...modifiers,
     },
   });
   return { body, first, second, events, send };
@@ -91,6 +91,23 @@ test("a right click fires contextmenu on press except on Windows, and auxclick o
   windows.send("pointerup", windows.first, 2, 0);
   assert.deepEqual(windows.events.map(([type]) => type), ["pointerdown", "pointerup", "auxclick", "contextmenu"],
     "a canceled pointerdown suppresses the mouse events but not auxclick or contextmenu");
+});
+
+test("macOS Control-click opens a context menu on press without a click on release", () => {
+  const mac = pointerScene("macos");
+  mac.send("pointerdown", mac.first, 0, 1, undefined, { ctrlKey: true });
+  mac.send("pointerup", mac.first, 0, 0);
+  assert.deepEqual(mac.events, [
+    ["pointerdown", "li", 0, 1, 0, "PointerEvent"], ["mousedown", "li", 0, 1, 1, "MouseEvent"],
+    ["contextmenu", "li", 0, 1, 0, "PointerEvent"],
+    ["pointerup", "li", 0, 0, 0, "PointerEvent"], ["mouseup", "li", 0, 0, 1, "MouseEvent"],
+  ]);
+  for (const os of ["linux", "windows"]) {
+    const scene = pointerScene(os);
+    scene.send("pointerdown", scene.first, 0, 1, undefined, { ctrlKey: true });
+    scene.send("pointerup", scene.first, 0, 0, undefined, { ctrlKey: true });
+    assert.deepEqual(scene.events.map(([type]) => type), ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]);
+  }
 });
 
 test("auxclick fires for other non-primary buttons at the common ancestor and counts repeats", () => {
@@ -129,4 +146,57 @@ test("keyCode follows Chromium's virtual-key codes for each key value and positi
     } });
   }
   assert.deepEqual(seen, cases.map(([, , keyCode]) => [keyCode, keyCode, false]));
+});
+
+function keyScene(os) {
+  const document = bootstrapDocument(new Journal(), 1, 0, []);
+  const body = document.appendChild(document.createElement("html")).appendChild(document.createElement("body"));
+  const input = body.appendChild(document.createElement("input"));
+  input.focus();
+  const dispatch = installInput(document, { os, inputResult() {} });
+  const send = (key, code, modifiers = {}, type = "keydown") => dispatch({
+    id: 1, type, target: nodeId(input), related: 0, time: 1, cancelable: true, fields: {
+      key, code, location: 0, repeat: false, isComposing: false, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...modifiers,
+    },
+  });
+  return { input, send };
+}
+
+test("right Meta uses the native Chromium keyCode on macOS and Windows", () => {
+  for (const [os, rightCode] of [["macos", 93], ["windows", 92]]) {
+    const { input, send } = keyScene(os);
+    const codes = [];
+    input.addEventListener("keydown", event => codes.push(event.keyCode));
+    send("Meta", "MetaLeft", { metaKey: true });
+    send("Meta", "MetaRight", { metaKey: true });
+    assert.deepEqual(codes, [91, rightCode]);
+  }
+});
+
+test("macOS Option and Windows AltGr type the resolved character without inserting shortcut keys", () => {
+  for (const os of ["macos", "windows"]) {
+    const { input, send } = keyScene(os);
+    const events = [];
+    for (const type of ["keypress", "beforeinput", "input"]) {
+      input.addEventListener(type, event => events.push([type, event.key ?? event.data]));
+    }
+    const altGraph = { altKey: true, ctrlKey: true };
+    if (os === "windows") {
+      send("s", "KeyS", altGraph);
+      send("AltGraph", "AltRight");
+    }
+    send("€", "Digit2", os === "macos" ? { altKey: true } : altGraph);
+    if (os === "windows") {
+      send("AltGraph", "AltRight", {}, "keyup");
+    }
+    send("s", "KeyS", { ctrlKey: true });
+    send("s", "KeyS", { metaKey: true });
+    send("q", "KeyQ", { altKey: true, metaKey: true });
+    assert.equal(input.value, "€");
+    assert.deepEqual(events, [["keypress", "€"], ["beforeinput", "€"], ["input", "€"]]);
+  }
+  // Winit resolves Windows hardware AltGr text with Ctrl and Alt filtered out.
+  const { input, send } = keyScene("windows");
+  send("@", "KeyQ");
+  assert.equal(input.value, "@");
 });

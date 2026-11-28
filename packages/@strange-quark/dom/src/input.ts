@@ -58,12 +58,11 @@ class InputController {
   readonly pointers = new Map<number, Pointer>();
   #spaceChain: Element[] = [];
   #lastClick: ClickPress | null = null;
+  #altGraph = false;
 
-  // Chromium shows the context menu, and fires contextmenu, when the right
-  // button goes down, except on Windows, where it waits for the button to rise.
   readonly drag: DragController;
 
-  constructor(readonly document: Document, readonly contextMenuOnRelease: boolean, dragHost: DragHost) {
+  constructor(readonly document: Document, readonly os: string | undefined, dragHost: DragHost) {
     this.drag = new DragController(document, dragHost);
     onInputDetach(document, child => {
       const hover = this.chain("hover");
@@ -235,6 +234,8 @@ class InputController {
     const touch = fields.pointerType === "touch";
     const pressed = type === "pointerdown";
     const released = type === "pointerup" || type === "pointercancel";
+    const controlClick = this.os === "macos" && fields.pointerType === "mouse" &&
+      fields.button === 0 && fields.ctrlKey && !fields.altKey && !fields.metaKey;
     if (pressed) notePointerModality(this.document);
     pointer.buttons = fields.buttons;
     this.capture(pointer, fields, time);
@@ -247,12 +248,12 @@ class InputController {
     if (type !== "pointercancel") pointer.last = { x: fields.x, y: fields.y };
     if (pressed && fields.isPrimary && fields.pointerType === "mouse") {
       const press = this.beginClick(target, fields, time);
-      if (fields.button === 0) pointer.clickPress = press;
+      if (fields.button === 0) pointer.clickPress = controlClick ? null : press;
       else pointer.auxPress = press;
     }
     const press = fields.button === 0 ? pointer.clickPress : pointer.auxPress?.button === fields.button ? pointer.auxPress : null;
     const detail = fields.clickCount ?? press?.detail ?? 1;
-    if (pressed && fields.button === 0) {
+    if (pressed && fields.button === 0 && !controlClick) {
       pointer.down = target;
       this.active(pointer, target);
       if (touch) pointer.pendingCapture = target;
@@ -288,7 +289,7 @@ class InputController {
       const allowed = dispatchTrustedEvent(target, new MouseEvent("mousedown", { ...init, ...pointerEvents, detail,
         button: touch ? 0 : fields.button, buttons: touch ? 1 : fields.buttons,
       }), time);
-      if (allowed && fields.button === 0 && target.isConnected) {
+      if (allowed && fields.button === 0 && !controlClick && target.isConnected) {
         focusFromPointer(this.document, target, time);
         // A press on a draggable source arms a drag instead of a text selection.
         if (!touch && fields.isPrimary) this.drag.arm(target, fields.x, fields.y, id);
@@ -300,7 +301,11 @@ class InputController {
       }
       canceled ||= !allowed;
     }
-    if (pressed && !this.contextMenuOnRelease) canceled = this.contextMenu(target, disabled, fields, init, time) || canceled;
+    // Windows opens the context menu on release. macOS also recognizes a
+    // Control-primary press and keeps its original button and modifier fields.
+    if (pressed && this.os !== "windows" && (controlClick || fields.button === CONTEXT_MENU_BUTTON)) {
+      canceled = this.contextMenu(target, disabled, fields, init, time) || canceled;
+    }
     if (target !== null && type === "pointerup" && !disabled && mouse) {
       canceled = !dispatchTrustedEvent(target, new MouseEvent("mouseup", { ...init, ...pointerEvents, detail, button: fields.button }), time) || canceled;
     }
@@ -338,7 +343,9 @@ class InputController {
         }
       }
       if (type === "pointerup" && aux?.button === fields.button || type === "pointercancel") pointer.auxPress = null;
-      if (type === "pointerup" && this.contextMenuOnRelease) canceled = this.contextMenu(target, disabled, fields, init, time) || canceled;
+      if (type === "pointerup" && this.os === "windows" && fields.button === CONTEXT_MENU_BUTTON) {
+        canceled = this.contextMenu(target, disabled, fields, init, time) || canceled;
+      }
       pointer.down = null;
       pointer.clickPress = null;
       pointer.suppressMouse = false;
@@ -348,12 +355,12 @@ class InputController {
     return canceled;
   }
 
-  /** Fires contextmenu for a right button change; the mouse events a canceled pointerdown suppresses do not gate it. */
+  /** A canceled pointerdown suppresses compatibility mouse events but does not gate contextmenu. */
   contextMenu(target: Element | null, disabled: boolean, fields: PointerFields, init: ReturnType<typeof mouseInit>, time: number): boolean {
-    if (!target?.isConnected || disabled || !fields.isPrimary || fields.pointerType === "touch" || fields.button !== CONTEXT_MENU_BUTTON) {
+    if (!target?.isConnected || disabled || !fields.isPrimary || fields.pointerType === "touch") {
       return false;
     }
-    return !dispatchTrustedEvent(target, new PointerEvent("contextmenu", { ...init, ...pointerEvents, button: CONTEXT_MENU_BUTTON }), time);
+    return !dispatchTrustedEvent(target, new PointerEvent("contextmenu", { ...init, ...pointerEvents, button: fields.button }), time);
   }
 
   dispatch(message: InputMessage): boolean {
@@ -386,18 +393,27 @@ class InputController {
   keyboard(type: "keydown" | "keyup", fields: KeyFields, time: number): boolean {
     // Escape ends a drag before anything else sees the key, as in Chromium.
     if (type === "keydown" && fields.key === "Escape" && this.drag.cancel()) return true;
+    if (this.os === "windows" && fields.code === "AltRight") {
+      this.#altGraph = type === "keydown" && fields.key === "AltGraph";
+    }
     const target = focusedElement(this.document);
     const previousSpaceTarget = this.#spaceChain[0];
     if (type === "keyup" && fields.key === " ") this.setSpaceTarget(null);
     if (type === "keydown" && !fields.altKey && !fields.ctrlKey && !fields.metaKey &&
         !["Shift", "Control", "Alt", "Meta"].includes(fields.key)) noteKeyboardModality(this.document);
     const composing = fields.isComposing || isComposing(this.document);
-    const keyCode = legacyKeyCode(fields, composing);
+    const keyCode = legacyKeyCode(fields, composing, this.os);
     const init = { ...fields, isComposing: composing, ...pointerEvents, keyCode };
     const event = new KeyboardEvent(type, init);
     if (!dispatchTrustedEvent(target ?? this.document, event, time)) return true;
-    const charCode = fields.key === "Enter" ? 13 : [...fields.key].length === 1 ? fields.key.codePointAt(0)! : 0;
-    if (type === "keydown" && charCode !== 0 && !composing && !fields.altKey && !fields.ctrlKey && !fields.metaKey &&
+    const shortcut = fields.altKey || fields.ctrlKey || fields.metaKey;
+    // Winit's logical character includes Option on macOS. Its Windows
+    // backend filters out AltGr's synthetic Ctrl and Alt for hardware events.
+    const textModifier = fields.altKey && !fields.metaKey &&
+      (this.os === "macos" && !fields.ctrlKey || this.os === "windows" && this.#altGraph && fields.ctrlKey);
+    const text = !composing && (!shortcut || textModifier) && /^[^\p{Cc}]$/u.test(fields.key) ? fields.key : null;
+    const charCode = fields.key === "Enter" && !composing && !shortcut ? 13 : text?.codePointAt(0) ?? 0;
+    if (type === "keydown" && charCode !== 0 &&
         !dispatchTrustedEvent(target ?? this.document, new KeyboardEvent("keypress", { ...init, keyCode: charCode, charCode }), time)) return true;
     if (fields.key === " " && spaceActivates(target)) {
       if (type === "keydown" && !composing && !fields.altKey && !fields.ctrlKey && !fields.metaKey &&
@@ -406,7 +422,7 @@ class InputController {
       }
       if (type === "keyup" && target !== previousSpaceTarget) return false;
     }
-    return target !== null && keyboardDefault(this.document, target, event, time);
+    return target !== null && keyboardDefault(this.document, target, event, time, text);
   }
 
   setSpaceTarget(target: Element | null): void {
@@ -451,8 +467,12 @@ const punctuationCodes: Record<string, number> = {
   BracketLeft: 219, Backslash: 220, BracketRight: 221, Quote: 222, IntlBackslash: 226,
 };
 
-function legacyKeyCode({ key, code }: KeyFields, composing: boolean): number {
+function legacyKeyCode({ key, code }: KeyFields, composing: boolean, os: string | undefined): number {
   if (composing) return 229;
+  if (key === "Meta" && code === "MetaRight") {
+    if (os === "macos") return 93;
+    if (os === "windows") return 92;
+  }
   if (Object.hasOwn(keyCodes, key)) return keyCodes[key];
   const functionKey = /^F([1-9]|1[0-9]|2[0-4])$/.exec(key);
   if (functionKey !== null) return 111 + Number(functionKey[1]);
@@ -499,7 +519,7 @@ export function installInput(document: Document, host: {
   postTask?(callback: () => void): void;
 }) {
   const postTask = host.postTask?.bind(host) ?? ((callback: () => void) => void Promise.resolve().then(callback));
-  const controller = new InputController(document, host.os === "windows", { postTask });
+  const controller = new InputController(document, host.os, { postTask });
   controllers.set(document, controller);
   for (const [name, value] of Object.entries({ setPointerCapture, releasePointerCapture, hasPointerCapture })) {
     Object.defineProperty(Element.prototype, name, { value, configurable: true, writable: true });

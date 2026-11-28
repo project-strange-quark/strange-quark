@@ -2772,7 +2772,7 @@ export function editClipboardSelection(document: Document, target: Element, type
   editText(target, range, text, type, time);
 }
 
-function editControl(control: TextControl, key: string, time: number): boolean {
+function editControl(control: TextControl, key: string, time: number, text: string | null): boolean {
   const value = control.value;
   const { start, end } = selectionFor(control);
   let from = Math.min(start, value.length);
@@ -2796,8 +2796,8 @@ function editControl(control: TextControl, key: string, time: number): boolean {
       inputType = "insertLineBreak";
       break;
     default:
-      if ([...key].length !== 1) return false;
-      data = key;
+      if (text === null) return false;
+      data = text;
       inputType = "insertText";
   }
   if (data === null && from === to) return false;
@@ -2857,7 +2857,7 @@ export function spaceActivates(target: Element | null): target is HTMLElement {
     ["button", "submit", "reset", "radio", "checkbox"].includes(target.type);
 }
 
-export function keyboardDefault(document: Document, target: Element, key: KeyboardEvent, time: number): boolean {
+export function keyboardDefault(document: Document, target: Element, key: KeyboardEvent, time: number, text: string | null): boolean {
   if (key.type === "keydown" && key.key === "Escape" && !key.ctrlKey && !key.altKey && !key.metaKey) {
     const session = compositions.get(document);
     if (session !== undefined) inputComposition(document, nodeId(session.control), "end", "", null, time);
@@ -2892,21 +2892,22 @@ export function keyboardDefault(document: Document, target: Element, key: Keyboa
       return false;
     }
   }
-  if (key.isComposing || key.ctrlKey || key.altKey || key.metaKey) return false;
-  if (key.type === "keydown" && key.key === "Tab") {
+  const modifiers = key.ctrlKey || key.altKey || key.metaKey;
+  if (key.isComposing || modifiers && text === null) return false;
+  if (!modifiers && key.type === "keydown" && key.key === "Tab") {
     moveTabFocus(document, key.shiftKey, time);
     return false;
   }
   if (target !== focusedElement(document) || !target.isConnected || disabledControl(target)) return false;
-  if (key.type === "keydown" && key.key === "Enter" && target instanceof HTMLInputElement &&
+  if (!modifiers && key.type === "keydown" && key.key === "Enter" && target instanceof HTMLInputElement &&
       editableInputTypes.has(target.type)) {
     implicitSubmit(target, time);
-  } else if (spaceActivates(target) &&
+  } else if (!modifiers && spaceActivates(target) &&
       (key.type === "keydown" && key.key === "Enter" && !(target instanceof HTMLInputElement && ["radio", "checkbox"].includes(target.type)) ||
        key.type === "keyup" && key.key === " ")) {
     keyClick(target, time);
   } else if (key.type === "keydown" && textControl(target) && !target.readOnly) {
-    return editControl(target, key.key, time);
+    return editControl(target, key.key, time, text);
   }
   return false;
 }
