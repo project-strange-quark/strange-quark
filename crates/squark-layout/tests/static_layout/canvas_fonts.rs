@@ -993,6 +993,37 @@ fn system_ui_shapes_with_the_fontconfig_system_ui_family() {
 }
 
 #[test]
+#[cfg(target_os = "macos")]
+fn local_font_faces_select_one_font_from_a_macos_system_collection() {
+    let mut fixture = Fixture::new(
+        "@font-face { font-family: MacLocal; src: local('HelveticaNeue'); unicode-range: U+0000-007F; }",
+    );
+    let context = NodeId::from_raw(fixture.element(BODY, "div", &[]));
+    let pack = fixture.pack();
+    let (send, _updates) = resource_channel();
+    let mut engine =
+        StaticDocument::from_pack(&pack, "https://example.test/".parse().unwrap(), send).unwrap();
+    engine.update_layout(&input()).unwrap();
+    let text = units("iiiiWWWW");
+    let mut width = |css| {
+        engine
+            .measure_text(MeasureText {
+                font_environment: Some(context),
+                font_css: css,
+                text: &text,
+                direction: Direction::Ltr,
+                letter_spacing: 0.0,
+                word_spacing: 0.0,
+            })
+            .unwrap()
+            .width
+    };
+    let local = width("24px MacLocal, monospace");
+    assert_ne!(local, width("24px monospace"));
+    assert_eq!(local, width("24px 'Helvetica Neue', monospace"));
+}
+
+#[test]
 fn rewrites_canvas_filter_operations_without_dropping_later_commands() {
     let filter = |text: &str| {
         let value = units(text);

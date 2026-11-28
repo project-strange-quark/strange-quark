@@ -8,6 +8,7 @@ use std::ops::RangeInclusive;
 use std::sync::{Arc, OnceLock};
 
 use parley::{FontContext, fontique};
+use skrifa::{FontRef, raw::types::Tag};
 use squark_assets::Resources;
 use style::font_face::{Descriptors, Source};
 use url::Url;
@@ -100,7 +101,7 @@ pub(crate) fn register(
 /// or is a collection or a symbol font.
 fn restrict_cmap(data: &[u8], coverage: &[RangeInclusive<u32>]) -> Option<Vec<u8>> {
     use skrifa::MetadataProvider;
-    use skrifa::raw::{FileRef, types::Tag};
+    use skrifa::raw::FileRef;
     const CMAP: Tag = Tag::new(b"cmap");
     if crate::document_fonts::is_full(coverage) {
         return None;
@@ -147,26 +148,31 @@ fn restrict_cmap(data: &[u8], coverage: &[RangeInclusive<u32>]) -> Option<Vec<u8
             cmap.extend(value.to_be_bytes());
         }
     }
+    repack_font(&font, Some((CMAP, &cmap)))
+}
 
+/// Write one standalone sfnt, optionally substituting a table.
+fn repack_font(font: &FontRef<'_>, replacement: Option<(Tag, &[u8])>) -> Option<Vec<u8>> {
     let directory = &font.table_directory;
     let records = directory.table_records();
     let count = u16::try_from(records.len()).ok()?;
     let selector = 15 - count.max(1).leading_zeros() as u16;
     let range = 16_u16 << selector;
-    let mut out = Vec::with_capacity(data.len());
+    let mut offset = 12 + 16 * records.len();
+    let mut out = Vec::with_capacity(offset);
     out.extend(directory.sfnt_version().to_be_bytes());
     for word in [count, range, selector, count * 16 - range] {
         out.extend(word.to_be_bytes());
     }
-    let mut offset = 12 + 16 * records.len();
     let mut tables = Vec::with_capacity(records.len());
     for record in records {
         let tag = record.tag();
-        let (bytes, checksum) = if tag == CMAP {
-            (cmap.as_slice(), checksum(&cmap))
-        } else {
-            (font.table_data(tag)?.as_bytes(), record.checksum())
-        };
+        let (bytes, checksum) =
+            if let Some((_, data)) = replacement.filter(|(table, _)| *table == tag) {
+                (data, checksum(data))
+            } else {
+                (font.table_data(tag)?.as_bytes(), record.checksum())
+            };
         out.extend(tag.to_be_bytes());
         out.extend(checksum.to_be_bytes());
         out.extend(u32::try_from(offset).ok()?.to_be_bytes());
@@ -174,6 +180,7 @@ fn restrict_cmap(data: &[u8], coverage: &[RangeInclusive<u32>]) -> Option<Vec<u8
         offset += bytes.len().next_multiple_of(4);
         tables.push(bytes);
     }
+    out.reserve_exact(offset - out.len());
     for bytes in tables {
         out.extend(bytes);
         out.resize(out.len().next_multiple_of(4), 0);
@@ -356,9 +363,8 @@ impl WebFaces {
 
 /// An installed font whose full or PostScript name is `name`, as `local()`
 /// matches it. Only families whose name begins the requested one are read,
-/// which holds for the names fonts give themselves. A font inside a
-/// collection file is skipped: its family alias would cover every font in
-/// the file.
+/// which holds for the names fonts give themselves. Extract a selected
+/// collection face before aliasing it so the alias covers only that face.
 pub(crate) fn installed(context: &mut FontContext, name: &str) -> Option<fontique::Blob<u8>> {
     use skrifa::{MetadataProvider, raw::FileRef, string::StringId};
     let wanted = name.trim().to_lowercase();
@@ -387,14 +393,25 @@ pub(crate) fn installed(context: &mut FontContext, name: &str) -> Option<fontiqu
             let Some(blob) = font.load(Some(&mut context.source_cache)) else {
                 continue;
             };
-            let Ok(FileRef::Font(file)) = FileRef::new(blob.data()) else {
-                continue;
+            let (file, collection_face) = match FileRef::new(blob.data()) {
+                Ok(FileRef::Font(file)) => (file, false),
+                Ok(FileRef::Collection(collection)) => {
+                    let Ok(file) = collection.get(font.index()) else {
+                        continue;
+                    };
+                    (file, true)
+                }
+                Err(_) => continue,
             };
             let matches = [StringId::FULL_NAME, StringId::POSTSCRIPT_NAME]
                 .into_iter()
                 .flat_map(|id| file.localized_strings(id))
                 .any(|string| string.chars().collect::<String>().to_lowercase() == wanted);
             if matches {
+                if collection_face {
+                    return repack_font(&file, None)
+                        .map(|data| fontique::Blob::new(Arc::new(data)));
+                }
                 return Some(blob);
             }
         }
