@@ -11,7 +11,7 @@
 
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     process::Command,
 };
 
@@ -315,7 +315,12 @@ pub fn build_native_runtime(
 /// installed in the project's (or an ancestor's) node_modules.
 fn prelude_file(project_dir: &Path, file: &str) -> Result<PathBuf, CliError> {
     let path = Path::new(file);
-    if path.is_absolute() || file.starts_with("./") || file.starts_with("../") {
+    if path.is_absolute()
+        || matches!(
+            path.components().next(),
+            Some(Component::CurDir | Component::ParentDir)
+        )
+    {
         return Ok(resolve_path(project_dir, path));
     }
     project_dir
@@ -451,6 +456,28 @@ mod tests {
             globals: serde_json::Map::new(),
         };
         assert!(preludes(&project, &[missing]).is_err());
+    }
+
+    #[test]
+    fn preludes_accept_explicit_relative_paths_with_native_separators() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().join("app");
+        fs::create_dir(&project).unwrap();
+        fs::write(project.join("local.js"), "/*local*/").unwrap();
+        fs::write(dir.path().join("shared.js"), "/*shared*/").unwrap();
+        let files = if cfg!(windows) {
+            [r".\local.js", r"..\shared.js"]
+        } else {
+            ["./local.js", "../shared.js"]
+        };
+        let entries = files.map(|file| RawPrelude {
+            file: file.into(),
+            globals: serde_json::Map::new(),
+        });
+        let prelude = preludes(&project, &entries).unwrap().unwrap();
+        let text = String::from_utf8(prelude.source).unwrap();
+        assert!(text.contains("/*local*/"));
+        assert!(text.contains("/*shared*/"));
     }
 }
 
